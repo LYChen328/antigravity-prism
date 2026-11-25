@@ -1632,6 +1632,7 @@ uniform float uSurge;
 uniform float uSpeed;
 uniform float uSpectrum;
 uniform float uSemantic;
+uniform float uDots;
 out vec4 outColor;
 
 float hash(vec2 p) {
@@ -1864,7 +1865,7 @@ field *= topFeather;
 dotBoost *= topFeather;
 float band = smoothstep(0.3, 0.55, field) * (1.0 - smoothstep(0.7, 0.98, field));
 float dotMsk = clamp(band * 0.8 * smoothstep(0.12, 0.32, -jut) + dotBoost, 0.0, 1.0);
-float dA = halftone(px, res, uv.y, t, 7.0, dotMsk);
+float dA = uDots > 0.01 ? halftone(px, res, uv.y, t, 7.0, dotMsk) * uDots : 0.0;
 float grain = hash(px + fract(t * 7.0) * 91.0) - 0.5;
 vec3 c;
 vec3 dc;
@@ -1946,7 +1947,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
         throw new Error(gl.getProgramInfoLog(program) || 'glow program link error');
       }
       gl.useProgram(program);
-      for (const name of ['uRes', 'uDpr', 'uTime', 'uDark', 'uReach', 'uIntensity', 'uStretch', 'uPresence', 'uPrism', 'uSurge', 'uSpeed', 'uSpectrum', 'uSemantic']) {
+      for (const name of ['uRes', 'uDpr', 'uTime', 'uDark', 'uReach', 'uIntensity', 'uStretch', 'uPresence', 'uPrism', 'uSurge', 'uSpeed', 'uSpectrum', 'uSemantic', 'uDots']) {
         u[name] = gl.getUniformLocation(program, name);
       }
     }
@@ -1964,7 +1965,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
       },
-      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0) {
+      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0, showDots = 1) {
         gl.viewport(0, 0, w, h);
         gl.useProgram(program);
         gl.uniform2f(u.uRes, w, h);
@@ -1980,6 +1981,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
         gl.uniform1f(u.uSpeed, speed);
         if (u.uSpectrum) gl.uniform1f(u.uSpectrum, spectrumCode);
         if (u.uSemantic) gl.uniform1f(u.uSemantic, semanticCode);
+        if (u.uDots) gl.uniform1f(u.uDots, resolveDotMix(showDots));
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -2069,8 +2071,9 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
           ctx.putImageData(image, 0, 0);
         }
       },
-      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0) {
+      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0, showDots = 1) {
         if (!w || !h) return;
+        const dotMix = resolveDotMix(showDots);
         ensureImage(w, h);
         pixels.fill(0);
         const rEff = Math.max(0.01, reach);
@@ -2209,19 +2212,26 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
               }
             }
             if (dark ? field < 0.008 : field * effPresL < 0.008) continue;
-            const gx = (cssX - cssW * 0.5) * persp;
-            const gy = gyBase + 10 * Math.sin(gx * 0.007 + timeSec * 0.42) - timeSec * 1.4;
-            const cellX = gx / 7 - Math.floor(gx / 7) - 0.5;
-            const cellY = gy / 7 - Math.floor(gy / 7) - 0.5;
-            const dist = Math.sqrt(cellX * cellX + cellY * cellY);
-            const band = Math.min(1, smooth((field - 0.25) / 0.25) * (1 - smooth((field - 0.72) / 0.26)) + dotBoost);
             let fillA;
-            let dotA;
+            let dotA = 0;
+            if (dotMix > 0.01) {
+              const gx = (cssX - cssW * 0.5) * persp;
+              const gy = gyBase + 10 * Math.sin(gx * 0.007 + timeSec * 0.42) - timeSec * 1.4;
+              const cellX = gx / 7 - Math.floor(gx / 7) - 0.5;
+              const cellY = gy / 7 - Math.floor(gy / 7) - 0.5;
+              const dist = Math.sqrt(cellX * cellX + cellY * cellY);
+              const band = Math.min(1, smooth((field - 0.25) / 0.25) * (1 - smooth((field - 0.72) / 0.26)) + dotBoost);
+              if (dark) {
+                dotA = (dist < 0.26 ? (1 - smooth((dist - 0.12) / 0.14)) * band * 0.65 : 0) * dotMix;
+              } else {
+                const tmpFillA = Math.min(0.84, field * 0.66 * washGainL * effPresL);
+                dotA = (dist < 0.24 ? Math.min(0.88, (1 - smooth((dist - 0.14) / 0.1)) * band * (0.52 + 0.44 * Math.sqrt(tmpFillA)) * effPresL) : 0) * dotMix;
+              }
+            }
             let R;
             let G;
             let B;
             if (dark) {
-              dotA = dist < 0.26 ? (1 - smooth((dist - 0.12) / 0.14)) * band * 0.65 : 0;
               fillA = field * 0.48;
               const dLift = spectrumCode === 5 ? 36 : 56;
               R = Math.round(Math.min(255, Math.max(0, baseR + dotA * (spectrumCode === 5 ? 36 : 72)))) & 255;
@@ -2229,7 +2239,6 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
               B = Math.round(Math.min(255, Math.max(0, baseB + dotA * (spectrumCode === 5 ? 38 : 24)))) & 255;
             } else {
               fillA = Math.min(0.84, field * 0.66 * washGainL * effPresL);
-              dotA = dist < 0.24 ? Math.min(0.88, (1 - smooth((dist - 0.14) / 0.1)) * band * (0.52 + 0.44 * Math.sqrt(fillA)) * effPresL) : 0;
               const hotL = 0.24 * smooth((field - 0.65) / 0.35);
               const ancR = customMode ? baseR * 0.85 : 46;
               const ancG = customMode ? baseG * 0.85 : 92;
@@ -2273,6 +2282,12 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
     return n <= 0 ? 0 : n > 1 ? Math.max(0, Math.min(1, n / 100)) : Math.max(0, Math.min(1, n));
   }
 
+  function resolveDotMix(v) {
+    if (v === false) return 0;
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, Math.min(1, v));
+    return 1;
+  }
+
   function mountBrandHorizonGlow(canvas, options = {}) {
     if (!canvas) {
       return {
@@ -2292,6 +2307,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
       };
     }
     const force2D = Boolean(options.force2D) || (typeof globalThis !== 'undefined' && globalThis.__agRippleForce2D === true);
+    const dotMix = resolveDotMix(options.halftone);
     const renderer = (force2D ? null : createBrandHorizonGLRenderer(canvas)) || createBrandHorizon2DRenderer(canvas);
     let cssW = Math.max(0, Number(options.width || canvas.clientWidth || 0));
     let cssH = Math.max(0, Number(options.height || canvas.clientHeight || 0));
@@ -2531,7 +2547,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
       const intensity = isDefaultHome ? breath * (0.2 + 0.8 * strength) : breath * (0.55 + 0.45 * strength);
       const strengthGain = strength <= 0 ? 0 : (strength >= 0.999 ? 1 : Math.pow(strength, 0.78));
       const presence = basePresence * strengthGain;
-      renderer.draw(canvas.width, canvas.height, dpr, 12 + flowSec, dark, intensity, presence, reach, prism, surge, speed, spectrumCode, effSem);
+      renderer.draw(canvas.width, canvas.height, dpr, 12 + flowSec, dark, intensity, presence, reach, prism, surge, speed, spectrumCode, effSem, dotMix);
       clearedZero = false;
       lastDrawMs = nowMs;
       lastDark = dark;

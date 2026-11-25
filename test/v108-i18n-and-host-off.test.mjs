@@ -1135,3 +1135,96 @@ test('Pre-release hardening: Ch1->Ch9 brand-mark slimming, Mascot cleanup select
     'effort-slider _isL3/_sySubs must detect v2.35.1 orchestrator-picker-effort nodes'
   );
 });
+
+test('Daemon Channel 9 hot-upgrade delivers settingsExpr on settingsPanelCodeHash mismatch and stays lazy otherwise', async () => {
+  const { PrismDaemon } = await import('../sidecars/daemon/main.mjs');
+  const expectedExpr = '(() => { const targetHash = "newSettingsHash99"; return { ok: true, codeHash: targetHash }; })()';
+  let buildSettingsCalls = 0;
+  const mockDaemon = new PrismDaemon({ rootDir: ROOT });
+  mockDaemon.codeHash = 'ch1NewHash';
+  mockDaemon.injectExpr = '(() => ({ status: "ok" }))()';
+  mockDaemon.cdp = {
+    ...cdp,
+    readConfig: () => ({ ...cdp.DEFAULT_CONFIG, mascot: 'off', periodicModelPicker: 'off', omniModule: 'off', sidebarStudio: 'off', hostLocalization: 'off', thoughtTranslate: 'off' }),
+    buildSettingsChannelExpression: () => {
+      buildSettingsCalls += 1;
+      return expectedExpr;
+    },
+    buildPeriodicPickerExpression: () => '',
+    buildMascotChannelExpression: () => '',
+    buildThoughtExpression: () => '',
+    buildInlineDiffInjectExpression: () => '',
+    buildWallpaperExpression: () => '',
+    buildSuggesterExpression: () => '',
+  };
+
+  // 1) Neither dialog open nor cached panel present -> MUST keep Channel 9 lazy (0 build calls)
+  const sentMethods = [];
+  const createEntry = (wsUrl, probeFactory) => ({
+    wsUrl,
+    title: 'Antigravity',
+    url: 'vscode-file://vscode-app/index.html',
+    mainFrameId: 'f1',
+    scriptId: 's1',
+    healthyStreak: 0,
+    lastVerifyAt: 0,
+    verifyDirty: false,
+    session: {
+      closed: false,
+      async evaluate(expr) {
+        if (expr.includes('hasSettingsPanel')) return probeFactory();
+        return { status: 'ok' };
+      },
+      async send(method, params) {
+        sentMethods.push({ method, params });
+        if (method === 'Runtime.evaluate') return { result: { value: { ok: true } } };
+        return {};
+      },
+    },
+  });
+
+  await mockDaemon._verifyAndHealEntryUnlocked(
+    createEntry('ws://1', () => ({
+      ready: true,
+      isHostDom: true,
+      hasPrism: true,
+      hasRepoBridge: true,
+      hasThoughtBridge: true,
+      hasUsageBridge: true,
+      prismAttr: cdp.PLUGIN_VERSION,
+      codeHash: 'ch1NewHash',
+      hasSettingsDialog: false,
+      hasSettingsPanel: false,
+      settingsPanelCodeHash: '',
+      needsSettingsChannel: false,
+    })),
+    true
+  );
+  assert.equal(buildSettingsCalls, 0, 'Channel 9 must stay lazy when Settings dialog is closed and no panel was loaded');
+  assert.equal(sentMethods.some((c) => c.method === 'Runtime.evaluate' && c.params?.expression === expectedExpr), false);
+
+  // 2) Channel 1 hot-heals AND cached __agPrismSettingsPanel has stale hash -> MUST upgrade Channel 9 in the same tick!
+  sentMethods.length = 0;
+  const staleEntry = createEntry('ws://2', () => ({
+    ready: true,
+    isHostDom: true,
+    hasPrism: true,
+    hasRepoBridge: true,
+    hasThoughtBridge: true,
+    hasUsageBridge: true,
+    prismAttr: cdp.PLUGIN_VERSION,
+    codeHash: 'ch1OldHash',
+    hasSettingsDialog: false,
+    hasSettingsPanel: true,
+    settingsPanelCodeHash: 'oldSettingsHash00',
+    needsSettingsChannel: false,
+  }));
+  await mockDaemon._verifyAndHealEntryUnlocked(staleEntry, true);
+  assert.equal(buildSettingsCalls, 1, 'Expected Channel 9 build when stale settings panel exists in live window');
+  assert.equal(
+    sentMethods.some((c) => c.method === 'Runtime.evaluate' && c.params?.expression === expectedExpr),
+    true,
+    'Hot-heal tick must re-deliver Channel 9 when cached settingsPanelCodeHash is stale'
+  );
+  assert.equal(staleEntry.settingsChannelDelivered, true);
+});

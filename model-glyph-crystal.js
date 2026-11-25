@@ -271,7 +271,7 @@
     };
 
     const buildPanelRowGlyphSvg = (brand, tier, isSelected, isMono = false) => {
-      if (brand === 'antigravity') {
+      if (brand === 'antigravity' || brand === 'gemini') {
         return renderSparkSvg(15, isSelected ? tier || 'auto' : 'low', !isSelected || isMono, 'ag-cs-model-glyph-svg');
       }
       const fillAttr = isSelected && !isMono

@@ -49,6 +49,8 @@ const DEFAULT_CONFIG = {
   ripple: 'on',
   composerRestyle: true,
   composer: 'on',
+  prismRim: true,
+  prismRimStyle: 'prism',
   placeholderStyle: 'studio',
   promptStyle: 'studio',
   mascot: 'crab',
@@ -95,10 +97,12 @@ const VALIDATORS = {
   ripple: ['on', 'off'],
   composerRestyle: 'boolean',
   composer: ['on', 'off'],
+  prismRim: 'boolean',
+  prismRimStyle: ['prism', 'simple'],
   placeholderStyle: ['studio', 'host'],
   promptStyle: ['studio', 'host'],
   mascot: ['crab', 'minis', 'quad', 'quad-minis', 'dual', 'off'],
-  logoInk: ['accent', 'foreground'],
+  logoInk: ['accent', 'foreground', 'antigravity'],
   sidebarRestyle: 'boolean',
   sidebar: ['on', 'off'],
   sidebarCompact: 'boolean',
@@ -244,6 +248,9 @@ function reconcileConfigAliases(raw) {
   }
   if (has('contextMenu') && typeof out.contextMenu === 'string') {
     out.contextMenu = out.contextMenu !== 'off' && out.contextMenu !== 'false';
+  }
+  if (has('prismRim') && typeof out.prismRim === 'string') {
+    out.prismRim = out.prismRim !== 'off' && out.prismRim !== 'false';
   }
   if (has('codeLigatures') && typeof out.codeLigatures === 'string') {
     out.codeLigatures = out.codeLigatures === 'on' || out.codeLigatures === 'true';
@@ -3200,7 +3207,8 @@ function packLzssJsExpr(text, protectFirstList = []) {
   const tokStart = bestStart;
   const tokEnd = bestStart + bestLen;
   const BASE = LZSS_SAFE_ASCII.length; // 89
-  const shortSlots = Math.floor(bestLen * 0.72);
+  const maxLongNeeded = Math.ceil((Math.min(65535, n) * 128) / (BASE * BASE));
+  const shortSlots = Math.min(Math.floor(bestLen * 0.85), Math.max(Math.floor(bestLen * 0.44), bestLen - maxLongNeeded));
   const longBase = tokStart + shortSlots;
   const longSlots = bestLen - shortSlots;
   const shortMaxDist = Math.floor((shortSlots * BASE) / 24);
@@ -6725,8 +6733,16 @@ function compileUnifiedBundle() {
   }
   poolCandidates.sort((a, b) => b.sortScore - a.sortScore || b.totalOccs - a.totalOccs);
   const chosenPool = poolCandidates.slice(0, MAX_SHARED_POOL);
-  // Assign 2-byte UTF-8 index slots (0..1791) to entries referenced by the most modules!
+  // Assign 1-byte ASCII slots to top-frequency items; group equal-byte-cost UTF-8 buckets lexicographically to boost LZSS compression
   chosenPool.sort((a, b) => b.moduleHits - a.moduleHits || b.totalOccs - a.totalOccs || b.sortScore - a.sortScore);
+  const cmpPoolStr = (a, b) => (a.strVal < b.strVal ? -1 : a.strVal > b.strVal ? 1 : 0);
+  if (chosenPool.length > 88) {
+    const midEnd = Math.min(chosenPool.length, 1975);
+    chosenPool.splice(88, midEnd - 88, ...chosenPool.slice(88, midEnd).sort(cmpPoolStr));
+    if (chosenPool.length > 1975) {
+      chosenPool.splice(1975, chosenPool.length - 1975, ...chosenPool.slice(1975).sort(cmpPoolStr));
+    }
+  }
 
   const sharedPoolList = chosenPool.map((x) => x.strVal);
   const poolIndexMap = new Map();
@@ -11007,6 +11023,7 @@ const REMOVE_EXPRESSION = `(() => {
       'data-ag-prism-thought-owner',
       'data-ag-cs-home',
       'data-ag-cs-composer',
+      'data-ag-cs-rim',
       'data-ag-cs-logo-ink',
       'data-ag-cs-sidebar',
       'data-ag-cs-sidebar-compact',

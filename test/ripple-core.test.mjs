@@ -1233,7 +1233,7 @@ test('Wave 1 Optics: HORIZON_FRAGMENT_SHADER & mountBrandHorizonGlow support War
   glow.dispose();
 });
 
-test('Wave 1 ConvAura: Split-Rate 300Hz VSync (~30fps running cap, 1200ms idle sleep) & 3-State 0fps Semantic Afterglow Engine', () => {
+test('Wave 1 ConvAura: Slow living idle flow + intensified running optics + Split-Rate 300Hz VSync & 3-State 0fps Semantic Afterglow Engine', () => {
   require('../conv-aura.js');
   const convAuraMod = globalThis.__agPrismConvAura;
   assert.ok(convAuraMod);
@@ -1416,7 +1416,7 @@ test('Wave 1 ConvAura: Split-Rate 300Hz VSync (~30fps running cap, 1200ms idle s
       runGuardedMut(fn) { return fn(); },
     });
 
-    // 1) Mounts in idle -> settles to true 0fps after 1200ms (and ignores redundant sync() calls while settled!)
+    // 1) Mounts in idle -> keeps slowly flowing past 1200ms at lightweight speed/strength/reach (never freezing!)
     ctl.sync();
     const inst = ctl.getInstance();
     assert.ok(inst);
@@ -1424,24 +1424,26 @@ test('Wave 1 ConvAura: Split-Rate 300Hz VSync (~30fps running cap, 1200ms idle s
     assert.equal(inst.sleeping, false);
 
     advanceSimulated300Hz(1300);
-    assert.equal(inst.sleeping, true, 'Idle aura must enter 0fps sleep after 1200ms');
-    assert.equal(inst.host.getAttribute('data-aura-sleep'), '1');
-    assert.equal(rafQueue.size, 0);
-    assert.equal(timerQueue.size, 0);
+    assert.equal(inst.sleeping, false, 'Idle aura must keep slowly flowing past 1200ms when active-motion & visible');
+    assert.equal(inst.host.hasAttribute('data-aura-sleep'), false);
+    const drawsAt1300 = gpuDraws;
+    const idleOptics = { ...inst.lastOptics };
+    advanceSimulated300Hz(1000);
+    const idleDrawsIn1s = gpuDraws - drawsAt1300;
+    assert.ok(idleDrawsIn1s >= 10 && idleDrawsIn1s <= 20, `Idle slow flow must run calmly around ~15fps (10..20 draws/s), got ${idleDrawsIn1s}`);
 
-    const drawsAtIdleSleep = gpuDraws;
-    for (let i = 0; i < 8; i++) {
-      nowMs += 50;
-      ctl.sync();
-    }
-    assert.equal(gpuDraws, drawsAtIdleSleep, 'Redundant sync() must NOT wake settled 0fps idle aura');
-
-    // 2) Split-Rate 300Hz running throttle: during 1000ms steady running on a 300Hz monitor, draws <= 36 frames (~30fps instead of 300fps!)
+    // 2) Running phase intensifies optics & Split-Rate 300Hz caps steady running around ~30fps
     runningDomActive = true;
     ctl.sync();
     assert.equal(inst.phase, 'start');
     advanceSimulated300Hz(1200); // finish 1150ms start surge -> enters steady 'running'
     assert.equal(inst.phase, 'running');
+    const runOptics = inst.lastOptics;
+    assert.ok(runOptics.strength > idleOptics.strength * 1.6, `Running strength (${runOptics.strength}) must intensify over idle (${idleOptics.strength})`);
+    assert.ok(runOptics.speed > idleOptics.speed * 3, `Running flow speed (${runOptics.speed}) must intensify over idle (${idleOptics.speed})`);
+    assert.ok(runOptics.prism > idleOptics.prism * 3, `Running prism (${runOptics.prism}) must intensify over idle (${idleOptics.prism})`);
+    assert.ok(runOptics.reach > idleOptics.reach, `Running reach (${runOptics.reach}) must expand over idle (${idleOptics.reach})`);
+    assert.ok(runOptics.surge > 0 && idleOptics.surge === 0, 'Running must add active wave surge over zero-surge idle');
 
     const drawsBefore1sRun = gpuDraws;
     advanceSimulated300Hz(1000); // 300 VSync ticks on 300Hz screen!
@@ -1468,14 +1470,14 @@ test('Wave 1 ConvAura: Split-Rate 300Hz VSync (~30fps running cap, 1200ms idle s
     advanceSimulated300Hz(3000);
     assert.equal(gpuDraws, drawsDuringUnfocusedHold, '0 extra frames while holding unfocused completion afterglow');
 
-    // User moves pointer back into window -> fades out over 600ms and sleeps at 0fps
+    // User moves pointer back into window -> fades out over 600ms and resumes gentle idle flow
     windowFocused = true;
     const returnFn = winListeners.get('pointermove') || winListeners.get('focus');
     assert.ok(returnFn, 'Expected one-shot focus/pointermove wake listener');
     returnFn();
     advanceSimulated300Hz(700);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, true);
+    assert.equal(inst.sleeping, false);
 
     // 4) awaiting-decision (ask_question takeover card) -> 1.6s warm amber breath then freezes at 0fps static snapshot!
     decisionDomActive = true;
@@ -1496,23 +1498,23 @@ test('Wave 1 ConvAura: Split-Rate 300Hz VSync (~30fps running cap, 1200ms idle s
     ctl.sync();
     assert.equal(gpuDraws, drawsWhileWaitingUser, 'Must draw 0 extra frames while user deliberates on ask_question');
 
-    // User answers ask_question -> clears cleanly back to 0fps
+    // User answers ask_question -> clears amber hold and resumes gentle idle flow
     decisionDomActive = false;
     nowMs += 250;
     ctl.sync();
     advanceSimulated300Hz(1700);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, true);
+    assert.equal(inst.sleeping, false);
 
-    // 5) error-halted -> 900ms muted coral inward convergence then clears to 0fps!
+    // 5) error-halted -> 900ms muted coral inward convergence then clears error overlay before resuming idle flow!
     const clearsBeforeErr = clearCount;
     ctl.triggerErrorHalted(nowMs);
     assert.equal(inst.phase, 'error-halted');
     assert.equal(lastSemanticSeen, 'error-halted');
     advanceSimulated300Hz(960);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, true);
-    assert.ok(clearCount > clearsBeforeErr, 'error-halted must clear canvas to zero before 0fps sleep');
+    assert.equal(inst.sleeping, false);
+    assert.ok(clearCount > clearsBeforeErr, 'error-halted must clear coral overlay when returning to idle');
 
     // 6) setAmbientIntensity(0) immediately clears and sleeps at 0fps
     ctl.setAmbientIntensity(0);

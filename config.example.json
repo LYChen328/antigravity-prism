@@ -17,6 +17,8 @@
   "ripple": "on",
   "composerRestyle": true,
   "composer": "on",
+  "prismRim": true,
+  "prismRimStyle": "prism",
   "placeholderStyle": "studio",
   "promptStyle": "studio",
   "mascot": "crab",

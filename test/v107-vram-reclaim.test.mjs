@@ -646,18 +646,17 @@ test('A1 conv-aura: document.hidden true->false releases & restores backing stor
   assert.equal(glowDraws, drawsHidden + 1, 'Must immediately paint first frame on visibility restore');
   assert.ok(env.timers.size >= 1, 'Running aura must resume frame scheduler on restore');
 
-  // Settled 0fps idle aura: hide -> 0x0, show -> restores backing store, draws 1 static snapshot, and returns to 0fps sleep
+  // Flowing idle aura: advance past complete fade -> hide -> 0x0, show -> restores backing store & continues flowing
   running = false;
   stopBtn.isConnected = false;
   env.now += 2000;
   ctl.sync();
-  for (let i = 0; i < 6 && (env.timers.size > 0 || env.rafs.size > 0); i++) {
-    env.advanceTimers(1500);
+  for (let i = 0; i < 4 && inst.phase !== 'idle'; i++) {
+    env.advanceTimers(1000);
     env.flushRafs(16);
   }
   assert.equal(inst.phase, 'idle');
-  assert.equal(inst.sleeping, true);
-  assert.equal(env.timers.size, 0);
+  assert.equal(inst.sleeping, false);
 
   fakeDoc.hidden = true;
   docBus.dispatch('visibilitychange');
@@ -670,14 +669,14 @@ test('A1 conv-aura: document.hidden true->false releases & restores backing stor
   seat.clientHeight = 0;
   convView.clientWidth = 0;
   convView.clientHeight = 0;
-  const snapsBeforeIdleRestore = glowSnaps;
+  const drawsBeforeIdleRestore = glowDraws;
   fakeDoc.hidden = false;
   docBus.dispatch('visibilitychange');
   assert.equal(inst.backingReleased, false);
   assert.ok(cv.width > 0 && cv.height > 0, 'Must restore backing store via logical dimensions fallback');
-  assert.equal(glowSnaps, snapsBeforeIdleRestore + 1, 'Settled idle must repaint 1 static snapshot after restore');
-  assert.equal(inst.sleeping, true, 'Settled idle must remain 0fps sleep after repainting snapshot');
-  assert.equal(env.timers.size, 0);
+  assert.equal(glowDraws, drawsBeforeIdleRestore + 1, 'Flowing idle must repaint immediately after restore');
+  assert.equal(inst.sleeping, false, 'Active-motion idle must resume gentle living flow on visibility restore');
+  assert.equal(env.timers.size, 1);
 
   // Unmount cleans up listeners, observers, timers, and rAFs
   ctl.unmount();

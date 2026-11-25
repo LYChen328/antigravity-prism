@@ -1565,12 +1565,15 @@
     const syncLensOverlayOrigins = (measuredOverlays) => {
       const d = docOf();
       if (!d) return;
+      const rimOn = ga(d.documentElement, 'data-ag-cs-rim') !== 'off';
       for (const el of qsa(d, '[data-testid="overview-panel"]')) {
         const p = peOf(el);
         if (p && tagOf(p) === 'DIV') {
           setAttrIfChanged(p, 'data-ag-cs-overview-shell', '1');
-          setAttrIfChanged(p, 'data-ag-cs-prism-box', '1');
-          setAttrIfChanged(p, 'data-ag-cs-prism-mirror', '1');
+          for (const a of ['data-ag-cs-prism-box', 'data-ag-cs-prism-mirror']) {
+            if (rimOn) setAttrIfChanged(p, a, '1');
+            else if (ha(p, a)) ra(p, a);
+          }
         }
       }
       if (!isMotionStandardOrUltra()) return;

@@ -525,7 +525,7 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
         .map((b) => b.getAttribute('data-ag-cs-key'))
         .filter(Boolean)
     );
-    assert.equal(settingKeys.size, 35);
+    assert.equal(settingKeys.size, 37);
     for (const expectedKey of [
       'palette',
       'lightPreset',
@@ -540,6 +540,8 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
       'effortMemory',
       'periodicModelPicker',
       'composerRestyle',
+      'prismRim',
+      'prismRimStyle',
       'placeholderStyle',
       'smoothCaret',
       'contextMenu',
@@ -2954,9 +2956,9 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     assert.equal(stIdle.convAuraPhase, 'idle');
     assert.equal(stIdle.convAuraSleeping, false, 'Expected convAuraSleeping === false in ultra idle living flow');
     assert.equal(stIdle.convAuraCanvasSize.height, Math.round(750 * 0.32), 'Canvas height must be 32% of parent (68% pixel savings)');
-    assert.equal(stIdle.convAuraOptics.frameMs, 110, 'Idle living flow runs at low-power 110ms (~9fps)');
-    assert.equal(stIdle.convAuraOptics.speed, 0.72, 'Idle living flow speed must be 0.72');
-    assert.ok(Math.abs(stIdle.convAuraOptics.strength - 0.52) < 0.05, 'Daylight idle aura base strength must breathe around 0.52');
+    assert.equal(stIdle.convAuraOptics.frameMs, 64, 'Idle slow living flow runs at lightweight 64ms (~15fps)');
+    assert.equal(stIdle.convAuraOptics.speed, 0.42, 'Idle slow living flow speed must be 0.42');
+    assert.ok(Math.abs(stIdle.convAuraOptics.strength - 0.44) < 0.05, 'Daylight idle aura base strength must breathe calmly around 0.44');
     const drawsAtMount = stIdle.convAuraDrawCount;
     assert.ok(drawsAtMount >= 1);
 
@@ -3028,8 +3030,8 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     const stRunning = sandbox.window.__agPrism.getState();
     assert.equal(stRunning.convAuraPhase, 'running');
     assert.equal(stRunning.convAuraOptics.frameMs, 32);
-    assert.equal(stRunning.convAuraOptics.speed, 1.45);
-    assert.equal(stRunning.convAuraOptics.prism, 0.7);
+    assert.equal(stRunning.convAuraOptics.speed, 1.75);
+    assert.equal(stRunning.convAuraOptics.prism, 0.88);
     const rootObs = activeObservers.find((o) => o.target === html);
     const streamObs = activeObservers.find((o) => o.target === convView);
     assert.ok(rootObs && streamObs, 'Expected root and stream MutationObservers');

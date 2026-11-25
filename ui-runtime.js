@@ -148,10 +148,12 @@
       out[sKey] = on ? 'on' : 'off';
     }
     out.placeholderStyle = out.promptStyle = (out.placeholderStyle ?? out.promptStyle) === 'host' ? 'host' : 'studio';
+    out.prismRimStyle = out.prismRimStyle === 'simple' ? 'simple' : 'prism';
+    out.logoInk = pickOf(out.logoInk, 'foreground|antigravity', 'accent');
     out.mascot = out.mascot === 'off' || out.mascot === false ? 'off' : /^(minis|quad(-minis)?|r:[ckdw0-4,+m]+)$/.test(out.mascot) ? out.mascot : 'crab';
     for (const k of ['sidebarCompact', 'codeLigatures', 'autoArchiveOnExit']) out[k] = out[k] === true || out[k] === 'on';
     for (const k of ['sidebarNavFold', 'sidebarStudio', 'autoUpdate']) out[k] = out[k] === 'on' || out[k] === true ? 'on' : 'off';
-    for (const k of ['smoothCaret', 'contextMenu']) out[k] = out[k] === undefined ? true : out[k] !== false && out[k] !== 'off';
+    for (const k of ['smoothCaret', 'contextMenu', 'prismRim']) out[k] = out[k] === undefined ? true : out[k] !== false && out[k] !== 'off';
     out.accentTone = pickOf(out.accentTone, 'follow|cobalt|iris|amber|mono', 'follow');
     out.cornerStyle = pickOf(out.cornerStyle, 'sharp|balanced|soft', 'balanced');
     out.scrollBottomMotion = out.scrollBottomMotion === 'instant' ? 'instant' : 'smooth';
@@ -195,7 +197,7 @@
     for (const k of ['sidebarCompact', 'codeLigatures', 'autoArchiveOnExit']) {
       if (k in patch && typeof patch[k] === 'string') patch[k] = patch[k] === 'on' || patch[k] === 'true';
     }
-    for (const k of ['smoothCaret', 'contextMenu']) {
+    for (const k of ['smoothCaret', 'contextMenu', 'prismRim']) {
       if (k in patch && typeof patch[k] === 'string') patch[k] = patch[k] !== 'off' && patch[k] !== 'false';
     }
     for (const k of ONOFF_STR_KEYS) {
@@ -286,7 +288,7 @@
     dirtyFlags.g = true;
     const any = (s) => s.split('|').some((k) => prevCfg[k] !== nextCfg[k] || O.hasOwn(patch, k));
     if (any('palette|lightPreset|accentTone|ambientIntensity|cornerStyle|codeFont|codeLigatures')) dirtyFlags.t = true;
-    if (any('accentTone|composerRestyle|placeholderStyle|mascot|smoothCaret|telemetryModule|motionLevel|language')) dirtyFlags.c = true;
+    if (any('accentTone|composerRestyle|prismRim|prismRimStyle|placeholderStyle|mascot|smoothCaret|telemetryModule|motionLevel|language')) dirtyFlags.c = true;
     if (any('homeLayout|homeRipple|language')) dirtyFlags.r = true;
     if (any('sidebarRestyle|sidebarCompact|sidebarNavFold')) dirtyFlags.s = true;
     if (any('thoughtTranslate|thoughtTrigger|thoughtView')) dirtyFlags.l = dirtyFlags.tk = true;
@@ -370,6 +372,7 @@
   const getThoughtTranslateMode = () => pickOf(cfg.thoughtTranslate, 'machine|ai', 'off');
   const getThoughtTriggerTiming = () => (cfg.thoughtTrigger === 'expand' ? 'expand' : 'preload');
   const getAccentTone = () => pickOf(cfg.accentTone, 'cobalt|iris|amber|mono', 'follow');
+  const getRimStyle = () => (cfg.prismRimStyle === 'simple' ? 'simple' : 'prism');
   const getCornerStyle = () => pickOf(cfg.cornerStyle, 'sharp|soft', 'balanced');
   const getCodeFont = () => pickOf(cfg.codeFont, 'jetbrains|cascadia|sfmono', 'default');
   const isCodeLigaturesEnabled = () => cfg.codeLigatures === true || cfg.codeLigatures === 'on';
@@ -684,11 +687,13 @@
         hasConnectedPanel: () => false,
       });
 
-  const rippleCtl = homeRippleMod?.createHomeRippleController
+      const rippleCtl = homeRippleMod?.createHomeRippleController
     ? homeRippleMod.createHomeRippleController({
         rippleCore,
         isDestroyed: () => destroyed,
         isAllowed: () => cfg.homeRipple !== false && cfg.homeLayout !== 'off',
+        isGlowAllowed: () => cfg.homeLayout !== 'off',
+        isMotionStandardOrUltra,
         isDarkTheme,
         motionReduced,
         getMinFrameGapMs,
@@ -767,6 +772,7 @@
         isDestroyed: () => destroyed,
         isDarkTheme,
         motionReduced,
+        isPrismRimEnabled: () => cfg.prismRim !== false,
         getMinFrameGapMs,
         canMountRealCanvas,
         setAttrIfChanged,
@@ -1010,6 +1016,75 @@
   }
 
   const invRim = () => { prismRimCtl.invalidateMetrics?.(); prismRimCtl.markDirty(); };
+  let overlaySyncTm = 0, lastOverlaySig = '', titleBarOverlaySynced = false;
+  const toHex6 = (raw) => {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (/^#[0-9a-f]{6}$/i.test(s)) return s.toUpperCase();
+    if (/^#[0-9a-f]{3}$/i.test(s)) return ('#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]).toUpperCase();
+    const m = s.match(/[\d.]+/g);
+    if (!m || m.length < 3) return '';
+    const n = m.map(Number), a = n.length >= 4 ? n[3] : 1, mul = /^color\(/i.test(s) ? 255 : 1;
+    if (a < 1) return '';
+    return '#' + n.slice(0, 3).map((v) => Math.max(0, Math.min(255, Math.round(v * mul))).toString(16).padStart(2, '0')).join('').toUpperCase();
+  };
+  const readRootHexVar = (varName, fallback) => {
+    try {
+      const h = de();
+      if (!h || !isFn(W.getComputedStyle)) return fallback;
+      const direct = toHex6(W.getComputedStyle(h)?.getPropertyValue?.(varName));
+      if (direct) return direct;
+      if (D.body && isFn(D.createElement)) {
+        const probe = D.createElement('span');
+        probe.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;color:var(${varName})`;
+        D.body.appendChild(probe);
+        const resolved = toHex6(W.getComputedStyle(probe)?.color);
+        probe.remove?.();
+        if (resolved) return resolved;
+      }
+    } catch {}
+    return fallback;
+  };
+  const applyTitleBarOverlayColors = () => {
+    const en = W.electronNative;
+    if (!en || !isFn(en.setTitleBarOverlay) || en.customWindowControls === true) return;
+    const dk = isDarkTheme();
+    const color = readRootHexVar('--sidebar', dk ? '#131313' : '#FFFFFF');
+    const symbolColor = readRootHexVar('--secondary-foreground', dk ? '#FAFAFA' : '#000000');
+    const sig = `${color}|${symbolColor}`;
+    if (sig === lastOverlaySig) return;
+    lastOverlaySig = sig;
+    titleBarOverlaySynced = true;
+    try { en.setTitleBarOverlay({ color, symbolColor }); } catch {}
+  };
+  const syncTitleBarOverlay = (restore = false) => {
+    if (overlaySyncTm) { CT(overlaySyncTm); overlaySyncTm = 0; }
+    const en = W.electronNative;
+    if (!en || !isFn(en.setTitleBarOverlay) || en.customWindowControls === true) return;
+    if (restore) {
+      if (!titleBarOverlaySynced) return;
+      titleBarOverlaySynced = false;
+      lastOverlaySig = '';
+      applyTitleBarOverlayColors();
+      return;
+    }
+    applyTitleBarOverlayColors();
+    if (!destroyed) overlaySyncTm = ST(() => { overlaySyncTm = 0; if (!destroyed) applyTitleBarOverlayColors(); }, 180);
+  };
+  const setRimAttrs = (e, on, a2 = A_PM, v2 = '1') => {
+    if (on) {
+      const chg = ga(e, A_PB) !== '1' || (a2 ? (v2 == null ? ha(e, a2) : ga(e, a2) !== v2) : false);
+      setAttrIfChanged(e, A_PB, '1');
+      if (a2) { if (v2 == null) ra(e, a2); else setAttrIfChanged(e, a2, v2); }
+      return chg;
+    }
+    if (!ha(e, A_PB) && !(a2 && ha(e, a2))) return false;
+    ra(e, A_PB);
+    if (a2) ra(e, a2);
+    rp(e, '--ag-px');
+    rp(e, '--ag-py');
+    return true;
+  };
   function applyRootAttrs(forceAbsorbed = false) {
     const html = D.documentElement;
     if (!html) return;
@@ -1030,7 +1105,7 @@
         'scroll-bottom': cfg.scrollBottomMotion === 'instant' ? 'instant' : 'smooth', 'code-font': getCodeFont(),
         ligatures: isCodeLigaturesEnabled() ? '1' : '0', ambient: getAmbientCssValue(),
         home: cfg.homeLayout === 'classic' ? 'classic' : cfg.homeLayout === 'off' ? 'off' : 'studio',
-        composer: cfg.composerRestyle === false ? 'off' : 'on', 'logo-ink': cfg.logoInk === 'foreground' ? 'foreground' : 'accent',
+        composer: cfg.composerRestyle === false ? 'off' : 'on', rim: cfg.prismRim === false ? 'off' : 'on', 'rim-style': getRimStyle(), 'logo-ink': cfg.logoInk === 'foreground' ? 'foreground' : cfg.logoInk === 'antigravity' ? 'antigravity' : 'accent',
         sidebar: cfg.sidebarRestyle === false ? 'off' : 'on', 'sidebar-compact': cfg.sidebarCompact === true ? 'on' : 'off',
         'sb-fold': cfg.sidebarNavFold === 'on' ? 'on' : 'off', lang,
       };
@@ -1077,6 +1152,7 @@
       if (themeKey !== lastThemeKey) {
         lastThemeKey = themeKey;
         refreshOptics();
+        syncTitleBarOverlay();
         try { hostEnhancerCtl.onThemeChange?.(); } catch {}
       }
       const metricsKey = `${lang}|${getCodeFont()}|${isCodeLigaturesEnabled() ? 1 : 0}|${getCornerStyle()}|${cfg.composerRestyle === false ? 0 : 1}`;
@@ -1209,7 +1285,7 @@
   let latestPrimaryModelInfo = null, lastSyncedAwaitingDecision = null, lastSyncedHasError = false;
   const detectVisibleDecisionTakeover = (m = null) => { for (const el of qa(D, TK_SEL)) if (!cl(el, S_SUB) && !isHidEl(el, false, m)) return true; return false; };
   const measureCrabClearanceAll = () => {
-    const cards = AF(qa(D, '[data-testid="agent-input-box"] .surface-composer-card')), pri = cards.find((c) => !cl(c, S_SUB)) || cards[0] || null;
+    const cards = AF(qa(D, '[data-testid="agent-input-box"] .surface-composer-card')), pri = cards.find((c) => !cl(c, S_SUB + ', [data-side-panel-body], [data-testid="side-question-tab-composer"]')) || cards.find((c) => !cl(c, S_SUB)) || cards[0] || null;
     const mOn = isMascotEnabled(), m = new Map(), pTk = new Set(), byCard = new Map();
     for (const c of pri ? [pri, ...cards.filter((x) => x !== pri)] : cards) {
       const ip = c === pri;
@@ -1223,28 +1299,22 @@
     lastSyncedHasError = errNow;
     if (awaitingNow !== lastSyncedAwaitingDecision || freshErrorEdge) { lastSyncedAwaitingDecision = awaitingNow; convAuraCtl.setSemanticState({ awaitingDecision: awaitingNow ? true : null, hasError: freshErrorEdge }); }
   };
+  const isRimOn = () => cfg.composerRestyle !== false && cfg.prismRim !== false;
+  const isColorRim = () => isRimOn() && cfg.prismRimStyle !== 'simple';
   const syncQueuedPrismBoxes = () => {
     const qCards = qa(D, '[data-testid="queued-messages-card"], [data-testid="interaction-takeover-card"]');
     if (!qCards?.length) return;
-    const allow = cfg.composerRestyle !== false && ga(de(), 'data-ag-prism-mode') !== 'chat', AR = 'data-ag-cs-prism-reflect';
-    for (const q of qCards) {
-      if (allow && !cl(q, S_SUB)) {
-        const isNew = ga(q, A_PB) !== '1' || ga(q, AR) !== 'bottom';
-        setAttrIfChanged(q, A_PB, '1'); setAttrIfChanged(q, AR, 'bottom');
-        if (isNew) invRim();
-      } else if (ha(q, A_PB) || ha(q, AR)) {
-        ra(q, A_PB); ra(q, AR); rp(q, '--ag-px'); rp(q, '--ag-py'); invRim();
-      }
-    }
+    const allow = isColorRim() && ga(de(), 'data-ag-prism-mode') !== 'chat', AR = 'data-ag-cs-prism-reflect';
+    for (const q of qCards) if (setRimAttrs(q, allow && !cl(q, S_SUB), AR, 'bottom')) invRim();
   };
   const syncPopupOverlayMirrors = () => {
     const ovs = qa(D, '.agy-overlay');
     if (!ovs?.length) return;
+    const rimOn = cfg.prismRim !== false;
     let touched = false;
     for (const ov of ovs) {
       if (ha(ov, 'data-hover-card-popup') || tidOf(ov) === 'model-selector-panel' || (ga(ov, 'role') !== 'menu' && !clHas(ov, 'max-h-48'))) continue;
-      if (ga(ov, A_PB) !== '1' || ga(ov, A_PM) !== '1') touched = true;
-      setAttrIfChanged(ov, A_PB, '1'); setAttrIfChanged(ov, A_PM, '1');
+      if (setRimAttrs(ov, rimOn)) touched = true;
     }
     if (touched) prismRimCtl.markDirty();
   };
@@ -1257,12 +1327,9 @@
     for (const card of cards) {
       const inputBox = cl(card, S_IB), zLayer = cl(inputBox, '.z-10'), isPrimary = card === primaryCard;
       if (zLayer) setAttrIfChanged(zLayer, 'data-ag-cs-input-layer', '1');
-      if (isPrimary && cfg.composerRestyle !== false) {
-        if (ga(card, A_PB) !== '1') prismRimCtl.markDirty();
-        setAttrIfChanged(card, A_PB, '1');
-      } else if (ha(card, A_PB)) {
-        ra(card, A_PB); rp(card, '--ag-px'); rp(card, '--ag-py'); invRim();
-      }
+      if ((isPrimary || !cl(card, S_SUB)) && isRimOn()) {
+        if (setRimAttrs(card, 1, A_PM, isColorRim() ? null : '1')) invRim();
+      } else if (setRimAttrs(card, 0, A_PM)) invRim();
       syncCrabClearance(card, inputBox, mascotOn && isPrimary, isPrimary, cPlan.byCard.get(card) || null);
       const p = qs(card, 'div.relative.w-full p.pointer-events-none');
       if (p) {
@@ -2114,6 +2181,9 @@
         syncAuxSplit();
       }
 
+      const syncHpRim = (hp) => {
+        if (hp && setRimAttrs(hp, cfg.prismRim !== false)) prismRimCtl.markDirty();
+      };
       if (flags.f || flags.r || measured.inHero !== homeStudioCtl.wasHero()) {
         homeStudioCtl.syncGreeting(measured.inHero);
         if (cfg.homeLayout !== 'studio') {
@@ -2121,12 +2191,13 @@
           prismRimCtl.markDirty();
         } else if (measured.inHero) {
           homeStudioCtl.renderHomePanel();
-          const hp = qs(D, '.ag-cs-home-panel');
-          if (hp && (ga(hp, A_PB) !== '1' || ga(hp, A_PM) !== '1')) { setAttrIfChanged(hp, A_PB, '1'); setAttrIfChanged(hp, A_PM, '1'); prismRimCtl.markDirty(); }
+          syncHpRim(qs(D, '.ag-cs-home-panel'));
         } else {
           homeStudioCtl.parkPanelSeat();
           prismRimCtl.markDirty();
         }
+      } else if (flags.c && cfg.homeLayout === 'studio' && measured.inHero) {
+        syncHpRim(qs(D, '.ag-cs-home-panel'));
       }
 
       if (flags.f || flags.r || flags.t) {
@@ -2156,6 +2227,8 @@
       }
       if (flags.f || flags.o) {
         streamChoreoCtl.syncLensOverlayOrigins(measured.lensOverlays);
+      }
+      if (flags.f || flags.o || flags.c) {
         syncPopupOverlayMirrors();
       }
 
@@ -2312,8 +2385,10 @@
         try { msRig?.syncPowerState?.(); } catch {}
         try { convAuraCtl.wake?.(false); } catch {}
         try { convAuraCtl.sync(true); } catch {}
+        try { rippleCtl.refreshTheme?.(); } catch {}
         try { W.__agPrismTelemetry?.refresh?.(); } catch {}
       }
+      try { rippleCtl.wakeIfFocused?.(); } catch {}
     } catch {}
   };
   const wakeWinBlur = () => {
@@ -2321,6 +2396,8 @@
       if (blurTm || ha(de(), BLUR_ATTR)) {
         clearWinBlur();
         if (typeof document.hasFocus === 'function' && !document.hasFocus()) onWinBlur();
+      } else {
+        rippleCtl.wakeIfFocused?.();
       }
     } catch {}
   };
@@ -2531,7 +2608,7 @@
 
   const onDocTransitionEnd = (ev) => {
     try {
-      if (ev?.target?.id === 'ag-prism-periodic-picker-root' && ev.propertyName === 'height') prismRimCtl.markDirty();
+      if ((ev?.target?.id === 'ag-prism-periodic-picker-root' && ev.propertyName === 'height') || cl(ev?.target, '[data-side-panel-body], [data-main-content-body]')) prismRimCtl.markDirty();
       if (cfg.smoothCaret !== false && cl(ev?.target, S_IB)) smoothCaretCtl.queue(false, true, false);
     } catch {}
   };
@@ -2722,6 +2799,7 @@
     finishResizing(false);
     unmountCrab();
     msLastHostSleep = false;
+    if (overlaySyncTm) { CT(overlaySyncTm); overlaySyncTm = 0; }
     if (crabRemoveAttrTimer) { CT(crabRemoveAttrTimer); crabRemoveAttrTimer = 0; }
     for (const t of pulseHealTimers) CT(t);
     pulseHealTimers.clear();
@@ -2879,10 +2957,11 @@
       qa(D, '#ag-prism-settings-v101-css,#ag-prism-omni-css,#ag-prism-motion-off-css,#ag-prism-periodic-picker-css,#ag-prism-periodic-picker-root,.ag-pp-hold-ring,.ag-pp-mini-keycap,#ag-prism-wallpaper-root,#ag-prism-wallpaper-css,#ag-prism-suggester-css,.ag-omni-dock,.ag-omni-menu,.ag-prism-omni-menu,.ag-prism-omni-pane,.ag-cs-ctx-menu,.ag-cs-ctx-toast,.ag-cs-sb-more-wrap,[data-ag-prism-omni-owned="1"],.ag-cs-liftoff-veil,.ag-cs-sidebar-glide-pill,.ag-cs-pill-glide,.ag-cs-conv-aura-host,.ag-cs-conv-glow,.ag-cs-prism-rim-cv,.ag-cs-code-fold-btn,.ag-cs-nav-outline-popover,.ag-cs-model-glyph,.ag-cs-panel-row-glyph,[data-testid="orchestrator-effort-bar"],.ag-cs-thinking-spark,.ag-cs-orbital-backdrop,.ag-cs-perf-backdrop,.ag-v2-habitat-prop,#' + SETTINGS_SEC_ID).forEach((e) => e.remove());
       const html = de();
       if (html) {
-        for (const s of 'style|theme|palette|light-preset|motion|target-fps|telemetry|effort-slider|thought-translate|home|composer|logo-ink|sidebar|sidebar-compact|sidebar-collapsed|sb-fold|has-crab|model-menu|takeover-open|lang|cjk|accent|corners|code-font|ligatures|ambient|win-blur|scroll-bottom|resizing|mascot-drag'.split('|')) ra(html, 'data-ag-cs-' + s);
+        for (const s of 'style|theme|palette|light-preset|motion|target-fps|telemetry|effort-slider|thought-translate|home|composer|rim|rim-style|logo-ink|sidebar|sidebar-compact|sidebar-collapsed|sb-fold|has-crab|model-menu|takeover-open|lang|cjk|accent|corners|code-font|ligatures|ambient|win-blur|scroll-bottom|resizing|mascot-drag'.split('|')) ra(html, 'data-ag-cs-' + s);
         for (const s of '|thought-view|omni|link-target|sidebar-studio|sidebar-host-sync'.split('|')) ra(html, s ? 'data-ag-prism-' + s : 'data-ag-prism');
         rp(html, '--ag-spring-sidebar-ease'); rp(html, '--ag-spring-sidebar-dur');
       }
+      syncTitleBarOverlay(true);
     },
   };
 

@@ -581,14 +581,14 @@ test('Wave 3 P1-1c & P2-4 conv-aura: park() releases VRAM & sync() restores clea
   const isoB = api.computeConvAuraOptics('idle', 1000, 1400, true, false);
   assert.notEqual(isoA, isoB, 'default computeConvAuraOptics call must not mutate previous caller snapshot');
   assert.equal(isoA.semantic, 'none');
-  assert.equal(isoB.frameMs, 110);
+  assert.equal(isoB.frameMs, 64);
   const sharedBuf = {};
   const oRun = api.computeConvAuraOptics('running', 1000, 1200, true, true, sharedBuf);
   assert.equal(oRun, sharedBuf);
   assert.equal(oRun.semantic, 'none');
   const oIdle = api.computeConvAuraOptics('idle', 1000, 1400, true, false, sharedBuf);
   assert.equal(oIdle, sharedBuf, 'computeConvAuraOptics must reuse explicit out buffer object');
-  assert.equal(oIdle.frameMs, 110);
+  assert.equal(oIdle.frameMs, 64);
   const oDec = api.computeConvAuraOptics('awaiting-decision', 1000, 1300, false, false, sharedBuf);
   assert.equal(oDec, sharedBuf);
   assert.equal(oDec.semantic, 'awaiting-decision');

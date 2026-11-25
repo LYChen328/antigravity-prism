@@ -158,9 +158,9 @@
   }
 
   function computeConvAuraOptics(phase, phaseAt, now, dark, wasRunning, out = {}) {
-    const idleStr = dark ? 0.21 : 0.52;
-    const runBase = dark ? 0.31 : 0.64;
-    const idlePrism = dark ? 0.14 : 0.26;
+    const idleStr = dark ? 0.18 : 0.44;
+    const runBase = dark ? 0.39 : 0.76;
+    const idlePrism = dark ? 0.16 : 0.28;
     if (phase === 'start') {
       const p = Math.max(0, Math.min(1, (now - phaseAt) / CONV_AURA_START_MS));
       const s = Math.sin(p * Math.PI);
@@ -185,11 +185,11 @@
     if (phase === 'running') {
       return fillOptics(
         out,
-        runBase + (dark ? 0.035 : 0.045) * Math.sin(now * 0.0021),
-        scaleConvReach(0.22),
-        0.70,
-        0.025 * (1 + Math.sin(now * 0.0016)),
-        1.45,
+        runBase + (dark ? 0.048 : 0.06) * Math.sin(now * 0.0026),
+        scaleConvReach(0.27),
+        0.88,
+        0.055 * (1 + Math.sin(now * 0.0022)),
+        1.75,
         'none',
         32
       );
@@ -263,10 +263,10 @@
       return fillOptics(
         out,
         holdStr + (idleStr - holdStr) * ease,
-        scaleConvReach(0.17 + (0.16 - 0.17) * ease),
+        scaleConvReach(0.17 + (0.15 - 0.17) * ease),
         0.24 + (idlePrism - 0.24) * ease,
         0,
-        0.55 + (0.72 - 0.55) * ease,
+        0.55 + (0.42 - 0.55) * ease,
         'none',
         32
       );
@@ -274,28 +274,28 @@
     if (phase === 'complete') {
       const p = Math.max(0, Math.min(1, (now - phaseAt) / CONV_AURA_COMPLETE_MS));
       const ease = 1 - Math.pow(1 - p, 2.1);
-      const startStr = dark ? 0.38 : 0.70;
-      const rawReach = 0.24 + (0.16 - 0.24) * ease;
+      const startStr = dark ? 0.41 : 0.78;
+      const rawReach = 0.27 + (0.15 - 0.27) * ease;
       return fillOptics(
         out,
         startStr + (idleStr - startStr) * ease,
         scaleConvReach(rawReach),
-        0.76 + (idlePrism - 0.76) * ease,
+        0.86 + (idlePrism - 0.86) * ease,
         -0.36 * (1 - ease * 0.85),
-        1.45 + (0.72 - 1.45) * ease,
+        1.75 + (0.42 - 1.75) * ease,
         'none',
         28
       );
     }
     return fillOptics(
       out,
-      idleStr + (dark ? 0.024 : 0.038) * Math.sin(now * 0.0018),
-      scaleConvReach(0.16),
+      idleStr + (dark ? 0.022 : 0.032) * Math.sin(now * 0.0014),
+      scaleConvReach(0.15),
       idlePrism,
       0,
-      0.72,
+      0.42,
       'none',
-      110
+      64
     );
   }
 
@@ -834,6 +834,11 @@
         const prevPhaseBeforeAdv = state.phase;
         const phase = advancePhase(now, true);
         const phaseJustChanged = phase !== prevPhaseBeforeAdv;
+        const errorCleared = Boolean(state.pendingErrorClear);
+        if (errorCleared) {
+          state.pendingErrorClear = false;
+          if (glowCanvas.width > 0 && glowCanvas.height > 0) try { state.glow?.clear?.(); } catch {}
+        }
         const dark = isDarkTheme();
         const spectrum = resolveSpectrum();
 
@@ -841,14 +846,14 @@
         if (inLiftoffEbb) {
           const p = Math.max(0, Math.min(1, liftElapsed / 520));
           const ease = 1 - Math.pow(1 - p, 2.25);
-          const endStr = dark ? 0.31 : 0.64;
+          const endStr = dark ? 0.39 : 0.76;
           opt = fillOptics(
             OPTICS_BUF,
             0.92 + (endStr - 0.92) * ease,
-            scaleConvReach(0.31 + (0.22 - 0.31) * ease),
-            0.78 + (0.70 - 0.78) * ease,
+            scaleConvReach(0.31 + (0.27 - 0.31) * ease),
+            0.88,
             0.38 * (1 - ease),
-            1.65 + (1.45 - 1.65) * ease,
+            1.65 + (1.75 - 1.65) * ease,
             'none',
             16
           );
@@ -866,7 +871,7 @@
           ? Math.max(33, minGap)
           : smoothActiveGpu
           ? Math.max(16, minGap)
-          : (phase === 'idle' ? Math.max(160, opt.frameMs || 160) : opt.frameMs || 32);
+          : (phase === 'idle' ? (isGpuGlow ? (opt.frameMs || 64) : Math.max(120, opt.frameMs || 120)) : opt.frameMs || 32);
         const burstGap = Math.max(minGap, inLiftoffEbb ? 16 : 20);
         const effectiveMinGap = smoothPreSleep
           ? Math.max(31, schedFrameMs - 2)
@@ -878,12 +883,13 @@
 
         const phaseElapsed = now - state.phaseAt;
         const settleDecisionHold = allowLivingFlow && phase === 'awaiting-decision' && phaseElapsed >= CONV_AURA_DECISION_BREATH_MS;
-        const settleErrorZero = Boolean(state.pendingErrorClear) || (phase === 'error-halted' && phaseElapsed >= CONV_AURA_ERROR_MS);
+        const settleErrorZero = !allowLivingFlow && (errorCleared || (phase === 'error-halted' && phaseElapsed >= CONV_AURA_ERROR_MS));
         const settleLongComplete = allowLivingFlow && phase === 'long-task-complete' && phaseElapsed >= CONV_AURA_LONG_COMPLETE_MS;
-        const settleIdleSleep = allowLivingFlow && phase === 'idle' && !inLiftoffEbb && phaseElapsed >= CONV_AURA_IDLE_SLEEP_MS;
+        // Keep idle conversation aura slowly flowing when visible & active-motion (only sleep on still/hidden/holds).
+        const settleIdleSleep = false;
 
         const bypassThrottle =
-          forceImmediateDraw || phaseJustChanged || !drawnOnce || settleDecisionHold || settleErrorZero || settleLongComplete || settleIdleSleep;
+          forceImmediateDraw || phaseJustChanged || errorCleared || !drawnOnce || settleDecisionHold || settleErrorZero || settleLongComplete || settleIdleSleep;
         forceImmediateDraw = false;
 
         if (!bypassThrottle && allowLivingFlow && effectiveMinGap > 0 && lastGpuDrawAt > 0 && now - lastGpuDrawAt < effectiveMinGap) {
@@ -907,9 +913,9 @@
 
         if (settleErrorZero) {
           state.pendingErrorClear = false;
-          if (glowCanvas.width > 0 && glowCanvas.height > 0) try { state.glow?.clear?.(); } catch {}
+          if (!errorCleared && glowCanvas.width > 0 && glowCanvas.height > 0) try { state.glow?.clear?.(); } catch {}
           state.phase = 'idle';
-          state.phaseAt = now - CONV_AURA_IDLE_SLEEP_MS;
+          state.phaseAt = now;
           setAttrIfChanged(host, 'data-aura-phase', 'idle');
           opt.strength = opt.surge = opt.speed = 0;
           state.lastOptics = opt;
@@ -969,8 +975,6 @@
           nextDelay = Math.min(nextDelay, Math.max(16, CONV_AURA_ERROR_MS - phaseElapsed + 4));
         } else if (phase === 'long-task-complete') {
           nextDelay = Math.min(nextDelay, Math.max(16, CONV_AURA_LONG_COMPLETE_MS - phaseElapsed + 4));
-        } else if (phase === 'idle') {
-          nextDelay = Math.min(nextDelay, Math.max(20, CONV_AURA_IDLE_SLEEP_MS - phaseElapsed + 4));
         }
         clearTimeout(state.timer);
         if (smoothActiveGpu) { wake(false); return; }

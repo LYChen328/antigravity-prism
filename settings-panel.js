@@ -54,10 +54,12 @@
     targetFps: mkSp(['60', '120', '180', 'native'], '180'),
     homeLayout: mkSp(['studio', 'classic', 'off']),
     homeRipple: S_T,
-    logoInk: mkSp(['accent', 'foreground']),
+    logoInk: mkSp(['accent', 'foreground', 'antigravity']),
     language: mkSp(['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de'], 'zh-CN', { yue: 'zh-CN', 'zh-HK': 'zh-TW', 'zh-MO': 'zh-TW' }),
     hostLocalization: S_AUTO,
     composerRestyle: S_T,
+    prismRim: S_T,
+    prismRimStyle: mkSp(['prism', 'simple']),
     placeholderStyle: mkSp(['studio', 'host']),
     smoothCaret: S_T,
     scrollBottomMotion: mkSp(['smooth', 'instant']),
@@ -1931,6 +1933,7 @@
         if (tb) tb.hidden = tmMode !== 'ai';
       }
       for (const [dk, dim] of [
+        ['prismRimStyle', effVal('composerRestyle', l) === false || effVal('prismRim', l) === false],
         ['placeholderStyle', effVal('composerRestyle', l) === false],
         ['sidebarCompact', effVal('sidebarRestyle', l) === false],
         ['sidebarNavFold', effVal('sidebarRestyle', l) === false],
@@ -2362,10 +2365,12 @@
             RS('targetFps', [['60', U('optFps60', '60')], ['120', U('optFps120', '120')], ['180', U('optFps180', '180')], ['native', U('optFpsNative')]]),
             RS('homeLayout', [['studio', U('optStudio')], ['classic', U('optClassic')], ['off', U('optNativeOff')]]),
             RS('homeRipple', onOff, 'Ripple'),
-            RS('logoInk', [['accent', U('optAccent')], ['foreground', U('optForeground')]]),
+            RS('logoInk', [['accent', U('optAccent')], ['foreground', U('optForeground')], ['antigravity', U('optAntigravity', 'Antigravity')]]),
             RS('language', langOpts),
             RS('hostLocalization', [['auto', U('optHostI18nAuto', 'Auto')], ['on', U('optHostI18nOn', U('onLabel', 'On'))], ['off', U('optHostI18nOff', U('offLabel', 'Off'))]], 'HostI18n'),
             RS('composerRestyle', onOff, 'Composer'),
+            RS('prismRim', onOff),
+            RS('prismRimStyle', [['prism', U('optRimPrism', 'Prism Flow')], ['simple', U('optRimSimple', 'Hover Edge')]]),
             RS('placeholderStyle', [['studio', 'Studio'], ['host', U('optPlaceholderHost')]], 'Placeholder'),
             RS('smoothCaret', onOff),
             RS('scrollBottomMotion', [['smooth', U('optScrollBottomSmooth', 'Glide')], ['instant', U('optScrollBottomInstant', 'Instant')]], 'ScrollBottom'),
@@ -2397,7 +2402,7 @@
 
           const groups = [
             { id: 'appearance', title: U('grpAppearance'), keys: ['palette', 'lightPreset', 'accentTone', 'cornerStyle', 'ambientIntensity', 'motionLevel', 'targetFps', 'homeLayout', 'homeRipple', 'logoInk', 'language', 'hostLocalization'] },
-            { id: 'interaction', title: U('grpInteraction'), keys: ['composerRestyle', 'placeholderStyle', 'smoothCaret', 'scrollBottomMotion', 'contextMenu', 'codeFont', 'codeLigatures', 'mascot', 'sidebarRestyle', 'sidebarCompact', 'sidebarNavFold'] },
+            { id: 'interaction', title: U('grpInteraction'), keys: ['composerRestyle', 'prismRim', 'prismRimStyle', 'placeholderStyle', 'smoothCaret', 'scrollBottomMotion', 'contextMenu', 'codeFont', 'codeLigatures', 'mascot', 'sidebarRestyle', 'sidebarCompact', 'sidebarNavFold'] },
             { id: 'thought', title: U('grpThought'), keys: ['thoughtTranslate', 'thoughtTrigger', 'thoughtView'] },
             { id: 'modules', title: U('groupModules'), keys: ['telemetryModule', 'effortSliderModule', 'effortMemory', 'periodicModelPicker', 'omniModule', 'linkTarget'] },
             { id: 'beta', title: U('grpBeta'), keys: ['sidebarStudio'] },

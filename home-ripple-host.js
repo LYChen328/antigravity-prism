@@ -20,6 +20,8 @@
     rippleCore,
     isDestroyed,
     isAllowed,
+    isGlowAllowed,
+    isMotionStandardOrUltra,
     isDarkTheme,
     motionReduced,
     getMinFrameGapMs,
@@ -143,7 +145,9 @@
 
     function syncRipple() {
       if (!rippleCore) return;
-      if (!isAllowed()) {
+      const rippleAllowed = Boolean(isAllowed());
+      const glowAllowed = Boolean(isGlowAllowed ? isGlowAllowed() : rippleAllowed);
+      if (!rippleAllowed && !glowAllowed) {
         unmountRipple();
         return;
       }
@@ -152,17 +156,18 @@
         if (rippleMount && !rippleMount.parked) parkRipple();
         return;
       }
+      if (rippleMount && rippleMount.rippleAllowed !== rippleAllowed) unmountRipple();
       if (rippleMount) {
-        if (rippleMount.parked || rippleMount.root !== home || !rippleMount.canvas.isConnected) {
+        if (rippleMount.parked || rippleMount.root !== home || !(rippleMount.canvas || rippleMount.glowCanvas).isConnected) {
           rippleMount.ro?.disconnect();
           if (rippleMount.root && rippleMount.root !== home) unbindRoot(rippleMount);
           rippleMount.root = home;
           rippleMount.parked = false;
           rippleMount.mountedAt = performance.now();
           home.insertBefore(rippleMount.host, home.firstChild);
-          home.addEventListener('pointerdown', rippleMount.onPress, { passive: true });
-          home.addEventListener('pointermove', rippleMount.onMove, { passive: true });
-          home.addEventListener('pointerleave', rippleMount.onLeave, { passive: true });
+          for (const [ev, fn] of [['pointerdown', rippleMount.onPress], ['pointermove', rippleMount.onMove], ['pointerleave', rippleMount.onLeave]]) {
+            if (fn) home.addEventListener(ev, fn, { passive: true });
+          }
           rippleMount.ro?.observe(home);
           rippleMount.reattach?.();
         }
@@ -177,10 +182,12 @@
       glowCanvas.setAttribute('data-testid', 'onboarding-brand-glow');
       glowCanvas.setAttribute('aria-hidden', 'true');
       host.appendChild(glowCanvas);
-      const canvas = document.createElement('canvas');
-      canvas.className = 'ag-cs-ripple-canvas';
-      canvas.setAttribute('aria-hidden', 'true');
-      host.appendChild(canvas);
+      const canvas = rippleAllowed ? document.createElement('canvas') : null;
+      if (canvas) {
+        canvas.className = 'ag-cs-ripple-canvas';
+        canvas.setAttribute('aria-hidden', 'true');
+        host.appendChild(canvas);
+      }
       home.insertBefore(host, home.firstChild);
 
       const auraState = { x: 0, y: 0, active: false };
@@ -197,6 +204,7 @@
         host,
         glowCanvas,
         canvas,
+        rippleAllowed,
         width: -1,
         height: -1,
         dpr: 0,
@@ -207,7 +215,7 @@
         aura: { reach: 0.47, strength: 1.0 },
         tideSwellAt: 0,
         waves: { height: new Float32Array(0), active: () => false, disturb() {}, skimmer() {}, advance() {} },
-        glow: rippleCore.mountBrandHorizonGlow ? rippleCore.mountBrandHorizonGlow(glowCanvas) : { mode: 'none', resize() {}, draw() {}, dispose() {} },
+        glow: rippleCore.mountBrandHorizonGlow ? rippleCore.mountBrandHorizonGlow(glowCanvas, { halftone: 0.24 }) : { mode: 'none', resize() {}, draw() {}, dispose() {} },
         field: { mode: 'none', dispose() {}, invalidate() {}, setCalmZones() {}, draw() {}, needsDraw: () => false, busy: () => false },
         timer: 0,
         rafId: 0,
@@ -236,7 +244,10 @@
       const PP_OPEN = 'data-ag-pp-open';
       const isAB = () => getRootHtml()?.getAttribute?.(WB) === '1';
       const isPpOpen = () => getRootHtml()?.getAttribute?.(PP_OPEN) === '1';
-      const hP = () => Boolean(document.hidden || wb || isAB() || isPpOpen());
+      const hP = () => {
+        if (wb && !isAB() && document.hasFocus?.()) wb = false;
+        return !!(document.hidden || wb || isAB() || isPpOpen());
+      };
 
       const syncG = (w, h) => {
         if (w <= 0 || h <= 0) return;
@@ -246,18 +257,20 @@
           glowCanvas.height = Math.max(1, Math.round(h * 0.6));
         }
       };
+      const hasTarget = () => { const c = canvas || glowCanvas; return c.width > 0 && c.height > 0; };
       const reclaim = () => {
         enterIdleSleep();
-        if (shrunk && !canvas.width && !canvas.height && !glowCanvas.width && !glowCanvas.height) return;
+        if (shrunk && (!canvas || (!canvas.width && !canvas.height)) && !glowCanvas.width && !glowCanvas.height) return;
         try { state.glow?.releaseBackingStore?.(); } catch {}
-        canvas.width = canvas.height = glowCanvas.width = glowCanvas.height = 0;
+        if (canvas) canvas.width = canvas.height = 0;
+        glowCanvas.width = glowCanvas.height = 0;
         shrunk = forceSingleDraw = true;
         drawnOnce = false;
       };
 
       function updateCalmZones() {
         const curHome = state.root;
-        if (!curHome || !state.field?.setCalmZones) return;
+        if (!canvas || !curHome || !state.field.setCalmZones) return;
         const greet = curHome.querySelector('[data-testid="home-greeting"]');
         if (!greet) return state.field.setCalmZones([]);
         const c = canvas.getBoundingClientRect();
@@ -275,36 +288,36 @@
         const w = curHome.clientWidth, h = curHome.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
         if (w === state.width && h === state.height && dpr === state.dpr) {
           cachedCanvasRect = null;
-          if (shrunk || (pw > 0 && ph > 0 && (!canvas.width || !canvas.height || !glowCanvas.width || !glowCanvas.height))) {
+          if (shrunk || (w > 0 && h > 0 && (!glowCanvas.width || !glowCanvas.height || (canvas && pw > 0 && ph > 0 && (!canvas.width || !canvas.height))))) {
             shrunk = drawnOnce = false;
             forceSingleDraw = true;
-            canvas.width = pw;
-            canvas.height = ph;
+            if (canvas) { canvas.width = pw; canvas.height = ph; state.field.invalidate(); }
             syncG(w, h);
-            state.field.invalidate?.();
             state.glow?.invalidate?.();
           }
           return;
         }
-        const cols = Math.ceil(w / rippleCore.RIPPLE.cellWidth), rows = Math.ceil(h / rippleCore.RIPPLE.cellHeight);
         state.width = w;
         state.height = h;
         state.dpr = dpr;
-        pw = Math.round(cols * rippleCore.RIPPLE.cellWidth * dpr);
-        ph = Math.round(rows * rippleCore.RIPPLE.cellHeight * dpr);
         shrunk = drawnOnce = false;
         forceSingleDraw = true;
-        canvas.width = pw;
-        canvas.height = ph;
-        canvas.style.width = `${cols * rippleCore.RIPPLE.cellWidth}px`;
-        canvas.style.height = `${rows * rippleCore.RIPPLE.cellHeight}px`;
         syncG(w, h);
-        state.field.dispose();
-        state.waves = rippleCore.createWaveField(cols, rows);
-        state.field = rippleCore.createGlyphField(canvas, cols, rows, state.waves);
-        cachedThemeTokens = sampleRippleThemeTokens(canvas);
         cachedCanvasRect = null;
-        updateCalmZones();
+        if (canvas) {
+          const cols = Math.ceil(w / rippleCore.RIPPLE.cellWidth), rows = Math.ceil(h / rippleCore.RIPPLE.cellHeight);
+          pw = Math.round(cols * rippleCore.RIPPLE.cellWidth * dpr);
+          ph = Math.round(rows * rippleCore.RIPPLE.cellHeight * dpr);
+          canvas.width = pw;
+          canvas.height = ph;
+          canvas.style.width = `${cols * rippleCore.RIPPLE.cellWidth}px`;
+          canvas.style.height = `${rows * rippleCore.RIPPLE.cellHeight}px`;
+          state.field.dispose();
+          state.waves = rippleCore.createWaveField(cols, rows);
+          state.field = rippleCore.createGlyphField(canvas, cols, rows, state.waves);
+          updateCalmZones();
+        }
+        cachedThemeTokens = sampleRippleThemeTokens(canvas || glowCanvas);
       }
 
       function enterIdleSleep() {
@@ -324,7 +337,7 @@
         state.sleeping = false;
         if (host.hasAttribute('data-ripple-sleep')) host.removeAttribute('data-ripple-sleep');
         if (hP()) {
-          if (!drawnOnce && canvas.width > 0 && canvas.height > 0) drawFrame(performance.now());
+          if (!drawnOnce && hasTarget()) drawFrame(performance.now());
           enterIdleSleep();
           return;
         }
@@ -341,8 +354,8 @@
         const vsyncDt = lastRafTs > 0 && now > lastRafTs ? now - lastRafTs : now - lastRippleRenderAt;
         lastRafTs = now;
         const rawGap = Math.max(0, Number(getMinFrameGapMs?.() ?? 0) || 0);
-        const minGap = state.waves?.active?.() || (auraState.active && lastSkimAt > 0 && now - lastSkimAt < 180) || (state.tideSwellAt > 0 && now - state.tideSwellAt < 480)
-          ? rawGap : Math.max(33, rawGap);
+        const fastRipple = state.waves?.active?.() || (auraState.active && lastSkimAt > 0 && now - lastSkimAt < 180) || (state.tideSwellAt > 0 && now - state.tideSwellAt < 480);
+        const minGap = fastRipple ? rawGap : Math.max(state.glow?.mode === '2d' ? 42 : 33, rawGap);
         if (!still && drawnOnce && !forceSingleDraw && minGap > 0 && lastRippleRenderAt > 0 && now - lastRippleRenderAt < minGap && !hP()) {
           const rem = minGap - (now - lastRippleRenderAt);
           if (typeof setTimeout === 'function' && rem > Math.max(8, vsyncDt + 2)) {
@@ -377,23 +390,26 @@
         const auraActiveRecent =
           ambientScale > 0.001 && auraState.active && lastSkimAt > 0 && now - lastSkimAt < AURA_IDLE_SLEEP_MS;
         const inIntro = !still && ambientScale > 0.001 && now - state.mountedAt < RIPPLE_INTRO_MS;
-        const fieldBusy = Boolean(state.field && typeof state.field.busy === 'function' && state.field.busy());
+        const fieldBusy = Boolean(state.field.busy());
+        const mAttr = !isMotionStandardOrUltra ? getRootHtml()?.getAttribute?.('data-ag-cs-motion') : '';
+        const glowFlow =
+          !still &&
+          ambientScale > 0.001 &&
+          state.glow?.mode &&
+          state.glow.mode !== 'none' &&
+          (typeof isMotionStandardOrUltra === 'function'
+            ? isMotionStandardOrUltra()
+            : mAttr === 'standard' || mAttr === 'ultra');
         const needsGlowClear = ambientScale <= 0.001 && !state.glowClearedAtZero;
-        const needsRender =
-          forceSingleDraw ||
-          !drawnOnce ||
-          needsGlowClear ||
-          inTideSwell ||
-          inIntro ||
-          auraActiveRecent ||
-          (state.field && state.field.needsDraw(now, still));
+        const fieldDraw = forceSingleDraw || !drawnOnce || inTideSwell || inIntro || auraActiveRecent || state.field.needsDraw(now, still);
+        const glowDraw = forceSingleDraw || !drawnOnce || needsGlowClear || inTideSwell || inIntro || glowFlow;
 
-        if (canvas.width > 0 && canvas.height > 0 && needsRender) {
+        if (hasTarget() && (fieldDraw || glowDraw)) {
           forceSingleDraw = false;
-          if (!cachedThemeTokens) cachedThemeTokens = sampleRippleThemeTokens(canvas);
+          if (!cachedThemeTokens) cachedThemeTokens = sampleRippleThemeTokens(canvas || glowCanvas);
           const spectrumMode = resolveSpectrumMode(cachedThemeTokens.dark);
           const pal = buildRipplePalette(cachedThemeTokens, auraState, now, ambientScale, spectrumMode);
-          if (glowCanvas.width > 0 && glowCanvas.height > 0) {
+          if (glowDraw && glowCanvas.width > 0 && glowCanvas.height > 0) {
             if (ambientScale <= 0.001) {
               if (!state.glowClearedAtZero) {
                 state.glow?.clear?.();
@@ -411,7 +427,7 @@
               });
             }
           }
-          state.field.draw(now, pal, still);
+          if (fieldDraw) state.field.draw(now, pal, still);
           drawnOnce = true;
         }
 
@@ -419,7 +435,7 @@
           enterIdleSleep();
           return;
         }
-        if (inTideSwell || fieldBusy || inIntro || auraActiveRecent) {
+        if (inTideSwell || fieldBusy || inIntro || auraActiveRecent || glowFlow) {
           wake();
         } else {
           enterIdleSleep();
@@ -455,20 +471,68 @@
         }
       };
 
-      const invNonGl = () => { if (state.field?.mode !== 'webgl2') state.field?.invalidate?.(); };
-      state.onMove = (ev) => {
-        if (motionReduced()) return;
-        if (!isAB()) wb = false;
-        if (hP()) return;
-        const nowRect = performance.now();
-        if (!cachedCanvasRect || nowRect - cachedCanvasRectAt > 1500) {
-          cachedCanvasRect = canvas.getBoundingClientRect();
-          cachedCanvasRectAt = nowRect;
-        }
-        const rect = cachedCanvasRect;
-        const x = ev.clientX - rect.left;
-        const y = ev.clientY - rect.top;
-        if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+      const invNonGl = () => { if (state.field.mode !== 'webgl2') state.field.invalidate(); };
+      if (canvas) {
+        state.onMove = (ev) => {
+          if (motionReduced()) return;
+          if (!isAB()) wb = false;
+          if (hP()) return;
+          const nowRect = performance.now();
+          if (!cachedCanvasRect || nowRect - cachedCanvasRectAt > 1500) {
+            cachedCanvasRect = canvas.getBoundingClientRect();
+            cachedCanvasRectAt = nowRect;
+          }
+          const rect = cachedCanvasRect;
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+            lastSkimX = lastSkimY = null;
+            skimCarryDist = 0;
+            if (auraState.active) {
+              auraState.active = false;
+              forceSingleDraw = true;
+              invNonGl();
+              wake();
+            }
+            return;
+          }
+          const now = performance.now();
+          if (lastSkimX !== null && lastSkimY !== null) {
+            const stepDist = Math.hypot(x - lastSkimX, y - lastSkimY);
+            const dtSec = Math.max(0.004, (now - lastSkimAt) / 1000);
+            const pxPerSec = stepDist / dtSec;
+            if (pxPerSec >= 220) {
+              skimCarryDist += stepDist;
+              if (skimCarryDist >= 42) {
+                skimCarryDist = Math.min(20, skimCarryDist - 42);
+                const speedNorm = Math.max(0.05, Math.min(1, (pxPerSec - 220) / 1800));
+                const col = Math.floor(x / rippleCore.RIPPLE.cellWidth);
+                const row = Math.floor(y / rippleCore.RIPPLE.cellHeight);
+                state.waves.skimmer?.(col, row, speedNorm);
+              }
+            } else {
+              skimCarryDist *= 0.85;
+            }
+          }
+          lastSkimX = x;
+          lastSkimY = y;
+          lastSkimAt = now;
+          const ambientNow = resolveAmbientScale();
+          if (ambientNow > 0.001) {
+            auraState.x = x;
+            auraState.y = y;
+            auraState.active = true;
+            if (state.sleeping) previous = now;
+            invNonGl();
+            wake();
+          } else if (state.waves.active()) {
+            if (state.sleeping) previous = now;
+            state.field.invalidate();
+            wake();
+          }
+        };
+
+        state.onLeave = () => {
           lastSkimX = lastSkimY = null;
           skimCarryDist = 0;
           if (auraState.active) {
@@ -477,79 +541,33 @@
             invNonGl();
             wake();
           }
-          return;
-        }
-        const now = performance.now();
-        if (lastSkimX !== null && lastSkimY !== null) {
-          const stepDist = Math.hypot(x - lastSkimX, y - lastSkimY);
-          const dtSec = Math.max(0.004, (now - lastSkimAt) / 1000);
-          const pxPerSec = stepDist / dtSec;
-          if (pxPerSec >= 220) {
-            skimCarryDist += stepDist;
-            if (skimCarryDist >= 42) {
-              skimCarryDist = Math.min(20, skimCarryDist - 42);
-              const speedNorm = Math.max(0.05, Math.min(1, (pxPerSec - 220) / 1800));
-              const col = Math.floor(x / rippleCore.RIPPLE.cellWidth);
-              const row = Math.floor(y / rippleCore.RIPPLE.cellHeight);
-              state.waves.skimmer?.(col, row, speedNorm);
-            }
-          } else {
-            skimCarryDist *= 0.85;
-          }
-        }
-        lastSkimX = x;
-        lastSkimY = y;
-        lastSkimAt = now;
-        const ambientNow = resolveAmbientScale();
-        if (ambientNow > 0.001) {
-          auraState.x = x;
-          auraState.y = y;
-          auraState.active = true;
-          if (state.sleeping) previous = now;
-          invNonGl();
-          wake();
-        } else if (state.waves.active()) {
-          if (state.sleeping) previous = now;
+        };
+
+        state.onPress = (ev) => {
+          if (ev.button !== 0 || motionReduced() || resolveAmbientScale() <= 0.001) return;
+          const rect = canvas.getBoundingClientRect();
+          cachedCanvasRect = rect;
+          cachedCanvasRectAt = performance.now();
+          const col = Math.floor((ev.clientX - rect.left) / rippleCore.RIPPLE.cellWidth);
+          const row = Math.floor((ev.clientY - rect.top) / rippleCore.RIPPLE.cellHeight);
+          if (state.sleeping) previous = performance.now();
+          state.waves.disturb(col, row);
           state.field.invalidate();
           wake();
-        }
-      };
+          onPointerPressMascot?.(ev.clientX);
+        };
 
-      state.onLeave = () => {
-        lastSkimX = lastSkimY = null;
-        skimCarryDist = 0;
-        if (auraState.active) {
-          auraState.active = false;
-          forceSingleDraw = true;
-          invNonGl();
-          wake();
-        }
-      };
-
-      state.onPress = (ev) => {
-        if (ev.button !== 0 || motionReduced() || resolveAmbientScale() <= 0.001) return;
-        const rect = canvas.getBoundingClientRect();
-        cachedCanvasRect = rect;
-        cachedCanvasRectAt = performance.now();
-        const col = Math.floor((ev.clientX - rect.left) / rippleCore.RIPPLE.cellWidth);
-        const row = Math.floor((ev.clientY - rect.top) / rippleCore.RIPPLE.cellHeight);
-        if (state.sleeping) previous = performance.now();
-        state.waves.disturb(col, row);
-        state.field.invalidate();
-        wake();
-        onPointerPressMascot?.(ev.clientX);
-      };
-
-      home.addEventListener('pointerdown', state.onPress, { passive: true });
-      home.addEventListener('pointermove', state.onMove, { passive: true });
-      home.addEventListener('pointerleave', state.onLeave, { passive: true });
+        home.addEventListener('pointerdown', state.onPress, { passive: true });
+        home.addEventListener('pointermove', state.onMove, { passive: true });
+        home.addEventListener('pointerleave', state.onLeave, { passive: true });
+      }
 
       const onVis = () => {
         if (document.hidden) return reclaim();
         if (state.parked) return;
         const s = shrunk;
-        if (s || !canvas.width || !canvas.height) layout();
-        const ok = s && canvas.width > 0 && canvas.height > 0;
+        if (s || !hasTarget()) layout();
+        const ok = s && hasTarget();
         if (!hP()) { previous = performance.now(); forceSingleDraw = true; ok ? drawFrame(previous) : wake(); }
         else if (ok && !drawnOnce) drawFrame(performance.now());
         else enterIdleSleep();
@@ -585,8 +603,15 @@
       }
       rippleMount = state;
       layout();
+      state.syncFocusWake = () => {
+        if (isDestroyed() || state.parked || !wb || isAB()) return;
+        if (typeof document.hasFocus === 'function' && document.hasFocus()) {
+          wb = false;
+          if (!document.hidden && state.sleeping) onVis();
+        }
+      };
       state.refreshTheme = () => {
-        cachedThemeTokens = sampleRippleThemeTokens(canvas);
+        cachedThemeTokens = sampleRippleThemeTokens(canvas || glowCanvas);
         forceSingleDraw = true;
         state.field.invalidate();
         state.glow?.invalidate?.();
@@ -597,6 +622,7 @@
     }
 
     function refreshTheme() { rippleMount?.refreshTheme?.(); }
+    function wakeIfFocused() { rippleMount?.syncFocusWake?.(); }
 
     function triggerLiftoffBurst(composerRect) {
       if (!rippleMount || typeof rippleMount.field?.triggerLiftoffBurst !== 'function') return;
@@ -632,6 +658,7 @@
       park: parkRipple,
       unmount: unmountRipple,
       refreshTheme,
+      wakeIfFocused,
       triggerLiftoffBurst,
       triggerTideSwell,
       getMount: () => rippleMount,

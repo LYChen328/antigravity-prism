@@ -1086,3 +1086,526 @@ test('prism-rim + ui-runtime: data-ag-pp-open="1" keeps composer, step-plan, hom
   vm.runInContext(cdp.REMOVE_EXPRESSION, env.sandbox);
   assert.equal(winCapListeners.get('pointermove')?.size || 0, 0, 'remove expression must cleanly unbind capture pointermove listener');
 });
+
+test('prismRim switch: schema, 8-lang i18n, CSS guard, Settings toggle, runtime strip/restore across composer/takeover/home-panel/step-plan/overview & REMOVE cleanup', () => {
+  // 1) Config defaults, validator, alias normalization, config.example.json & 8-lang locales
+  assert.equal(cdp.DEFAULT_CONFIG.prismRim, true);
+  assert.equal(cdp.VALIDATORS.prismRim, 'boolean');
+  assert.equal(cdp.reconcileConfigAliases({ prismRim: 'off' }).prismRim, false);
+  assert.equal(cdp.reconcileConfigAliases({ prismRim: 'on' }).prismRim, true);
+  assert.equal(cdp.reconcileConfigAliases({ prismRim: false }).prismRim, false);
+  const exCfg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'config.example.json'), 'utf8'));
+  assert.equal(exCfg.prismRim, true);
+  assert.equal(cdp.DEFAULT_CONFIG.prismRimStyle, 'prism');
+  assert.equal(cdp.validateConfigEntry('prismRimStyle', 'simple'), true);
+  assert.equal(cdp.validateConfigEntry('prismRimStyle', 'prism'), true);
+  assert.equal(cdp.validateConfigEntry('prismRimStyle', 'invalid'), false);
+  assert.equal(exCfg.prismRimStyle, 'prism');
+
+  const i18nLocales = require(path.join(ROOT_DIR, 'i18n-locales.js'));
+  const runtimeKeySet = new Set(i18nLocales.RUNTIME_UI_KEYS);
+  assert.equal(runtimeKeySet.has('setPrismRimTitle'), false);
+  assert.equal(runtimeKeySet.has('setPrismRimDesc'), false);
+  for (const nk of ['setPrismRimStyleTitle', 'setPrismRimStyleDesc', 'optRimPrism', 'optRimSimple']) {
+    assert.equal(runtimeKeySet.has(nk), false, `${nk} must stay in Channel 9 only`);
+  }
+  const CJK_RE = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
+  for (const lang of ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de']) {
+    const ui = i18nLocales.getUiStrings(lang);
+    assert.ok(typeof ui.setPrismRimTitle === 'string' && ui.setPrismRimTitle.trim().length > 0, `Missing setPrismRimTitle (${lang})`);
+    assert.ok(typeof ui.setPrismRimDesc === 'string' && ui.setPrismRimDesc.trim().length > 0, `Missing setPrismRimDesc (${lang})`);
+    for (const nk of ['setPrismRimStyleTitle', 'setPrismRimStyleDesc', 'optRimPrism', 'optRimSimple']) {
+      assert.ok(typeof ui[nk] === 'string' && ui[nk].trim().length > 0, `Missing ${nk} (${lang})`);
+      if (['en', 'es', 'fr', 'de'].includes(lang)) assert.equal(CJK_RE.test(ui[nk]), false);
+    }
+    if (['en', 'es', 'fr', 'de'].includes(lang)) {
+      assert.equal(CJK_RE.test(ui.setPrismRimTitle), false);
+      assert.equal(CJK_RE.test(ui.setPrismRimDesc), false);
+    }
+  }
+
+  const css = fs.readFileSync(path.join(ROOT_DIR, 'style.css'), 'utf8');
+  assert.ok(css.includes('&[data-ag-cs-rim="off"]'), 'style.css must gate rim visuals under data-ag-cs-rim="off"');
+  assert.ok(css.includes('&[data-ag-cs-rim="on"] .surface-composer-card[data-ag-cs-prism-mirror="1"]:not([data-ag-cs-prism-cv="1"])::before'), 'style.css must define mirror cursor-tracking border highlight fallback for simple composer rim');
+  assert.ok(css.includes('html[data-ag-cs-style][data-ag-cs-composer="on"]:not([data-ag-cs-rim="off"])'), 'reduced-motion static rim must obey data-ag-cs-rim="off"');
+
+  // 2) Channel 1 runtime + prism-rim-canvas + stream-choreography + Channel 9 Settings UI
+  const { env, rafs, flushRafs, firePointerMove } = createRimSandbox('/conv-rim-toggle');
+
+  const convView = env.makeEl('div', { attrs: { 'data-testid': 'conversation-view' } });
+  const stepPlan = env.makeEl('div', { attrs: { 'data-testid': 'step-plan', 'aria-expanded': 'true' }, rect: { left: 100, top: 80, right: 600, bottom: 200, width: 500, height: 120 } });
+  const inputBox = env.makeEl('div', { attrs: { 'data-testid': 'agent-input-box' } });
+  const composerCard = env.makeEl('div', { className: 'surface-composer-card', rect: { left: 100, top: 480, right: 660, bottom: 600, width: 560, height: 120 } });
+  const takeoverCard = env.makeEl('div', { attrs: { 'data-testid': 'interaction-takeover-card' }, rect: { left: 100, top: 340, right: 660, bottom: 450, width: 560, height: 110 } });
+  const homePanel = env.makeEl('div', { className: 'ag-cs-home-panel', attrs: { 'data-ag-cs-prism-box': '1', 'data-ag-cs-prism-mirror': '1' }, rect: { left: 720, top: 100, right: 1160, bottom: 320, width: 440, height: 220 } });
+  const overviewWrap = env.makeEl('div', { rect: { left: 720, top: 360, right: 1160, bottom: 540, width: 440, height: 180 } });
+  overviewWrap.appendChild(env.makeEl('div', { attrs: { 'data-testid': 'overview-panel' } }));
+  const dlg = env.makeEl('div', { attrs: { role: 'dialog' } });
+  const dlgPane = env.makeEl('div', { className: 'p-6' });
+  const h2 = env.makeEl('h2', { text: 'Appearance' });
+  const anchor = env.makeEl('div', { className: 'space-y-2' });
+  dlgPane.appendChild(h2);
+  dlgPane.appendChild(anchor);
+  dlg.appendChild(dlgPane);
+
+  convView.appendChild(stepPlan);
+  convView.appendChild(takeoverCard);
+  convView.appendChild(inputBox);
+  inputBox.appendChild(composerCard);
+  env.body.appendChild(convView);
+  env.body.appendChild(homePanel);
+  env.body.appendChild(overviewWrap);
+  env.body.appendChild(dlg);
+
+  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true }, { bundleCachePath: '' });
+  assert.equal(vm.runInContext(injectExpr, env.sandbox).status, 'ok');
+  vm.runInContext(cdp.buildSettingsChannelExpression(), env.sandbox);
+  const sec = env.doc.getElementById('ag-cs-settings-sec');
+  sec?.__ensureFoldBody?.();
+  const rimRow = sec?.querySelector?.('[data-ag-cs-row="prismRim"]');
+  assert.ok(rimRow, 'Settings UI must render prismRim row');
+
+  assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'on');
+  assert.equal(composerCard.getAttribute('data-ag-cs-prism-box'), '1');
+  assert.equal(takeoverCard.getAttribute('data-ag-cs-prism-box'), '1');
+  assert.equal(overviewWrap.getAttribute('data-ag-cs-prism-box'), '1');
+
+  firePointerMove(composerCard, 280, 520);
+  flushRafs();
+  assert.ok(composerCard.querySelector('.ag-cs-prism-rim-cv')?._strokes?.length > 0, 'prismRim=true must paint composer rim');
+  assert.ok(stepPlan.querySelector('.ag-cs-prism-rim-cv'), 'prismRim=true must mount step-plan rim');
+
+  // Toggle OFF via refreshConfig -> keeps composerRestyle='on', strips all box rims & clears canvases
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: false });
+  assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'off');
+  assert.equal(env.html.getAttribute('data-ag-cs-composer'), 'on');
+  assert.equal(composerCard.hasAttribute('data-ag-cs-prism-box'), false);
+  assert.equal(takeoverCard.hasAttribute('data-ag-cs-prism-box'), false);
+  assert.equal(stepPlan.hasAttribute('data-ag-cs-prism-box'), false);
+  assert.equal(overviewWrap.hasAttribute('data-ag-cs-prism-box'), false);
+  assert.equal(composerCard.querySelector('.ag-cs-prism-rim-cv'), null);
+  assert.equal(stepPlan.querySelector('.ag-cs-prism-rim-cv'), null);
+  assert.equal(homePanel.querySelector('.ag-cs-prism-rim-cv'), null);
+  assert.equal(overviewWrap.querySelector('.ag-cs-prism-rim-cv'), null);
+
+  const rafsBeforeDisabledMove = rafs.size;
+  firePointerMove(composerCard, 360, 540);
+  assert.equal(rafs.size, rafsBeforeDisabledMove, 'prismRim=false with no crystal slider open must schedule 0 new rAFs on pointermove');
+
+  // Toggle ON again -> restores data-ag-cs-rim='on' & box rims
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true });
+  assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'on');
+  assert.equal(composerCard.getAttribute('data-ag-cs-prism-box'), '1');
+  assert.equal(takeoverCard.getAttribute('data-ag-cs-prism-box'), '1');
+  assert.equal(overviewWrap.getAttribute('data-ag-cs-prism-box'), '1');
+  firePointerMove(composerCard, 400, 530);
+  flushRafs();
+  assert.ok(composerCard.querySelector('.ag-cs-prism-rim-cv')?._strokes?.length > 0, 'Re-enabling prismRim must resume drawing');
+
+  // Click Settings UI switch Off button -> flips data-ag-cs-rim to 'off' and dims prismRimStyle
+  const offBtn = sec.querySelector('button[data-ag-cs-key="prismRim"][data-ag-cs-val="false"]');
+  assert.ok(offBtn, 'Settings panel must expose prismRim Off button');
+  const clickEv = env.createEvent('click', {}, offBtn);
+  for (let cur = offBtn; cur; cur = cur.parentNode || null) {
+    clickEv.currentTarget = cur;
+    for (const fn of cur._getListeners?.('click', false) || []) fn.call(cur, clickEv);
+    if (clickEv.propagationStopped) break;
+  }
+  assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'off');
+  const rimStyleRow = sec.querySelector('[data-ag-cs-row="prismRimStyle"]');
+  assert.ok(rimStyleRow, 'Settings UI must render prismRimStyle row');
+  assert.equal(rimStyleRow.getAttribute('data-ag-cs-dimmed'), '1', 'prismRimStyle row must dim when prismRim=off');
+
+  // Re-enable prismRim with prismRimStyle='simple': uses card-style mirror specular cursor highlight on composer
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true, prismRimStyle: 'simple' });
+  assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'on');
+  assert.equal(env.html.getAttribute('data-ag-cs-rim-style'), 'simple');
+  assert.equal(composerCard.getAttribute('data-ag-cs-prism-box'), '1', 'simple rim style must keep data-ag-cs-prism-box on composer for cursor-tracking highlight');
+  assert.equal(composerCard.getAttribute('data-ag-cs-prism-mirror'), '1', 'simple rim style must mark composer with mirror card-hover highlight attr');
+  firePointerMove(composerCard, 420, 525);
+  flushRafs();
+  assert.ok(composerCard.querySelector('.ag-cs-prism-rim-cv')?._strokes?.length > 0, 'simple rim style must draw cursor-following mirror specular border');
+  assert.equal(takeoverCard.hasAttribute('data-ag-cs-prism-box'), false, 'simple rim style must strip takeover bottom reflection');
+  assert.equal(stepPlan.getAttribute('data-ag-cs-prism-box'), '1', 'simple composer rim style must still allow mirror box rim on step-plan');
+
+  // Toggle back to 'prism' removes mirror attr cleanly & supports logoInk='antigravity'
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true, prismRimStyle: 'prism', logoInk: 'antigravity' });
+  assert.equal(composerCard.hasAttribute('data-ag-cs-prism-mirror'), false, 'switching back to prism must remove mirror attr from composer');
+  assert.equal(composerCard.getAttribute('data-ag-cs-prism-box'), '1');
+  assert.equal(env.html.getAttribute('data-ag-cs-logo-ink'), 'antigravity');
+
+  vm.runInContext(cdp.REMOVE_EXPRESSION, env.sandbox);
+  assert.equal(env.html.hasAttribute('data-ag-cs-rim'), false, 'REMOVE_EXPRESSION must clean data-ag-cs-rim');
+  assert.equal(env.html.hasAttribute('data-ag-cs-rim-style'), false, 'REMOVE_EXPRESSION must clean data-ag-cs-rim-style');
+  assert.equal(env.html.hasAttribute('data-ag-cs-logo-ink'), false, 'REMOVE_EXPRESSION must clean data-ag-cs-logo-ink');
+});
+
+test('Home brand horizon glow keeps flowing past intro when motionLevel is standard/ultra & sleeps in subtle/off/blur', () => {
+  const src = fs.readFileSync(path.join(ROOT_DIR, 'home-ripple-host.js'), 'utf8');
+  let now = 1000;
+  let motionTier = 'ultra';
+  let hasFocus = true;
+  let glowDraws = 0;
+  let fieldDraws = 0;
+  let nextRaf = 1;
+  let nextTimer = 1;
+  const rafs = new Map();
+  const timers = new Map();
+  const homeEl = {
+    clientWidth: 800,
+    clientHeight: 500,
+    children: [],
+    get firstChild() { return this.children[0] || null; },
+    insertBefore(n) { this.children.unshift(n); n.isConnected = true; return n; },
+    querySelector: () => null,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const winBus = new Map();
+  const makeNode = (tag) => {
+    const attrs = new Map();
+    const cls = new Set();
+    return {
+      tagName: tag.toUpperCase(),
+      className: '',
+      width: 0,
+      height: 0,
+      isConnected: true,
+      style: { setProperty() {} },
+      classList: { contains: (c) => cls.has(c) || String(this.className || '').split(/\s+/).includes(c) },
+      setAttribute: (k, v) => attrs.set(k, String(v)),
+      getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
+      hasAttribute: (k) => attrs.has(k),
+      removeAttribute: (k) => attrs.delete(k),
+      appendChild(c) { (this._kids ||= []).push(c); return c; },
+      remove() { this.isConnected = false; },
+    };
+  };
+  const fakeDoc = {
+    hidden: false,
+    hasFocus: () => hasFocus,
+    documentElement: makeNode('html'),
+    querySelector: (sel) => (sel.includes('agy-home') ? homeEl : null),
+    createElement: (tag) => makeNode(tag),
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const sb = {
+    window: {
+      devicePixelRatio: 1,
+      addEventListener(t, fn) { if (!winBus.has(t)) winBus.set(t, []); winBus.get(t).push(fn); },
+      removeEventListener(t, fn) { const a = winBus.get(t); if (a) { const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } },
+      getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    },
+    document: fakeDoc,
+    performance: { now: () => now },
+    requestAnimationFrame: (fn) => { const id = nextRaf++; rafs.set(id, fn); return id; },
+    cancelAnimationFrame: (id) => { rafs.delete(id); },
+    setTimeout: (fn, ms) => { const id = nextTimer++; timers.set(id, { fn, at: now + ms }); return id; },
+    clearTimeout: (id) => { timers.delete(id); },
+    Float32Array, Map, Set, Math, Number, String, Boolean, Array, Object,
+  };
+  sb.globalThis = sb;
+  vm.runInNewContext(src, sb);
+
+  const ctl = sb.__agPrismHomeRippleHost.createHomeRippleController({
+    rippleCore: {
+      RIPPLE: { cellWidth: 16, cellHeight: 24 },
+      parseCssColorToRgb: () => null,
+      createWaveField: () => ({ advance() {}, active: () => false }),
+      createGlyphField: () => ({ mode: 'webgl2', busy: () => false, needsDraw: () => false, draw() { fieldDraws += 1; }, invalidate() {}, setCalmZones() {}, dispose() {} }),
+      mountBrandHorizonGlow: () => ({ mode: 'webgl2', resize() {}, invalidate() {}, clear() {}, draw() { glowDraws += 1; }, releaseBackingStore() {}, dispose() {} }),
+    },
+    isDestroyed: () => false,
+    isAllowed: () => false,
+    isGlowAllowed: () => true,
+    isMotionStandardOrUltra: () => motionTier === 'standard' || motionTier === 'ultra',
+    isDarkTheme: () => true,
+    motionReduced: () => motionTier === 'off',
+    getMinFrameGapMs: () => 0,
+    getAmbientIntensity: () => 1,
+    getAccentTone: () => 'follow',
+    setAttrIfChanged: (el, k, v) => el.setAttribute(k, v),
+  });
+
+  const stepFrame = (dtMs) => {
+    now += dtMs;
+    for (const [id, t] of [...timers.entries()]) {
+      if (t.at <= now) { timers.delete(id); t.fn(); }
+    }
+    const cbs = [...rafs.entries()];
+    rafs.clear();
+    for (const [, fn] of cbs) fn(now);
+  };
+
+  ctl.sync();
+  // Advance past 1600ms intro (to t=5000ms) with homeRipple=false -> horizon glow must KEEP flowing without freezing
+  for (let i = 0; i < 120; i++) stepFrame(40);
+  const m = ctl.getMount();
+  assert.equal(m.sleeping, false, 'Home ambient glow must stay alive in living flow past RIPPLE_INTRO_MS');
+  assert.equal(fieldDraws, 0, 'When homeRipple=false and waves idle, glyph field must perform 0 draws');
+  const drawsAt5s = glowDraws;
+  assert.ok(drawsAt5s > 50, `Expected continuous glow draws past intro (${drawsAt5s})`);
+  for (let i = 0; i < 30; i++) stepFrame(40);
+  assert.ok(glowDraws > drawsAt5s + 20, 'Horizon glow must continue animating indefinitely at steady low-power cadence');
+
+  // Switch motionLevel -> subtle: must sleep cleanly at 0fps
+  motionTier = 'subtle';
+  stepFrame(40);
+  assert.equal(m.sleeping, true, 'Subtle motion tier must sleep home glow at 0fps');
+  const drawsWhileSubtle = glowDraws;
+  for (let i = 0; i < 20; i++) stepFrame(40);
+  assert.equal(glowDraws, drawsWhileSubtle, 'Subtle motion tier must draw 0 extra glow frames');
+
+  // Switch back -> ultra + blur then focus recovery -> resumes flow immediately
+  motionTier = 'ultra';
+  ctl.refreshTheme();
+  stepFrame(40);
+  assert.equal(m.sleeping, false);
+  hasFocus = false;
+  for (const fn of [...(winBus.get('blur') || [])]) fn();
+  assert.equal(m.sleeping, true);
+  hasFocus = true;
+  ctl.wakeIfFocused();
+  stepFrame(40);
+  assert.equal(m.sleeping, false, 'wakeIfFocused must resume glow flow when document focus returns without full focus event');
+  ctl.unmount();
+});
+
+test('Home horizon uses soft animated halftone dot-matrix wave (halftone:0.24); logoInk=antigravity & app-icon Gemini star use official brand SVGs', () => {
+  const hostSrc = fs.readFileSync(path.join(ROOT_DIR, 'home-ripple-host.js'), 'utf8');
+  assert.ok(hostSrc.includes('mountBrandHorizonGlow(glowCanvas, { halftone: 0.24 })'), 'home-ripple-host must pass soft { halftone: 0.24 } on Home');
+
+  const rippleCore = require(path.join(ROOT_DIR, 'ripple-core.js'));
+  assert.ok(rippleCore.HORIZON_FRAGMENT_SHADER.includes('uniform float uDots;'), 'Shader must expose uDots uniform');
+  assert.ok(rippleCore.HORIZON_FRAGMENT_SHADER.includes('uDots > 0.01 ? halftone(') && rippleCore.HORIZON_FRAGMENT_SHADER.includes('* uDots : 0.0'), 'Shader must attenuate halftone dots smoothly via uDots');
+
+  // Compare 2D smoothness across halftone:true (1.0), soft halftone:0.24, and halftone:false (0)
+  const make2DCanvas = () => {
+    let lastImage = null;
+    const ctx = {
+      createImageData(w, h) { return { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }; },
+      putImageData(img) { lastImage = img; },
+    };
+    return { width: 0, height: 0, getContext: (t) => (t === '2d' ? ctx : null), getImg: () => lastImage };
+  };
+  const cDots = make2DCanvas();
+  const cSoftDots = make2DCanvas();
+  const cSmooth = make2DCanvas();
+  const gDots = rippleCore.mountBrandHorizonGlow(cDots, { force2D: true, halftone: true });
+  const gSoftDots = rippleCore.mountBrandHorizonGlow(cSoftDots, { force2D: true, halftone: 0.24 });
+  const gSmooth = rippleCore.mountBrandHorizonGlow(cSmooth, { force2D: true, halftone: false });
+  gDots.resize(240, 160, 1);
+  gSoftDots.resize(240, 160, 1);
+  gSmooth.resize(240, 160, 1);
+  gDots.draw(1800, { dark: true, still: false, prismStrength: 1, reach: 0.6 });
+  gSoftDots.draw(1800, { dark: true, still: false, prismStrength: 1, reach: 0.6 });
+  gSmooth.draw(1800, { dark: true, still: false, prismStrength: 1, reach: 0.6 });
+  const maxAdjDelta = (img) => {
+    let m = 0;
+    for (let y = 0; y < img.height; y++) {
+      for (let x = 1; x < img.width; x++) {
+        const i = (y * img.width + x) * 4;
+        const d = Math.abs(img.data[i] - img.data[i - 4]) + Math.abs(img.data[i + 3] - img.data[i - 1]);
+        if (d > m) m = d;
+      }
+    }
+    return m;
+  };
+  const totalDiff = (a, b) => {
+    let s = 0;
+    for (let i = 0; i < a.data.length; i += 4) {
+      s += Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]) + Math.abs(a.data[i + 3] - b.data[i + 3]);
+    }
+    return s;
+  };
+  const softDiff = totalDiff(cSoftDots.getImg(), cSmooth.getImg());
+  const fullDiff = totalDiff(cDots.getImg(), cSmooth.getImg());
+  assert.ok(softDiff > 0 && softDiff < fullDiff * 0.45, `Expected soft halftone deviation (${softDiff}) to be gently positive and < 45% of full dots (${fullDiff})`);
+  assert.ok(maxAdjDelta(cSoftDots.getImg()) < maxAdjDelta(cDots.getImg()), 'Soft halftone:0.24 must avoid sharp full-dot adjacency spikes');
+  gDots.dispose();
+  gSoftDots.dispose();
+  gSmooth.dispose();
+
+  const css = fs.readFileSync(path.join(ROOT_DIR, 'style.css'), 'utf8');
+  assert.ok(css.includes('[data-ag-cs-logo-ink="antigravity"] .agy-home [data-testid="home-greeting"] .home-greeting-mark'), 'style.css must style Antigravity original greeting mark');
+  assert.ok(css.includes('%2300B95C') && css.includes('%23FFE432') && css.includes('%23FC413D'), 'Antigravity greeting mark must carry official multicolor gradients');
+  assert.ok(css.includes('[data-testid="app-icon-new-conversation-button"] svg{width:17px !important;height:17px !important;color:var(--foreground) !important;background:currentColor !important;-webkit-mask:url("data:image/svg+xml,'), 'Back-to-home app icon must use monochrome foreground Antigravity mask SVG');
+  assert.ok(css.includes('M85.9734 89.3438'), 'Top-left app icon must carry official Antigravity A-arch path');
+
+  const mgcSrc = fs.readFileSync(path.join(ROOT_DIR, 'model-glyph-crystal.js'), 'utf8');
+  assert.ok(mgcSrc.includes("if (brand === 'antigravity' || brand === 'gemini')") && mgcSrc.includes('renderSparkSvg('), 'model-glyph-crystal must reuse Orchestrator animated spark icon for Gemini rows (colored when selected, animated on hover)');
+
+  const locales = require(path.join(ROOT_DIR, 'i18n-locales.js'));
+  for (const lang of ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de']) {
+    const s = locales.getUiStrings(lang);
+    assert.ok(typeof s.optAntigravity === 'string' && s.optAntigravity.includes('Antigravity'), `${lang} must define optAntigravity`);
+  }
+  const cdp = require(path.join(ROOT_DIR, 'cdp.js'));
+  assert.ok(cdp.VALIDATORS.logoInk.includes('antigravity'));
+});
+
+function createRimSandbox(pathname = '/conv-rim') {
+  const env = createDomSandbox({ pathname });
+  const rafs = new Map();
+  let nextRaf = 1;
+  env.win.requestAnimationFrame = (fn) => { const id = nextRaf++; rafs.set(id, fn); return id; };
+  env.win.cancelAnimationFrame = (id) => { rafs.delete(id); };
+  env.sandbox.requestAnimationFrame = env.win.requestAnimationFrame;
+  env.sandbox.cancelAnimationFrame = env.win.cancelAnimationFrame;
+  const flushRafs = (dt = 20) => {
+    env.advanceTime(dt);
+    const list = Array.from(rafs.entries());
+    rafs.clear();
+    for (const [, fn] of list) fn(env.win.performance.now());
+  };
+  const origMakeEl = env.makeEl;
+  const origCreateEl = env.doc.createElement;
+  const enhanceEl = (el) => {
+    if (!el || el._rimEnhanced) return el;
+    el._rimEnhanced = true;
+    el.ownerDocument = env.doc;
+    if (!el.dataset) el.dataset = {};
+    if (!('nextElementSibling' in el)) {
+      Object.defineProperty(el, 'nextElementSibling', {
+        get() {
+          if (!this.parentNode) return null;
+          const list = this.parentNode.children || [];
+          const i = list.indexOf(this);
+          return i >= 0 ? list[i + 1] || null : null;
+        },
+      });
+    }
+    if (el.tagName !== 'CANVAS') return el;
+    const strokes = [];
+    const ctx = {
+      globalAlpha: 1, globalCompositeOperation: 'source-over', lineWidth: 1, strokeStyle: null, fillStyle: null,
+      clearRect() { el._cleared = (el._cleared || 0) + 1; },
+      save() {}, restore() {}, translate() {}, clip() {}, fillRect() {}, fill() {}, beginPath() {}, roundRect() {},
+      moveTo() {}, lineTo() {}, arcTo() {}, closePath() {},
+      stroke() { strokes.push({ w: el.width, h: el.height }); },
+      createRadialGradient() { return { addColorStop() {} }; },
+      createLinearGradient() { return { addColorStop() {} }; },
+    };
+    el._strokes = strokes;
+    el.getContext = (k) => (k === '2d' ? ctx : null);
+    return el;
+  };
+  env.makeEl = (tag, opts) => enhanceEl(origMakeEl(tag, opts));
+  env.doc.createElement = (tag) => enhanceEl(origCreateEl(tag));
+  enhanceEl(env.html);
+  enhanceEl(env.body);
+  env.doc.hasFocus = () => true;
+  const winCapListeners = new Map();
+  const origWinAdd = env.win.addEventListener.bind(env.win);
+  const origWinRem = env.win.removeEventListener.bind(env.win);
+  env.win.addEventListener = (type, fn, opts) => {
+    if (typeof opts === 'boolean' ? opts : Boolean(opts && opts.capture)) {
+      if (!winCapListeners.has(type)) winCapListeners.set(type, new Set());
+      winCapListeners.get(type).add(fn);
+    }
+    return origWinAdd(type, fn, opts);
+  };
+  env.win.removeEventListener = (type, fn, opts) => {
+    if (typeof opts === 'boolean' ? opts : Boolean(opts && opts.capture)) winCapListeners.get(type)?.delete(fn);
+    return origWinRem(type, fn, opts);
+  };
+  env.sandbox.addEventListener = env.win.addEventListener;
+  env.sandbox.removeEventListener = env.win.removeEventListener;
+  const firePointerMove = (target, x, y) => {
+    const ev = env.createEvent('pointermove', { clientX: x, clientY: y }, target);
+    for (const fn of Array.from(winCapListeners.get('pointermove') || [])) fn.call(env.win, ev);
+  };
+  return { env, rafs, flushRafs, firePointerMove };
+}
+
+test('SideQuestion composer mirrors primary prismRim / simple highlight and Obsidian Dark unifies topbar & titleBarOverlay', () => {
+  const css = fs.readFileSync(path.join(ROOT_DIR, 'style.css'), 'utf8');
+  assert.ok(
+    css.includes('&:not([data-ag-cs-palette="host"]){& :is(.agy-sheet,.agy-shell,[data-ag-cs-home-sheet="1"]):not([data-has-browser-hole="true"]){background:var(--background) !important;}'),
+    'style.css must align .agy-sheet/.agy-shell background with var(--background) to avoid topbar color band in Obsidian Dark'
+  );
+  assert.ok(
+    css.includes('& .agy-inset-shell{--shell-canvas:var(--ag-cs-sidebar,var(--sidebar)) !important;}'),
+    'style.css must override .agy-inset-shell --shell-canvas so sidebar & topbar use --sidebar consistently'
+  );
+
+  const overlayCalls = [];
+  const { env, flushRafs, firePointerMove } = createRimSandbox('/conv-side-question');
+  const en = {
+    customWindowControls: false,
+    setTitleBarOverlay(opts) { overlayCalls.push(opts); },
+  };
+  env.win.electronNative = en;
+  env.sandbox.electronNative = en;
+
+  const origCS = env.win.getComputedStyle;
+  const patchedCS = (el) => {
+    if (el === env.doc.documentElement) {
+      const isHost = el.getAttribute('data-ag-cs-palette') === 'host' || !el.hasAttribute('data-ag-cs-style');
+      return {
+        getPropertyValue(k) {
+          if (k === '--sidebar') return isHost ? '#121216' : '#09090B';
+          if (k === '--secondary-foreground') return isHost ? '#EAEBF1' : '#C4C4CE';
+          return '';
+        },
+      };
+    }
+    return origCS ? origCS(el) : { getPropertyValue: () => '' };
+  };
+  env.win.getComputedStyle = patchedCS;
+  env.sandbox.getComputedStyle = patchedCS;
+
+  // Main conversation composer
+  const convView = env.makeEl('div', { attrs: { 'data-testid': 'conversation-view' } });
+  const mainBox = env.makeEl('div', { attrs: { 'data-testid': 'agent-input-box' } });
+  const mainCard = env.makeEl('div', { className: 'surface-composer-card', rect: { left: 100, top: 480, right: 660, bottom: 600, width: 560, height: 120 } });
+  mainBox.appendChild(mainCard);
+  convView.appendChild(mainBox);
+
+  // SideQuestion side-panel composer
+  const auxSplit = env.makeEl('div', { attrs: { 'data-testid': 'aux-pane-split' } });
+  const sideBody = env.makeEl('div', { attrs: { 'data-side-panel-body': 'true' } });
+  const sideComposerWrap = env.makeEl('div', { attrs: { 'data-testid': 'side-question-tab-composer', 'data-side-panel-composer': '' } });
+  const sideBox = env.makeEl('div', { attrs: { 'data-testid': 'agent-input-box' } });
+  const sideCard = env.makeEl('div', { className: 'surface-composer-card', rect: { left: 900, top: 480, right: 1320, bottom: 600, width: 420, height: 120 } });
+  sideBox.appendChild(sideCard);
+  sideComposerWrap.appendChild(sideBox);
+  sideBody.appendChild(sideComposerWrap);
+  auxSplit.appendChild(sideBody);
+
+  env.body.appendChild(convView);
+  env.body.appendChild(auxSplit);
+
+  const cdp = require(path.join(ROOT_DIR, 'cdp.js'));
+  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, palette: 'obsidian', motionLevel: 'ultra', prismRim: true, prismRimStyle: 'prism' }, { bundleCachePath: '' });
+  assert.equal(vm.runInContext(injectExpr, env.sandbox).status, 'ok');
+
+  assert.equal(mainCard.getAttribute('data-ag-cs-prism-box'), '1');
+  assert.equal(sideCard.getAttribute('data-ag-cs-prism-box'), '1', 'SideQuestion composer must get prism rim in prism mode');
+  assert.equal(sideCard.hasAttribute('data-ag-cs-prism-mirror'), false);
+  firePointerMove(sideCard, 1080, 520);
+  flushRafs();
+  assert.ok(sideCard.querySelector('.ag-cs-prism-rim-cv')?._strokes?.length > 0, 'SideQuestion composer must paint cursor prism rim');
+
+  // Switch to simple rim style -> both mainCard and sideCard get identical mirror attr and draw strokes
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, palette: 'obsidian', motionLevel: 'ultra', prismRim: true, prismRimStyle: 'simple' });
+  assert.equal(mainCard.getAttribute('data-ag-cs-prism-mirror'), '1');
+  assert.equal(sideCard.getAttribute('data-ag-cs-prism-mirror'), '1', 'SideQuestion composer must match mirror rim style in simple mode');
+  assert.equal(sideCard.getAttribute('data-ag-cs-prism-box'), '1');
+  firePointerMove(sideCard, 1120, 530);
+  flushRafs();
+  assert.ok(sideCard.querySelector('.ag-cs-prism-rim-cv')?._strokes?.length > 0, 'SideQuestion composer must paint mirror highlight in simple mode');
+
+  // Turn prismRim off -> both mainCard and sideCard lose rim
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, palette: 'obsidian', motionLevel: 'ultra', prismRim: false, prismRimStyle: 'simple' });
+  assert.equal(sideCard.hasAttribute('data-ag-cs-prism-box'), false);
+  assert.equal(sideCard.hasAttribute('data-ag-cs-prism-mirror'), false);
+
+  // Obsidian titleBarOverlay synced to #09090B and restored cleanly to host #121216 on REMOVE_EXPRESSION
+  assert.ok(overlayCalls.some((c) => c.color === '#09090B' && c.symbolColor === '#C4C4CE'), 'setTitleBarOverlay must sync Obsidian --sidebar #09090B');
+  vm.runInContext(cdp.REMOVE_EXPRESSION, env.sandbox);
+  const lastOverlay = overlayCalls[overlayCalls.length - 1];
+  assert.equal(lastOverlay?.color, '#121216', 'REMOVE_EXPRESSION must restore host titleBarOverlay color');
+  assert.equal(lastOverlay?.symbolColor, '#EAEBF1', 'REMOVE_EXPRESSION must restore host titleBarOverlay symbolColor');
+});

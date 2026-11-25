@@ -621,8 +621,16 @@ test('2-2A homeRipple=false decouples from convAura (stays active while ambient>
 
   assert.ok(auraOpts && rippleOpts);
   assert.equal(rippleOpts.isAllowed(), false, 'Home ripple must still obey homeRipple=false');
+  assert.equal(rippleOpts.isGlowAllowed(), true, 'Home bottom glow must stay enabled when homeRipple=false and homeLayout!=off');
   assert.equal(auraOpts.isHomeRippleEnabled(), true, 'convAura must remain enabled when homeRipple=false and ambientIntensity=100');
   assert.equal(auraOpts.isMotionStandardOrUltra(), true);
+
+  // Switching homeLayout='off' disables bottom horizon glow too
+  ctx.api.saveSettingsBatch({ homeLayout: 'off' });
+  assert.equal(rippleOpts.isAllowed(), false);
+  assert.equal(rippleOpts.isGlowAllowed(), false, 'Home bottom glow must disable when homeLayout=off');
+  ctx.api.saveSettingsBatch({ homeLayout: 'studio' });
+  assert.equal(rippleOpts.isGlowAllowed(), true);
 
   // Setting ambientIntensity='0' disables convAura
   ctx.api.saveSettingsBatch({ ambientIntensity: '0' });
@@ -856,4 +864,158 @@ test('CSS hygiene, dual-split :not([data-split-overlaid]), dead brand SVG CSS re
   const expr = cdp.buildInjectExpression(cdp.DEFAULT_CONFIG);
   const bytes = Buffer.byteLength(expr, 'utf8');
   assert.ok(bytes < 550000, `Channel 1 bundle must stay < 550,000 B, got ${bytes} B`);
+});
+
+test('homeRipple=false keeps Home bottom horizon glow (.ag-cs-brand-glow) without ASCII glyph canvas, supports hide/restore/toggle & unmounts when homeLayout=off', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'home-ripple-host.js'), 'utf8');
+  const html = makeMiniNode('html', { 'data-ag-cs-ambient': '1', 'data-ag-cs-palette': 'obsidian', 'data-ag-cs-accent': 'follow' });
+  const body = makeMiniNode('body');
+  const home = makeMiniNode('div', { class: 'agy-home' }, { left: 0, top: 0, width: 1200, height: 720, right: 1200, bottom: 720 });
+  home.clientWidth = 1200;
+  home.clientHeight = 720;
+  let homeMounted = true;
+  let homePointerListeners = 0;
+  const origHomeAdd = home.addEventListener;
+  home.addEventListener = (ev, fn, opt) => {
+    if (String(ev).startsWith('pointer')) homePointerListeners += 1;
+    return origHomeAdd.call(home, ev, fn, opt);
+  };
+  html.appendChild(body);
+  body.appendChild(home);
+
+  const docListeners = new Map();
+  const fakeDoc = {
+    hidden: false,
+    documentElement: html,
+    body,
+    createElement: (t) => makeMiniNode(t),
+    querySelector: (s) => (s === '.agy-home' && homeMounted ? home : html.querySelector(s)),
+    addEventListener(ev, fn) { if (!docListeners.has(ev)) docListeners.set(ev, new Set()); docListeners.get(ev).add(fn); },
+    removeEventListener(ev, fn) { docListeners.get(ev)?.delete(fn); },
+  };
+  let now = 1000;
+  let nextId = 1;
+  const rafs = new Map();
+  const timers = new Map();
+  const sb = {
+    document: fakeDoc,
+    devicePixelRatio: 2,
+    performance: { now: () => now },
+    requestAnimationFrame: (fn) => { const id = nextId++; rafs.set(id, fn); return id; },
+    cancelAnimationFrame: (id) => { rafs.delete(id); },
+    setTimeout: (fn, ms = 0) => { const id = nextId++; timers.set(id, { fn, at: now + ms }); return id; },
+    clearTimeout: (id) => { timers.delete(id); },
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    ResizeObserver: class { observe() {} disconnect() {} },
+    addEventListener() {},
+    removeEventListener() {},
+    Float32Array, Math, Number, String, Boolean, Array, Object, Map, Set,
+  };
+  sb.window = sb;
+  sb.globalThis = sb;
+  vm.runInNewContext(src, sb);
+
+  let fieldInits = 0, fieldDisposes = 0, glowDraws = 0, glowClears = 0, glowReleases = 0, lastGlowOpts = null;
+  const rippleCore = {
+    RIPPLE: { cellWidth: 16, cellHeight: 24 },
+    parseCssColorToRgb: () => null,
+    createWaveField: () => ({ height: new Float32Array(1), active: () => false, disturb() {}, skimmer() {}, advance() {} }),
+    createGlyphField: (cv) => {
+      fieldInits += 1;
+      return {
+        mode: 'webgl2',
+        busy: () => false,
+        needsDraw: () => false,
+        setCalmZones() {},
+        invalidate() {},
+        draw() { if (cv.width <= 0 || cv.height <= 0) throw new Error('glyph 0x0'); },
+        dispose() { fieldDisposes += 1; },
+      };
+    },
+    mountBrandHorizonGlow: (cv) => ({
+      mode: 'webgl2',
+      resize(w, h, dpr) { cv.width = Math.max(1, Math.round(w * dpr)); cv.height = Math.max(1, Math.round(h * dpr)); },
+      releaseBackingStore() { glowReleases += 1; cv.width = 0; cv.height = 0; },
+      invalidate() {},
+      clear() { glowClears += 1; },
+      draw(_t, opts) { if (cv.width <= 0 || cv.height <= 0) throw new Error('glow 0x0'); glowDraws += 1; lastGlowOpts = opts; },
+      dispose() {},
+    }),
+  };
+
+  let rippleOn = false;
+  let glowOn = true;
+  let ambientVal = 0.7;
+  let reduced = false;
+  const ctl = sb.__agPrismHomeRippleHost.createHomeRippleController({
+    rippleCore,
+    isDestroyed: () => false,
+    isAllowed: () => rippleOn,
+    isGlowAllowed: () => glowOn,
+    isDarkTheme: () => true,
+    motionReduced: () => reduced,
+    getMinFrameGapMs: () => 0,
+    getAmbientIntensity: () => ambientVal,
+    getAccentTone: () => 'follow',
+    setAttrIfChanged: (el, k, v) => el.setAttribute(k, v),
+  });
+
+  // 1) homeRipple=false: mounts .ag-cs-ripple-host + .ag-cs-brand-glow, NO .ag-cs-ripple-canvas, NO glyph field, NO pointer listeners
+  ctl.sync();
+  assert.ok(home.querySelector('.ag-cs-ripple-host'), 'Expected .ag-cs-ripple-host when homeRipple=false');
+  assert.ok(home.querySelector('.ag-cs-brand-glow'), 'Expected .ag-cs-brand-glow when homeRipple=false');
+  assert.equal(home.querySelector('.ag-cs-ripple-canvas'), null, 'Must NOT mount glyph ripple canvas when homeRipple=false');
+  assert.equal(fieldInits, 0);
+  assert.equal(homePointerListeners, 0);
+  assert.ok(rafs.size >= 1);
+  for (let i = 0; i < 1 && rafs.size > 0; i++) {
+    const [[id, fn]] = rafs.entries();
+    rafs.delete(id);
+    now += 16;
+    fn(now);
+  }
+  assert.equal(glowDraws, 1);
+  assert.equal(lastGlowOpts.ambientIntensity, 0.7);
+  assert.ok(ctl.getMount().glowCanvas.width > 0);
+
+  // 2) Hidden reclaim + visible restore without throwing in glow-only mode
+  fakeDoc.hidden = true;
+  for (const fn of docListeners.get('visibilitychange') || []) fn();
+  assert.equal(ctl.getMount().glowCanvas.width, 0);
+  assert.equal(glowReleases, 1);
+  fakeDoc.hidden = false;
+  for (const fn of docListeners.get('visibilitychange') || []) fn();
+  assert.ok(ctl.getMount().glowCanvas.width > 0 && glowDraws >= 2);
+
+  // 3) Hero B triggerTideSwell + ambient=0 clear
+  ctl.triggerTideSwell();
+  assert.ok(ctl.getMount().tideSwellAt > 0);
+  ambientVal = 0;
+  ctl.refreshTheme();
+  while (rafs.size > 0) {
+    const [[id, fn]] = rafs.entries();
+    rafs.delete(id);
+    now += 16;
+    fn(now);
+  }
+  assert.equal(glowClears, 1);
+  assert.equal(ctl.getMount().sleeping, true);
+
+  // 4) Dynamic toggle: homeRipple false -> true mounts .ag-cs-ripple-canvas, true -> false disposes glyph field & retains .ag-cs-brand-glow
+  ambientVal = 1;
+  rippleOn = true;
+  ctl.sync();
+  assert.ok(home.querySelector('.ag-cs-ripple-canvas'), 'Re-enabling homeRipple must mount .ag-cs-ripple-canvas');
+  assert.equal(fieldInits, 1);
+  rippleOn = false;
+  ctl.sync();
+  assert.equal(fieldDisposes, 1);
+  assert.equal(home.querySelector('.ag-cs-ripple-canvas'), null);
+  assert.ok(home.querySelector('.ag-cs-brand-glow'), 'Disabling homeRipple must keep .ag-cs-brand-glow');
+
+  // 5) homeLayout='off' (glowOn=false) unmounts everything cleanly
+  glowOn = false;
+  ctl.sync();
+  assert.equal(home.querySelector('.ag-cs-ripple-host'), null);
+  assert.equal(home.querySelector('.ag-cs-brand-glow'), null);
 });
