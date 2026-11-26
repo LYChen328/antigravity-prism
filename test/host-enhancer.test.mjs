@@ -797,6 +797,8 @@ test('style.css covers all 6 Wave-2 config hooks, eliminates double borders & en
     'data-ag-cs-corners="sharp"',
     'data-ag-cs-corners="balanced"',
     'data-ag-cs-corners="soft"',
+    '--ag-cs-r-sm:6px;--ag-cs-r-md:10px;--ag-cs-r-lg:14px;--ag-cs-r-xl:16px;',
+    '--ag-cs-r-sm:8px;--ag-cs-r-md:12px;--ag-cs-r-lg:21px;--ag-cs-r-xl:24px;',
     'data-ag-cs-code-font="jetbrains"',
     'data-ag-cs-code-font="cascadia"',
     'data-ag-cs-code-font="sfmono"',

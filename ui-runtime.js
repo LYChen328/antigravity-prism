@@ -2241,7 +2241,8 @@
         syncPopupOverlayMirrors();
       }
 
-      if (routeJumped || flags.r || flags.c || flags.o) {
+      if (flags.t) prismRimCtl.invalidateMetrics?.();
+      else if (routeJumped || flags.r || flags.c || flags.o) {
         prismRimCtl.markDirty();
       }
 

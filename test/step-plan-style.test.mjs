@@ -28,7 +28,7 @@ test('step-plan checklist card and home-panel align with Obsidian Prism floating
 
   // PR #43 + v1.0.8 layered monochrome mirror optics & 5-state obsidian star-core icons on step-plan
   assert.ok(spLine.includes('& [data-testid="step-plan"]{'), 'must style step-plan card');
-  assert.ok(spLine.includes('border-radius:13px !important;'), 'step-plan must match overview-shell 13px radius');
+  assert.ok(spLine.includes('border-radius:var(--ag-cs-r-lg) !important;'), 'step-plan must share overview-shell --ag-cs-r-lg corner radius');
   assert.ok(spLine.includes('var(--ag-cs-menu-bg,var(--ag-cs-panel-bg,rgba(14,16,22,.94)))'), 'step-plan must share overview-shell dark obsidian surface');
   assert.ok(spLine.includes('radial-gradient(108% 52px at 50% 0%,rgba(168,200,255,.048) 0%,transparent 74%),var(--ag-cs-menu-sheen)'), 'step-plan must layer restrained cool-silver top diffusion over sheen');
   assert.ok(spLine.includes('var(--ag-cs-menu-bd)'), 'step-plan must share overview-shell 1px stepped border');
@@ -62,7 +62,7 @@ test('step-plan checklist card and home-panel align with Obsidian Prism floating
 
   // Home panel upgraded to floating overview-shell material while preserving backdrop-filter:none & zero blur(
   const homePanelLine = css.split('\n').find((l) => l.startsWith('.ag-cs-home-panel{')) || '';
-  assert.ok(homePanelLine.includes('border-radius:13px;'), '.ag-cs-home-panel must share overview-shell 13px radius');
+  assert.ok(homePanelLine.includes('border-radius:var(--ag-cs-r-lg);'), '.ag-cs-home-panel must share overview-shell --ag-cs-r-lg corner radius');
   assert.ok(homePanelLine.includes('var(--ag-cs-menu-bg,'), '.ag-cs-home-panel must share overview-shell obsidian surface');
   assert.ok(homePanelLine.includes('var(--ag-cs-menu-sheen)'), '.ag-cs-home-panel must share overview-shell top-light sheen');
   assert.ok(homePanelLine.includes('backdrop-filter:none') && !homePanelLine.includes('blur('), '.ag-cs-home-panel must keep backdrop-filter:none with zero blur(');
