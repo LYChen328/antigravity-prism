@@ -2064,7 +2064,16 @@
     const isAsyncConvEntry = !isFullSync && !inHome && !!formalConv && (!streamChoreoCtl.heroState.wasInFormalConv || isConvSwap);
     const homeComposerSampled = inHome && (flags.f || flags.r || flags.c) ? (streamChoreoCtl.sampleHomeComposerRect(), true) : false;
     const hs = streamChoreoCtl.heroState;
-    const convInputRect = hs.routeInitialized && hs.wasInHome && !inHome && formalConv && isMotionUltra() && !streamChoreoCtl.isEntryMotionSuppressed?.() ? rc(qs(formalConv, S_IB) || qs(D, S_IB)) : null;
+    const convInputRect =
+      hs.routeInitialized &&
+      hs.wasInHome &&
+      !inHome &&
+      formalConv &&
+      isMotionUltra() &&
+      !streamChoreoCtl.isEntryMotionSuppressed?.() &&
+      streamChoreoCtl.isHomeLaunchPending?.()
+        ? rc(qs(formalConv, S_IB) || qs(D, S_IB))
+        : null;
     const sidebarSnap = flags.f || flags.s || flags.r ? streamChoreoCtl.measureSidebarSelectionSnapshot() : null;
     const visibleChangedHeaders = !isAsyncConvEntry && (flags.f || flags.cf || flags.r) ? streamChoreoCtl.measureVisibleChangedHeaders() : [];
     const lensOverlays = (flags.f || flags.o) && isMotionStandardOrUltra() ? streamChoreoCtl.measureNewLensOverlays() : [];
@@ -2558,6 +2567,15 @@
       if (t?.closest) {
         const sbRow = cl(t, '[data-testid="conversation-row-sidebar"]');
         if (sbRow) streamChoreoCtl.lockSidebarRowRunningOnPointerDown?.(sbRow);
+        if (
+          sbRow ||
+          cl(
+            t,
+            '[data-testid="conversation-row-history"], [data-testid="breadcrumb-segment"], [data-testid^="overview-panel-row-"], [data-testid="overview-panel"], [data-testid="new-conversation-button"]'
+          )
+        ) {
+          streamChoreoCtl.cancelHomeLaunch?.();
+        }
         if (isSplitResizeHandle(t)) {
           splitDragActive = true;
           const h = de();

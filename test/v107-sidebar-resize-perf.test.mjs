@@ -416,6 +416,7 @@ test('P0-2 conv-aura: continuous resize & html[data-ag-cs-resizing="1"] defer ba
   convView.clientWidth = 800;
   convView.clientHeight = 600;
   seat.appendChild(convView);
+  const cancelBtn = makeMiniNode('button', { 'data-testid': 'input-cancel-button' });
 
   const fakeDoc = {
     hidden: false,
@@ -427,7 +428,11 @@ test('P0-2 conv-aura: continuous resize & html[data-ag-cs-resizing="1"] defer ba
       return n;
     },
     querySelector: () => null,
-    querySelectorAll: (sel) => (sel.includes('conversation-view') ? [convView] : []),
+    querySelectorAll: (sel) => {
+      if (sel.includes('conversation-view')) return [convView];
+      if (sel.includes('input-cancel-button')) return [cancelBtn];
+      return [];
+    },
     addEventListener() {},
     removeEventListener() {},
   };

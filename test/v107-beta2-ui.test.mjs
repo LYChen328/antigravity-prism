@@ -191,24 +191,13 @@ test('v1.0.7-beta.2 Task 2 (PR #21 hardening): conv-aura caps pre-sleep WebGL2 p
     runGuardedMut: (fn) => fn(),
   });
 
-  // 1) Idle pre-sleep phase: must NOT spin 60fps rAF; must schedule ~33ms timer & throttle +16ms early wake
+  // 1) Idle phase: running-only aura -> clears and enters immediate 0fps sleep (0 rAF / 0 timer)
   ctl.sync(false);
   flushRafs();
   assert.equal(ctl.getInstance().phase, 'idle');
-  assert.equal(rafs.size, 0, 'idle pre-sleep phase must use ~30fps timer instead of spinning 60fps rAF');
-  assert.equal(timers.size, 1, 'idle pre-sleep phase should schedule a single ~33ms timer');
-  assert.ok(scheduledDelays[scheduledDelays.length - 1] >= 33, `idle pre-sleep delay must be >= 33ms, got ${scheduledDelays[scheduledDelays.length - 1]}`);
-
-  const drawsAfterIdle1 = glowDraws;
-  nowMs += 16; // +16ms < 31ms pre-sleep effectiveMinGap -> must throttle!
-  flushTimers();
-  flushRafs();
-  assert.equal(glowDraws, drawsAfterIdle1, 'idle pre-sleep must throttle 16ms ticks to stay capped at ~30fps');
-
-  nowMs += 20; // total +36ms >= 31ms -> must draw!
-  flushTimers();
-  flushRafs();
-  assert.equal(glowDraws, drawsAfterIdle1 + 1, 'idle pre-sleep must draw cleanly at ~33ms step');
+  assert.equal(ctl.getInstance().sleeping, true, 'idle phase must sleep immediately at 0fps');
+  assert.equal(rafs.size, 0, 'idle phase must have 0 rAF');
+  assert.equal(timers.size, 0, 'idle phase must have 0 timers');
 
   // 2) Running phase: smooth WebGL2 VSync 60fps via rAF directly
   running = true;
@@ -222,7 +211,7 @@ test('v1.0.7-beta.2 Task 2 (PR #21 hardening): conv-aura caps pre-sleep WebGL2 p
   assert.equal(rafs.size, 1, 'running phase with WebGL2 + minGap=16 must schedule smooth VSync rAF');
   assert.equal(timers.size, 0, 'running phase smooth VSync must not depend on setTimeout jitter');
 
-  // 3) awaiting-decision pre-sleep phase: capped at ~30fps (33ms timer, 0 rAF spin)
+  // 3) awaiting-decision pre-sleep phase: capped at ~30fps (33ms timer, 0 rAF spin) & throttles +16ms early wake
   running = false;
   nowMs += 300;
   ctl.setSemanticState({ awaitingDecision: true });
@@ -230,6 +219,15 @@ test('v1.0.7-beta.2 Task 2 (PR #21 hardening): conv-aura caps pre-sleep WebGL2 p
   assert.equal(ctl.getInstance().phase, 'awaiting-decision');
   assert.equal(rafs.size, 0, 'awaiting-decision pre-sleep phase must not spin 60fps rAF');
   assert.ok(scheduledDelays[scheduledDelays.length - 1] >= 33, `awaiting-decision delay must be >= 33ms, got ${scheduledDelays[scheduledDelays.length - 1]}`);
+  const drawsAfterDec1 = glowDraws;
+  nowMs += 16; // +16ms < 31ms pre-sleep effectiveMinGap -> must throttle!
+  flushTimers();
+  flushRafs();
+  assert.equal(glowDraws, drawsAfterDec1, 'pre-sleep phase must throttle 16ms ticks to stay capped at ~30fps');
+  nowMs += 20; // total +36ms >= 31ms -> must draw!
+  flushTimers();
+  flushRafs();
+  assert.equal(glowDraws, drawsAfterDec1 + 1, 'pre-sleep phase must draw cleanly at ~33ms step');
 
   // 4) long-task-complete pre-sleep phase: capped at ~30fps (33ms timer, 0 rAF spin)
   ctl.setSemanticState({ awaitingDecision: false });

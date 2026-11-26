@@ -562,7 +562,14 @@ test('stream-choreography decouples triggerHeroALiftoff / triggerHeroBHomeReturn
     });
     // 1) Initialize in Home -> samples home composer rect (top=480)
     ctl.syncHeroRouteChoreography({ inHome: true, formalConv: null, checkCaustics: false });
-    // 2) Transition Home -> Conv (input wrapped in v2.35.1 .animate-fade-in) -> triggers triggerHeroALiftoff with clamped dy
+    // 1b) Switching Home -> existing Conv WITHOUT Home launch submit skips Hero A liftoff
+    ctl.syncHeroRouteChoreography({ inHome: false, formalConv: conv, convInputRect: { left: 0, top: 820, width: 640, height: 96 }, checkCaustics: false });
+    assert.equal(springCalls.length, 0, 'Switching from Home to existing conversation must NOT play Hero A liftoff');
+    ctl.syncHeroRouteChoreography({ inHome: true, formalConv: null, checkCaustics: false });
+    staggerCalls.length = 0;
+
+    // 2) Transition Home -> New Conv (after Home submit) -> triggers triggerHeroALiftoff with clamped dy
+    ctl.triggerHomeLiftoffRippleBurst();
     ctl.syncHeroRouteChoreography({ inHome: false, formalConv: conv, convInputRect: { left: 0, top: 820, width: 640, height: 96 }, checkCaustics: false });
     assert.equal(springCalls.length, 1);
     const dyMatch = springCalls[0].kfs[0].transform.match(/translateY\((-?\d+)px\)/);

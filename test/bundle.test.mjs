@@ -2598,6 +2598,16 @@ test('v3.7 orchestrates 4-tier motionLevel, Hero A~E optical transitions, dual-t
     sandbox.window.__agClaudeStyle.sync();
     assert.equal(sandbox.window.__agClaudeStyle.getState().hasRipple, true);
 
+    // 10. Switching from Home -> existing conversation (without Home submit) must NOT play Hero A liftoff
+    convInputBox._lastAnim = null;
+    firstBubble.removeAttribute('data-ag-cs-liftoff-bubble');
+    home.remove();
+    stageShell.appendChild(convView);
+    sandbox.window.__agClaudeStyle.sync();
+    assert.equal(body.querySelector('.ag-cs-liftoff-veil'), null, 'Home -> existing conversation must NOT mount liftoff veil');
+    assert.equal(firstBubble.getAttribute('data-ag-cs-liftoff-bubble'), null, 'Home -> existing conversation must NOT animate liftoff bubble');
+    assert.equal(convInputBox._lastAnim, null, 'Home -> existing conversation must NOT play liftoff spring');
+
     // Clean teardown via REMOVE_EXPRESSION
     vm.runInNewContext(cdp.REMOVE_EXPRESSION, sandbox);
     assert.equal(html.hasAttribute('data-ag-cs-motion'), false);
@@ -2945,34 +2955,39 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     // ── Check 0: Legacy storage migrated to localStorage['ag-prism:config'] ──
     assert.ok(sandbox.localStorage.getItem('ag-prism:config'), 'Expected legacy ag-claude-style:config migrated to ag-prism:config');
 
-    // ── Check ③: Conversation horizon aura 32% height + 20fps~45fps living flow in standard/ultra + 0fps sleep in subtle/off ──
+    // ── Check ③: Conversation horizon aura 32% height + 0fps idle (no persistent glow) + active running flow / subtle 0fps sleep ──
     const auraHost = stageShell.querySelector('.ag-cs-conv-aura-host');
     assert.ok(auraHost, 'Expected .ag-cs-conv-aura-host mounted');
     assert.equal(auraHost.style.getPropertyValue('height'), '32%');
     assert.equal(auraHost.style.getPropertyValue('bottom'), '0');
-    assert.equal(auraHost.hasAttribute('data-aura-sleep'), false, 'Ultra/Standard idle aura must keep breathing (never frozen)');
+    assert.equal(auraHost.getAttribute('data-aura-sleep'), '1', 'Idle conversation must clear persistent glow and sleep at 0fps');
 
     const stIdle = sandbox.window.__agPrism.getState();
     assert.equal(stIdle.convAuraPhase, 'idle');
-    assert.equal(stIdle.convAuraSleeping, false, 'Expected convAuraSleeping === false in ultra idle living flow');
+    assert.equal(stIdle.convAuraSleeping, true, 'Expected convAuraSleeping === true in idle (running-only aura)');
     assert.equal(stIdle.convAuraCanvasSize.height, Math.round(750 * 0.32), 'Canvas height must be 32% of parent (68% pixel savings)');
-    assert.equal(stIdle.convAuraOptics.frameMs, 64, 'Idle slow living flow runs at lightweight 64ms (~15fps)');
-    assert.equal(stIdle.convAuraOptics.speed, 0.42, 'Idle slow living flow speed must be 0.42');
-    assert.ok(Math.abs(stIdle.convAuraOptics.strength - 0.44) < 0.05, 'Daylight idle aura base strength must breathe calmly around 0.44');
+    assert.equal(stIdle.convAuraOptics.strength, 0, 'Idle conversation aura strength must be 0');
+    assert.equal(stIdle.convAuraOptics.speed, 0, 'Idle conversation aura speed must be 0');
     const drawsAtMount = stIdle.convAuraDrawCount;
-    assert.ok(drawsAtMount >= 1);
+    fakeNow += 200;
+    await new Promise((r) => setTimeout(r, 60));
+    assert.equal(sandbox.window.__agPrism.getState().convAuraDrawCount, drawsAtMount, 'Idle conversation aura must draw 0 frames');
 
-    // Advance clock & poll up to 600ms -> continuous living flow draws new frames cleanly even on loaded CI runners
-    fakeNow += 180;
-    let drawsAfterFlow = drawsAtMount;
+    // Start running task -> wakes living running aura; switch to subtle -> sleeps at 0fps; back to ultra -> resumes
+    const tempCancelBtn = makeNode('button', { attrs: { 'data-testid': 'input-cancel-button' } });
+    convView.appendChild(tempCancelBtn);
+    sandbox.window.__agPrism.sync();
+    assert.equal(sandbox.window.__agPrism.getState().convAuraSleeping, false, 'Running task must wake conversation aura');
+    const drawsBeforeRunFlow = sandbox.window.__agPrism.getState().convAuraDrawCount;
+    fakeNow += 80;
+    let drawsAfterFlow = drawsBeforeRunFlow;
     for (let w = 0; w < 24; w++) {
       await new Promise((r) => setTimeout(r, 25));
       drawsAfterFlow = sandbox.window.__agPrism.getState().convAuraDrawCount;
-      if (drawsAfterFlow > drawsAtMount) break;
+      if (drawsAfterFlow > drawsBeforeRunFlow) break;
     }
-    assert.ok(drawsAfterFlow > drawsAtMount, `Expected continuous living aura frames in ultra idle (${drawsAfterFlow} > ${drawsAtMount})`);
+    assert.ok(drawsAfterFlow > drawsBeforeRunFlow, `Expected continuous running aura frames (${drawsAfterFlow} > ${drawsBeforeRunFlow})`);
 
-    // Switch motionLevel to 'subtle' -> enters true 0fps static sleep!
     sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, lightPreset: 'crystal', motionLevel: 'subtle' });
     assert.equal(sandbox.window.__agPrism.getState().convAuraSleeping, true, 'Subtle motion tier must sleep at 0fps');
     assert.equal(auraHost.getAttribute('data-aura-sleep'), '1');
@@ -2981,9 +2996,11 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     await new Promise((r) => setTimeout(r, 70));
     assert.equal(sandbox.window.__agPrism.getState().convAuraDrawCount, drawsWhenSleeping, 'Subtle/off aura must draw 0 extra frames while sleeping');
 
-    // Switch back to 'ultra' -> wakes living flow immediately!
     sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, lightPreset: 'crystal', motionLevel: 'ultra' });
     assert.equal(sandbox.window.__agPrism.getState().convAuraSleeping, false);
+    tempCancelBtn.remove();
+    fakeNow += 1500;
+    sandbox.window.__agPrism.sync();
 
     // Also test About Git Repo Sync button with mocked __agPrismRepoBridge (no-remote & remote pull)
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);

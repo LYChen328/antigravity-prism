@@ -158,19 +158,19 @@
   }
 
   function computeConvAuraOptics(phase, phaseAt, now, dark, wasRunning, out = {}) {
-    const idleStr = dark ? 0.18 : 0.44;
+    const idleStr = 0;
     const runBase = dark ? 0.39 : 0.76;
-    const idlePrism = dark ? 0.16 : 0.28;
+    const idlePrism = 0;
     if (phase === 'start') {
       const p = Math.max(0, Math.min(1, (now - phaseAt) / CONV_AURA_START_MS));
       const s = Math.sin(p * Math.PI);
       const peakStr = dark ? 0.46 : 0.78;
-      const endStr = wasRunning ? runBase : idleStr;
-      const endFullReach = wasRunning ? 0.22 : 0.16;
-      const rawReach = p <= 0.5 ? 0.16 + (0.26 - 0.16) * s : endFullReach + (0.26 - endFullReach) * s;
-      const endPrism = wasRunning ? 0.70 : idlePrism;
+      const endStr = wasRunning ? runBase : 0;
+      const endFullReach = wasRunning ? 0.27 : 0.15;
+      const rawReach = p <= 0.5 ? 0.15 + (0.27 - 0.15) * s : endFullReach + (0.27 - endFullReach) * s;
+      const endPrism = wasRunning ? 0.88 : 0;
       const settleEase = Math.pow(p, 2.4);
-      const endSpeed = wasRunning ? 1.45 : 0.72;
+      const endSpeed = wasRunning ? 1.75 : 0;
       return fillOptics(
         out,
         p <= 0.5 ? idleStr + (peakStr - idleStr) * s : endStr + (peakStr - endStr) * s,
@@ -263,10 +263,10 @@
       return fillOptics(
         out,
         holdStr + (idleStr - holdStr) * ease,
-        scaleConvReach(0.17 + (0.15 - 0.17) * ease),
-        0.24 + (idlePrism - 0.24) * ease,
+        scaleConvReach(0.17 + (0.12 - 0.17) * ease),
+        0.24 * (1 - ease),
         0,
-        0.55 + (0.42 - 0.55) * ease,
+        0.55 * (1 - ease),
         'none',
         32
       );
@@ -275,27 +275,27 @@
       const p = Math.max(0, Math.min(1, (now - phaseAt) / CONV_AURA_COMPLETE_MS));
       const ease = 1 - Math.pow(1 - p, 2.1);
       const startStr = dark ? 0.41 : 0.78;
-      const rawReach = 0.27 + (0.15 - 0.27) * ease;
+      const rawReach = 0.27 + (0.12 - 0.27) * ease;
       return fillOptics(
         out,
-        startStr + (idleStr - startStr) * ease,
+        startStr * (1 - ease),
         scaleConvReach(rawReach),
-        0.86 + (idlePrism - 0.86) * ease,
+        0.86 * (1 - ease),
         -0.36 * (1 - ease * 0.85),
-        1.75 + (0.42 - 1.75) * ease,
+        1.75 * (1 - 0.85 * ease),
         'none',
         28
       );
     }
     return fillOptics(
       out,
-      idleStr + (dark ? 0.022 : 0.032) * Math.sin(now * 0.0014),
-      scaleConvReach(0.15),
-      idlePrism,
       0,
-      0.42,
+      scaleConvReach(0.12),
+      0,
+      0,
+      0,
       'none',
-      64
+      0
     );
   }
 
@@ -885,8 +885,8 @@
         const settleDecisionHold = allowLivingFlow && phase === 'awaiting-decision' && phaseElapsed >= CONV_AURA_DECISION_BREATH_MS;
         const settleErrorZero = !allowLivingFlow && (errorCleared || (phase === 'error-halted' && phaseElapsed >= CONV_AURA_ERROR_MS));
         const settleLongComplete = allowLivingFlow && phase === 'long-task-complete' && phaseElapsed >= CONV_AURA_LONG_COMPLETE_MS;
-        // Keep idle conversation aura slowly flowing when visible & active-motion (only sleep on still/hidden/holds).
-        const settleIdleSleep = false;
+        // Running-only conversation aura: clear and sleep immediately in steady idle.
+        const settleIdleSleep = phase === 'idle' && !inLiftoffEbb;
 
         const bypassThrottle =
           forceImmediateDraw || phaseJustChanged || errorCleared || !drawnOnce || settleDecisionHold || settleErrorZero || settleLongComplete || settleIdleSleep;
@@ -903,6 +903,11 @@
         lastGpuDrawAt = now;
         layout();
         const hasBuf = state.width > 0 && state.height > 0 && glowCanvas.width > 0 && glowCanvas.height > 0;
+        const clearGlowBuf = () => {
+          if (!hasBuf) return;
+          state.glow?.invalidate?.();
+          try { state.glow?.clear?.(); } catch {}
+        };
         const paint = (o, st) => {
           if (!hasBuf) return;
           if (st) state.glow?.invalidate?.();
@@ -913,7 +918,7 @@
 
         if (settleErrorZero) {
           state.pendingErrorClear = false;
-          if (!errorCleared && glowCanvas.width > 0 && glowCanvas.height > 0) try { state.glow?.clear?.(); } catch {}
+          if (!errorCleared) clearGlowBuf();
           state.phase = 'idle';
           state.phaseAt = now;
           setAttrIfChanged(host, 'data-aura-phase', 'idle');
@@ -942,17 +947,21 @@
           state.phase = 'idle';
           state.phaseAt = now - CONV_AURA_IDLE_SLEEP_MS;
           setAttrIfChanged(host, 'data-aura-phase', 'idle');
+          clearGlowBuf();
           const idleSnapOpt = computeConvAuraOptics('idle', state.phaseAt, now, dark, false, OPTICS_BUF);
           state.lastOptics = idleSnapOpt;
-          paint(idleSnapOpt, true);
           return enterAuraSleep();
         }
 
         const still = !allowLivingFlow || settleIdleSleep;
         state.lastOptics = opt;
+        if (settleIdleSleep) {
+          clearGlowBuf();
+          return enterAuraSleep(isP() ? 'hidden' : !isMotionStandardOrUltra() ? 'motion-still' : 'settled');
+        }
         paint(opt, still);
 
-        if (isDestroyed() || !allowLivingFlow || settleIdleSleep) {
+        if (isDestroyed() || !allowLivingFlow) {
           const reason = !allowLivingFlow ? (isP() ? 'hidden' : 'motion-still') : 'settled';
           enterAuraSleep(reason);
           return;

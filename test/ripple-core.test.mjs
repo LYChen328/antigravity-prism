@@ -1233,7 +1233,7 @@ test('Wave 1 Optics: HORIZON_FRAGMENT_SHADER & mountBrandHorizonGlow support War
   glow.dispose();
 });
 
-test('Wave 1 ConvAura: Slow living idle flow + intensified running optics + Split-Rate 300Hz VSync & 3-State 0fps Semantic Afterglow Engine', () => {
+test('Wave 1 ConvAura: Running-only intensified aura + 0fps zero-glow idle + Split-Rate 300Hz VSync & 3-State 0fps Semantic Afterglow Engine', () => {
   require('../conv-aura.js');
   const convAuraMod = globalThis.__agPrismConvAura;
   assert.ok(convAuraMod);
@@ -1416,32 +1416,37 @@ test('Wave 1 ConvAura: Slow living idle flow + intensified running optics + Spli
       runGuardedMut(fn) { return fn(); },
     });
 
-    // 1) Mounts in idle -> keeps slowly flowing past 1200ms at lightweight speed/strength/reach (never freezing!)
+    // 1) Mounts in idle -> clears canvas and enters immediate 0fps zero-glow sleep (ignores redundant sync())
     ctl.sync();
     const inst = ctl.getInstance();
     assert.ok(inst);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, false);
+    assert.equal(inst.sleeping, true, 'Idle aura must sleep immediately at 0fps when not running');
+    assert.equal(inst.host.getAttribute('data-aura-sleep'), '1');
+    assert.ok(clearCount >= 1, 'Idle mount must clear canvas cleanly');
+    assert.equal(rafQueue.size, 0);
+    assert.equal(timerQueue.size, 0);
 
-    advanceSimulated300Hz(1300);
-    assert.equal(inst.sleeping, false, 'Idle aura must keep slowly flowing past 1200ms when active-motion & visible');
-    assert.equal(inst.host.hasAttribute('data-aura-sleep'), false);
-    const drawsAt1300 = gpuDraws;
     const idleOptics = { ...inst.lastOptics };
-    advanceSimulated300Hz(1000);
-    const idleDrawsIn1s = gpuDraws - drawsAt1300;
-    assert.ok(idleDrawsIn1s >= 10 && idleDrawsIn1s <= 20, `Idle slow flow must run calmly around ~15fps (10..20 draws/s), got ${idleDrawsIn1s}`);
+    assert.equal(idleOptics.strength, 0, 'Idle conversation aura must stay at 0 strength');
+    assert.equal(idleOptics.speed, 0, 'Idle conversation aura must stay at 0 speed');
+    const drawsAtIdleSleep = gpuDraws;
+    for (let i = 0; i < 8; i++) {
+      nowMs += 50;
+      ctl.sync();
+    }
+    assert.equal(gpuDraws, drawsAtIdleSleep, 'Redundant sync() must NOT wake 0fps idle aura');
 
-    // 2) Running phase intensifies optics & Split-Rate 300Hz caps steady running around ~30fps
+    // 2) Running phase activates intensified optics & Split-Rate 300Hz caps steady running around ~30fps
     runningDomActive = true;
     ctl.sync();
     assert.equal(inst.phase, 'start');
     advanceSimulated300Hz(1200); // finish 1150ms start surge -> enters steady 'running'
     assert.equal(inst.phase, 'running');
     const runOptics = inst.lastOptics;
-    assert.ok(runOptics.strength > idleOptics.strength * 1.6, `Running strength (${runOptics.strength}) must intensify over idle (${idleOptics.strength})`);
-    assert.ok(runOptics.speed > idleOptics.speed * 3, `Running flow speed (${runOptics.speed}) must intensify over idle (${idleOptics.speed})`);
-    assert.ok(runOptics.prism > idleOptics.prism * 3, `Running prism (${runOptics.prism}) must intensify over idle (${idleOptics.prism})`);
+    assert.ok(runOptics.strength > 0.35, `Running strength (${runOptics.strength}) must illuminate cleanly`);
+    assert.equal(runOptics.speed, 1.75, 'Running flow speed must be 1.75');
+    assert.equal(runOptics.prism, 0.88, 'Running prism must be 0.88');
     assert.ok(runOptics.reach > idleOptics.reach, `Running reach (${runOptics.reach}) must expand over idle (${idleOptics.reach})`);
     assert.ok(runOptics.surge > 0 && idleOptics.surge === 0, 'Running must add active wave surge over zero-surge idle');
 
@@ -1470,14 +1475,14 @@ test('Wave 1 ConvAura: Slow living idle flow + intensified running optics + Spli
     advanceSimulated300Hz(3000);
     assert.equal(gpuDraws, drawsDuringUnfocusedHold, '0 extra frames while holding unfocused completion afterglow');
 
-    // User moves pointer back into window -> fades out over 600ms and resumes gentle idle flow
+    // User moves pointer back into window -> fades out over 600ms, clears canvas and sleeps at 0fps
     windowFocused = true;
     const returnFn = winListeners.get('pointermove') || winListeners.get('focus');
     assert.ok(returnFn, 'Expected one-shot focus/pointermove wake listener');
     returnFn();
     advanceSimulated300Hz(700);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, false);
+    assert.equal(inst.sleeping, true);
 
     // 4) awaiting-decision (ask_question takeover card) -> 1.6s warm amber breath then freezes at 0fps static snapshot!
     decisionDomActive = true;
@@ -1498,23 +1503,23 @@ test('Wave 1 ConvAura: Slow living idle flow + intensified running optics + Spli
     ctl.sync();
     assert.equal(gpuDraws, drawsWhileWaitingUser, 'Must draw 0 extra frames while user deliberates on ask_question');
 
-    // User answers ask_question -> clears amber hold and resumes gentle idle flow
+    // User answers ask_question -> clears amber hold cleanly back to 0fps
     decisionDomActive = false;
     nowMs += 250;
     ctl.sync();
     advanceSimulated300Hz(1700);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, false);
+    assert.equal(inst.sleeping, true);
 
-    // 5) error-halted -> 900ms muted coral inward convergence then clears error overlay before resuming idle flow!
+    // 5) error-halted -> 900ms muted coral inward convergence then clears to 0fps!
     const clearsBeforeErr = clearCount;
     ctl.triggerErrorHalted(nowMs);
     assert.equal(inst.phase, 'error-halted');
     assert.equal(lastSemanticSeen, 'error-halted');
     advanceSimulated300Hz(960);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, false);
-    assert.ok(clearCount > clearsBeforeErr, 'error-halted must clear coral overlay when returning to idle');
+    assert.equal(inst.sleeping, true);
+    assert.ok(clearCount > clearsBeforeErr, 'error-halted must clear coral overlay before 0fps idle sleep');
 
     // 6) setAmbientIntensity(0) immediately clears and sleeps at 0fps
     ctl.setAmbientIntensity(0);

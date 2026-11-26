@@ -538,6 +538,7 @@ test('A1 conv-aura: document.hidden true->false releases & restores backing stor
 
   let glowDraws = 0;
   let glowSnaps = 0;
+  let glowClears = 0;
   let glowResizes = 0;
   let glowReleases = 0;
 
@@ -559,6 +560,7 @@ test('A1 conv-aura: document.hidden true->false releases & restores backing stor
         invalidate() {},
         clear() {
           if (cv.width <= 0 || cv.height <= 0) throw new Error('conv-aura clear at 0x0');
+          glowClears += 1;
         },
         draw() {
           if (cv.width <= 0 || cv.height <= 0) throw new Error('conv-aura draw at 0x0');
@@ -646,17 +648,18 @@ test('A1 conv-aura: document.hidden true->false releases & restores backing stor
   assert.equal(glowDraws, drawsHidden + 1, 'Must immediately paint first frame on visibility restore');
   assert.ok(env.timers.size >= 1, 'Running aura must resume frame scheduler on restore');
 
-  // Flowing idle aura: advance past complete fade -> hide -> 0x0, show -> restores backing store & continues flowing
+  // Settled 0fps idle aura: advance past complete fade -> clears & sleeps at 0fps -> hide -> 0x0 -> show restores backing store & clears safely
   running = false;
   stopBtn.isConnected = false;
   env.now += 2000;
   ctl.sync();
-  for (let i = 0; i < 4 && inst.phase !== 'idle'; i++) {
+  for (let i = 0; i < 4 && (inst.phase !== 'idle' || env.timers.size > 0 || env.rafs.size > 0); i++) {
     env.advanceTimers(1000);
     env.flushRafs(16);
   }
   assert.equal(inst.phase, 'idle');
-  assert.equal(inst.sleeping, false);
+  assert.equal(inst.sleeping, true);
+  assert.equal(env.timers.size, 0);
 
   fakeDoc.hidden = true;
   docBus.dispatch('visibilitychange');
@@ -669,14 +672,14 @@ test('A1 conv-aura: document.hidden true->false releases & restores backing stor
   seat.clientHeight = 0;
   convView.clientWidth = 0;
   convView.clientHeight = 0;
-  const drawsBeforeIdleRestore = glowDraws;
+  const clearsBeforeIdleRestore = glowClears;
   fakeDoc.hidden = false;
   docBus.dispatch('visibilitychange');
   assert.equal(inst.backingReleased, false);
   assert.ok(cv.width > 0 && cv.height > 0, 'Must restore backing store via logical dimensions fallback');
-  assert.equal(glowDraws, drawsBeforeIdleRestore + 1, 'Flowing idle must repaint immediately after restore');
-  assert.equal(inst.sleeping, false, 'Active-motion idle must resume gentle living flow on visibility restore');
-  assert.equal(env.timers.size, 1);
+  assert.equal(glowClears, clearsBeforeIdleRestore + 1, 'Idle restore must safely clear non-zero restored backing store');
+  assert.equal(inst.sleeping, true, 'Idle conversation must stay at 0fps sleep after visibility restore');
+  assert.equal(env.timers.size, 0);
 
   // Unmount cleans up listeners, observers, timers, and rAFs
   ctl.unmount();

@@ -84,6 +84,7 @@
       lastGroupPress: null,
     };
     let lastHomeRect = null;
+    let homeLaunchUntil = 0;
     let liftoffBubbleUntil = 0;
     let suppressEntryMotionUntil = 0;
     let runInit = false;
@@ -659,6 +660,7 @@
       const home = qs(docOf(), '.agy-home');
       if (!home) return;
       const r = sampleHomeComposerRect();
+      homeLaunchUntil = nowOf() + 3500;
       if (isMotionUltra() && rippleCtl) rippleCtl.triggerLiftoffBurst(r);
     };
 
@@ -1172,10 +1174,18 @@
         heroState.wasInFormalConv = inFormalConv;
       } else {
         if (!(suppressEntryMotionUntil > nowOf())) {
-          if (heroState.wasInHome && !inHome && inFormalConv) triggerHeroALiftoff(formalConv, measured?.convInputRect || null);
-          else if (heroState.wasInFormalConv && !heroState.wasInHome && inHome) triggerHeroBHomeReturn();
+          if (heroState.wasInHome && !inHome && inFormalConv) {
+            if (homeLaunchUntil > nowOf()) {
+              homeLaunchUntil = 0;
+              triggerHeroALiftoff(formalConv, measured?.convInputRect || null);
+            }
+          } else if (heroState.wasInFormalConv && !heroState.wasInHome && inHome) {
+            homeLaunchUntil = 0;
+            triggerHeroBHomeReturn();
+          }
         } else {
           liftoffBubbleUntil = 0;
+          homeLaunchUntil = 0;
         }
         heroState.wasInHome = inHome;
         heroState.wasInFormalConv = inFormalConv;
@@ -1672,8 +1682,13 @@
       suppressEntryMotion(ms) {
         suppressEntryMotionUntil = Math.max(suppressEntryMotionUntil, nowOf() + Math.max(120, Number(ms) || 900));
         liftoffBubbleUntil = 0;
+        homeLaunchUntil = 0;
         const d = docOf();
         if (d) for (const n of qsa(d, '.ag-cs-liftoff-veil,.ag-cs-sidebar-glide-pill')) n.remove();
+      },
+      isHomeLaunchPending: () => homeLaunchUntil > nowOf(),
+      cancelHomeLaunch() {
+        homeLaunchUntil = 0;
       },
       isEntryMotionSuppressed: () => suppressEntryMotionUntil > nowOf(),
       isStreamMutating: () => streamMutating,
