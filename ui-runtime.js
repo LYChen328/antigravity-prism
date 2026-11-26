@@ -1320,7 +1320,7 @@
     let touched = false;
     for (const ov of ovs) {
       if (ha(ov, 'data-hover-card-popup') || tidOf(ov) === 'model-selector-panel' || (ga(ov, 'role') !== 'menu' && !clHas(ov, 'max-h-48'))) continue;
-      if (setRimAttrs(ov, rimOn)) touched = true;
+      if (setRimAttrs(ov, !ha(ov, 'data-ag-cs-orch-l3') && rimOn)) touched = true;
     }
     if (touched) prismRimCtl.markDirty();
   };

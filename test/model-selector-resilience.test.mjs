@@ -1729,3 +1729,147 @@ test('Scenario 11 (PR #35 / Issue #34 View Usage false-positive Orchestrator L2 
 
   agObs.stop();
 });
+
+test('Scenario 12 (Orchestrator L2 hover flicker regression): Base UI nested L3 effort inside L2 must never hide L2 or L2 presentation wrapper', () => {
+  const env = createSimEnv();
+  const neonMed = { label: 'Gemini 4 Neon (Medium)', modelId: 'gemini-4-neon-medium', value: 1533 };
+  const neonHigh = { label: 'Gemini 4 Neon (High)', modelId: 'gemini-4-neon-high', value: 1532 };
+  const argonMed = { label: 'Gemini 4 Argon (Medium)', modelId: 'gemini-4-argon-medium', value: 1511 };
+  const argonHigh = { label: 'Gemini 4 Argon (High)', modelId: 'gemini-4-argon-high', value: 1512 };
+  const planners = [neonMed, neonHigh, argonMed, argonHigh];
+  const orchNeon = { label: 'Orchestrator (Gemini 4 Neon)', modelId: 'orchestrator-neon', value: 9001 };
+  const plannerIdx = new Map([
+    ['gemini-4-neon', new Map([['medium', neonMed], ['high', neonHigh]])],
+    ['gemini-4-argon', new Map([['medium', argonMed], ['high', argonHigh]])],
+  ]);
+  const selectorCtx = {
+    effortIndex: plannerIdx,
+    modelOptions: [...planners, orchNeon],
+    selectedModel: orchNeon,
+    orchestratorPlanners: planners,
+    orchestratorPlannerIndex: plannerIdx,
+    orchestratorDefaultPlanner: neonHigh,
+    orchestratorPick: { model: neonHigh.value, select() {} },
+  };
+  const globalModelCtx = { setModelConfigByLabelForConversation() {} };
+
+  const trigger = env.makeTrigger('Gemini 4 Neon', 'High');
+  env.body.appendChild(trigger);
+  const { panel, listWrap } = env.makePanel();
+  env.addGroupRow(listWrap, 'Gemini 4 Neon', 'High');
+  const orchRow = env.makeEl('div', { attrs: { role: 'menuitem', 'data-testid': 'model-selector-orchestrator' }, text: 'Orchestrator Gemini 4 Neon High' });
+  listWrap.appendChild(orchRow);
+  env.body.appendChild(panel);
+  env.attachFiberChain(panel, { selectorCtx, convId: 'conv-l2-flicker-12', globalModelCtx });
+
+  // Build exact v2.35+ Base UI nested DOM:
+  // l2Presentation > l2Menu([role="menu"], orchestrator-picker-row) > l3Presentation > l3Menu > [data-testid="orchestrator-picker-effort"]
+  const l2Presentation = env.makeEl('div', {
+    className: 'z-[6000]',
+    attrs: { role: 'presentation', 'data-side': 'right', 'data-align': 'start', 'data-nested': '' },
+  });
+  const l2Menu = env.makeEl('div', {
+    className: 'agy-overlay surface-glass bg-card',
+    attrs: { role: 'menu', 'data-side': 'right', 'data-align': 'start', 'data-nested': '' },
+  });
+  const l2Row1 = env.makeEl('div', {
+    attrs: { role: 'menuitem', 'data-testid': 'orchestrator-picker-row' },
+    text: 'Gemini 4 Neon',
+  });
+  const l2Row2 = env.makeEl('div', {
+    attrs: { role: 'menuitem', 'data-testid': 'orchestrator-picker-row' },
+    text: 'Gemini 4 Argon',
+  });
+  l2Menu.appendChild(l2Row1);
+  l2Menu.appendChild(l2Row2);
+
+  const l3Presentation = env.makeEl('div', {
+    className: 'z-[6000]',
+    attrs: { role: 'presentation', 'data-side': 'right', 'data-align': 'start', 'data-nested': '' },
+  });
+  const l3Menu = env.makeEl('div', {
+    className: 'agy-overlay surface-glass bg-card',
+    attrs: { role: 'menu', 'data-side': 'right', 'data-align': 'start', 'data-nested': '' },
+  });
+  const effortWrap = env.makeEl('div', {
+    attrs: { 'data-testid': 'orchestrator-picker-effort' },
+  });
+  for (const lvl of ['Low', 'Medium', 'High']) {
+    effortWrap.appendChild(env.makeEl('div', { attrs: { role: 'menuitemradio' }, text: lvl }));
+  }
+  l3Menu.appendChild(effortWrap);
+  l3Presentation.appendChild(l3Menu);
+  l2Menu.appendChild(l3Presentation);
+  l2Presentation.appendChild(l2Menu);
+  env.body.appendChild(l2Presentation);
+
+  // Also test structural SLIDER_CSS suppression rule from upstream-client.js BEFORE & AFTER JS observer attributes
+  const upSrc = fs.readFileSync(path.join(ROOT, 'vendor/effort-slider/upstream-client.js'), 'utf8');
+  const ruleMatch = upSrc.match(/(html\[data-ces-slider-ready='1'\] \[role='menu'\]:has\(\[data-testid='model-selector-effort-option'\]\)[^\{]+)\{display:none!important/);
+  assert.ok(ruleMatch, 'upstream-client.js must contain SLIDER_CSS L3 display:none suppression rule');
+  const ruleSel = ruleMatch[1];
+
+  // Minimal structural evaluator for the exact L3 suppression rule clauses
+  const hasDesc = (root, pred) => {
+    for (const c of (root.children || [])) {
+      if (pred(c) || hasDesc(c, pred)) return true;
+    }
+    return false;
+  };
+  const isEff = (n) => n.getAttribute('data-testid') === 'orchestrator-picker-effort';
+  const isEffOpt = (n) => n.getAttribute('data-testid') === 'model-selector-effort-option';
+  const isExcludedInside = (n) => hasDesc(n, (d) =>
+    d.getAttribute('data-testid') === 'model-selector-panel'
+    || d.getAttribute('data-testid') === 'orchestrator-picker-row'
+    || d.getAttribute('data-ag-cs-orch-l2') === '1'
+  );
+  const matchesHideRule = (node) => {
+    const role = node.getAttribute('role');
+    if (role === 'menu' && (hasDesc(node, isEffOpt) || hasDesc(node, isEff)) && !isExcludedInside(node) && node.getAttribute('data-ag-cs-orch-l2') !== '1') {
+      return true;
+    }
+    if (node.tagName === 'DIV' && role === 'presentation' && !isExcludedInside(node)) {
+      const directL3Child = (node.children || []).some((ch) =>
+        (ch.getAttribute('role') === 'menu' && (hasDesc(ch, isEffOpt) || hasDesc(ch, isEff) || isEff(ch))) || isEff(ch)
+      );
+      if (directL3Child) return true;
+    }
+    if (isEff(node) && !isExcludedInside(node)) return true;
+    if (node.getAttribute('data-ag-cs-orch-l3') === '1') return true;
+    return false;
+  };
+
+  // Verify required exclusion clauses are present in SLIDER_CSS rule itself
+  assert.ok(ruleSel.includes("[data-testid='orchestrator-picker-row']"), 'SLIDER_CSS L3 rule must exclude orchestrator-picker-row');
+  assert.ok(ruleSel.includes("[data-ag-cs-orch-l2='1']"), 'SLIDER_CSS L3 rule must exclude data-ag-cs-orch-l2');
+  assert.ok(
+    ruleSel.includes("div[role='presentation']:has(>[role='menu'] [data-testid='orchestrator-picker-effort']"),
+    'SLIDER_CSS div[role="presentation"] rule must use direct-child combinator > for L3 effort wrappers'
+  );
+
+  // Frame 0 (before JS attributes): L2 menu & L2 presentation already contain orchestrator-picker-row -> must NOT match hide rule
+  assert.equal(matchesHideRule(l2Menu), false, 'Frame 0: nested L2 menu must NOT match L3 hide rule');
+  assert.equal(matchesHideRule(l2Presentation), false, 'Frame 0: outer L2 presentation must NOT match L3 hide rule');
+  assert.equal(matchesHideRule(l3Menu), true, 'Frame 0: nested L3 menu MUST match L3 hide rule');
+  assert.equal(matchesHideRule(l3Presentation), true, 'Frame 0: nested L3 presentation MUST match L3 hide rule');
+  assert.equal(matchesHideRule(effortWrap), true, 'Frame 0: orchestrator-picker-effort MUST match L3 hide rule');
+
+  // After upstream observer tags L2 / L3:
+  const agObs = upstreamLib.installAntigravityObserver({
+    document: env.doc,
+    window: env.win,
+    MutationObserver: env.win.MutationObserver,
+  });
+  agObs.rescan();
+
+  assert.equal(l2Menu.getAttribute('data-ag-cs-orch-l2'), '1', 'L2 menu must receive data-ag-cs-orch-l2="1"');
+  assert.equal(l2Menu.hasAttribute('data-ag-cs-orch-l3'), false, 'L2 menu must NEVER receive data-ag-cs-orch-l3');
+  assert.equal(l2Presentation.hasAttribute('data-ag-cs-orch-l3'), false, 'L2 presentation wrapper must NEVER receive data-ag-cs-orch-l3');
+  assert.equal(l3Menu.getAttribute('data-ag-cs-orch-l3'), '1', 'Nested L3 menu must receive data-ag-cs-orch-l3="1"');
+  assert.equal(l3Presentation.getAttribute('data-ag-cs-orch-l3'), '1', 'Nested L3 presentation wrapper must receive data-ag-cs-orch-l3="1"');
+  assert.equal(l2Row1.getAttribute('data-ces-orch-row'), '1', 'Orchestrator L2 rows must be bound');
+  assert.equal(matchesHideRule(l2Menu), false, 'Post-rescan: L2 menu must NOT match L3 hide rule');
+  assert.equal(matchesHideRule(l2Presentation), false, 'Post-rescan: L2 presentation must NOT match L3 hide rule');
+
+  agObs.stop();
+});
