@@ -1604,6 +1604,11 @@ test('SideQuestion composer mirrors primary prismRim / simple highlight and Obsi
 
   // Obsidian titleBarOverlay synced to #09090B and restored cleanly to host #121216 on REMOVE_EXPRESSION
   assert.ok(overlayCalls.some((c) => c.color === '#09090B' && c.symbolColor === '#C4C4CE'), 'setTitleBarOverlay must sync Obsidian --sidebar #09090B');
+  const styleCss = fs.readFileSync(path.join(ROOT_DIR, 'style.css'), 'utf8');
+  const cardStart = styleCss.indexOf('& .surface-composer-card{');
+  const cardEnd = styleCss.indexOf('\n& .agy-composer-footer', cardStart);
+  const composerFocusBlock = cardStart >= 0 && cardEnd > cardStart ? styleCss.slice(cardStart, cardEnd) : '';
+  assert.ok(composerFocusBlock.includes('var(--card-border,var(--ag-cs-border-2))') && !composerFocusBlock.includes('var(--primary)'), 'Composer :focus-within must use neutral border without permanent blue --primary tint');
   vm.runInContext(cdp.REMOVE_EXPRESSION, env.sandbox);
   const lastOverlay = overlayCalls[overlayCalls.length - 1];
   assert.equal(lastOverlay?.color, '#121216', 'REMOVE_EXPRESSION must restore host titleBarOverlay color');
