@@ -996,7 +996,7 @@ test('prism-rim + ui-runtime: data-ag-pp-open="1" keeps composer, step-plan, hom
   env.body.appendChild(overviewMirror);
 
   // Inject full Channel 1 runtime
-  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra' }, { bundleCachePath: '' });
+  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRimStyle: 'prism' }, { bundleCachePath: '' });
   const res = vm.runInContext(injectExpr, env.sandbox);
   assert.equal(res.status, 'ok');
 
@@ -1096,11 +1096,11 @@ test('prismRim switch: schema, 8-lang i18n, CSS guard, Settings toggle, runtime 
   assert.equal(cdp.reconcileConfigAliases({ prismRim: false }).prismRim, false);
   const exCfg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'config.example.json'), 'utf8'));
   assert.equal(exCfg.prismRim, true);
-  assert.equal(cdp.DEFAULT_CONFIG.prismRimStyle, 'prism');
+  assert.equal(cdp.DEFAULT_CONFIG.prismRimStyle, 'simple');
   assert.equal(cdp.validateConfigEntry('prismRimStyle', 'simple'), true);
   assert.equal(cdp.validateConfigEntry('prismRimStyle', 'prism'), true);
   assert.equal(cdp.validateConfigEntry('prismRimStyle', 'invalid'), false);
-  assert.equal(exCfg.prismRimStyle, 'prism');
+  assert.equal(exCfg.prismRimStyle, 'simple');
 
   const i18nLocales = require(path.join(ROOT_DIR, 'i18n-locales.js'));
   const runtimeKeySet = new Set(i18nLocales.RUNTIME_UI_KEYS);
@@ -1157,7 +1157,7 @@ test('prismRim switch: schema, 8-lang i18n, CSS guard, Settings toggle, runtime 
   env.body.appendChild(overviewWrap);
   env.body.appendChild(dlg);
 
-  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true }, { bundleCachePath: '' });
+  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true, prismRimStyle: 'prism' }, { bundleCachePath: '' });
   assert.equal(vm.runInContext(injectExpr, env.sandbox).status, 'ok');
   vm.runInContext(cdp.buildSettingsChannelExpression(), env.sandbox);
   const sec = env.doc.getElementById('ag-cs-settings-sec');
@@ -1176,7 +1176,7 @@ test('prismRim switch: schema, 8-lang i18n, CSS guard, Settings toggle, runtime 
   assert.ok(stepPlan.querySelector('.ag-cs-prism-rim-cv'), 'prismRim=true must mount step-plan rim');
 
   // Toggle OFF via refreshConfig -> keeps composerRestyle='on', strips all box rims & clears canvases
-  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: false });
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: false, prismRimStyle: 'prism' });
   assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'off');
   assert.equal(env.html.getAttribute('data-ag-cs-composer'), 'on');
   assert.equal(composerCard.hasAttribute('data-ag-cs-prism-box'), false);
@@ -1193,7 +1193,7 @@ test('prismRim switch: schema, 8-lang i18n, CSS guard, Settings toggle, runtime 
   assert.equal(rafs.size, rafsBeforeDisabledMove, 'prismRim=false with no crystal slider open must schedule 0 new rAFs on pointermove');
 
   // Toggle ON again -> restores data-ag-cs-rim='on' & box rims
-  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true });
+  env.win.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'zh-CN', motionLevel: 'ultra', prismRim: true, prismRimStyle: 'prism' });
   assert.equal(env.html.getAttribute('data-ag-cs-rim'), 'on');
   assert.equal(composerCard.getAttribute('data-ag-cs-prism-box'), '1');
   assert.equal(takeoverCard.getAttribute('data-ag-cs-prism-box'), '1');

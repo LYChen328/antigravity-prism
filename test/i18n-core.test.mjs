@@ -412,7 +412,7 @@ test('settings-panel schema, scene presets, strict apiKey-stripping JSON export,
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.prismRim.allowed, [true, false]);
   assert.equal(PRISM_SETTINGS_SCHEMA.prismRim.default, true);
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.prismRimStyle.allowed, ['prism', 'simple']);
-  assert.equal(PRISM_SETTINGS_SCHEMA.prismRimStyle.default, 'prism');
+  assert.equal(PRISM_SETTINGS_SCHEMA.prismRimStyle.default, 'simple');
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.autoArchiveOnExit.allowed, [true, false]);
   assert.equal(PRISM_SETTINGS_SCHEMA.autoArchiveOnExit.default, false);
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.effortMemory.allowed, ['on', 'off']);
@@ -429,7 +429,7 @@ test('settings-panel schema, scene presets, strict apiKey-stripping JSON export,
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.scrollBottomMotion.allowed, ['smooth', 'instant']);
   assert.equal(PRISM_SETTINGS_SCHEMA.scrollBottomMotion.default, 'smooth');
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.hostLocalization.allowed, ['auto', 'on', 'off']);
-  assert.equal(PRISM_SETTINGS_SCHEMA.hostLocalization.default, 'auto');
+  assert.equal(PRISM_SETTINGS_SCHEMA.hostLocalization.default, 'off');
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.accentTone.allowed, ['follow', 'cobalt', 'iris', 'amber', 'mono']);
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.cornerStyle.allowed, ['sharp', 'balanced', 'soft']);
   assert.deepEqual(PRISM_SETTINGS_SCHEMA.codeFont.allowed, ['default', 'jetbrains', 'cascadia', 'sfmono']);
@@ -528,7 +528,7 @@ test('settings-panel schema, scene presets, strict apiKey-stripping JSON export,
   const defaultPatch = getDefaultSettingsPatch();
   assert.equal(Object.keys(defaultPatch).length, 38);
   assert.equal(defaultPatch.prismRim, true);
-  assert.equal(defaultPatch.prismRimStyle, 'prism');
+  assert.equal(defaultPatch.prismRimStyle, 'simple');
   assert.equal(defaultPatch.autoArchiveOnExit, false);
   assert.equal(defaultPatch.effortMemory, 'on');
   assert.equal(defaultPatch.periodicModelPicker, 'on');
@@ -575,12 +575,12 @@ test('UX-1 / OP-5 / UX-4 / UX-9 regressions: async thought config export, tech->
   }
 });
 
-test('PR #50 & PR #41/#49: DEFAULT_CONFIG & config.example.json default to auto, 8-lang runtime resolves navigator.languages[0] with en fallback, and 6 new home keys registered cleanly', () => {
-  assert.equal(cdp.DEFAULT_CONFIG.language, 'auto');
-  assert.equal(cdp.DEFAULT_CONFIG.lang, 'auto');
+test('PR #50 & PR #41/#49: DEFAULT_CONFIG & config.example.json match curated zh-CN defaults, 8-lang runtime resolves navigator.languages[0] with en fallback, and 6 new home keys registered cleanly', () => {
+  assert.equal(cdp.DEFAULT_CONFIG.language, 'zh-CN');
+  assert.equal(cdp.DEFAULT_CONFIG.lang, 'zh-CN');
   const exCfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.example.json'), 'utf8'));
-  assert.equal(exCfg.language, 'auto');
-  assert.equal(exCfg.lang, 'auto');
+  assert.equal(exCfg.language, 'zh-CN');
+  assert.equal(exCfg.lang, 'zh-CN');
 
   // PR #41 & PR #49: 6 new runtime UI keys present in i18n-locales (8-lang, 0 CJK in en/es/fr/de) AND in Channel 1 __uiSlice
   const homeKeys = [
@@ -787,7 +787,7 @@ test('PR #50 & PR #41/#49: DEFAULT_CONFIG & config.example.json default to auto,
     sandbox.globalThis = sandbox;
     doc.defaultView = sandbox;
 
-    const expr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, ...(cfgOverride || {}) });
+    const expr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, ...(cfgOverride || { language: 'auto', lang: 'auto' }) });
     const res = vm.runInNewContext(expr, sandbox);
     assert.equal(res.status, 'ok');
     vm.runInNewContext(settingsCh9Expr, sandbox);

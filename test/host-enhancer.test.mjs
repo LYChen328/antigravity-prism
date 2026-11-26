@@ -1952,7 +1952,7 @@ test('Wave D20: ui-runtime mounts bottom prism-reflect on interaction-takeover-c
   };
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, prismRimStyle: 'prism' }), sandbox);
     assert.equal(res.status, 'ok');
     assert.equal(subTakeover.hasAttribute('data-ag-cs-prism-reflect'), false, 'Subagent tab takeover card must remain excluded');
 

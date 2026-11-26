@@ -4353,7 +4353,7 @@ export class PrismDaemon {
   _getHostI18nCfgSig(cfgOverride = null) {
     try {
       const cfg = cfgOverride || this.cdp?.readConfig?.() || {};
-      return `${cfg.hostLocalization || 'auto'}:${cfg.language || cfg.lang || 'auto'}`;
+      return `${cfg.hostLocalization || 'off'}:${cfg.language || cfg.lang || 'zh-CN'}`;
     } catch {
       return '';
     }
@@ -5361,18 +5361,18 @@ export class PrismDaemon {
       if (typeof this.cdp?.shouldEnableMascot === 'function') {
         return Boolean(this.cdp.shouldEnableMascot(cfg));
       }
-      return cfg?.mascot !== 'off' && cfg?.mascot !== false;
+      return Boolean(cfg?.mascot && cfg.mascot !== 'off' && cfg.mascot !== false);
     } catch {
-      return true;
+      return false;
     }
   }
 
   _getMascotCfgSig(cfgOverride = null) {
     try {
       const cfg = cfgOverride || this.cdp?.readConfig?.() || {};
-      return cfg.mascot === 'off' || cfg.mascot === false ? 'off' : String(cfg.mascot || 'crab');
+      return !cfg.mascot || cfg.mascot === 'off' || cfg.mascot === false ? 'off' : String(cfg.mascot);
     } catch {
-      return 'crab';
+      return 'off';
     }
   }
 
@@ -9696,7 +9696,7 @@ export class PrismDaemon {
       const needsSidebarCleanup =
         !sidebarEnabled && Boolean(probe.hasSidebar || entry.sidebarScriptId || entry.sidebarMounted || entry.sidebarBindingAdded);
       const hostI18nEnabled = this._isHostI18nEnabled(cfg);
-      const expectedHostI18nMode = cfg?.hostLocalization === 'on' ? 'on' : cfg?.hostLocalization === 'off' ? 'off' : 'auto';
+      const expectedHostI18nMode = cfg?.hostLocalization === 'on' ? 'on' : cfg?.hostLocalization === 'auto' ? 'auto' : 'off';
       const hostI18nSig = hostI18nEnabled ? this._getHostI18nCfgSig(cfg) : '';
       const hostI18nSkippedSameSig = Boolean(entry.hostI18nSkippedByLiveCfg && entry.lastHostI18nSig === hostI18nSig);
       const uncheckedIsoCtxs =
@@ -10799,7 +10799,7 @@ export class PrismDaemon {
         this.cdp.recordRelaunchPromptState(this.rootDir, host.pid, host.startMs, 'prompted', extraDirs);
       }
       this.log(`[relaunch-guard] Host pid=${host.pid} running without CDP port; prompting user once`);
-      const lang = rawCfg.language || rawCfg.lang || 'auto';
+      const lang = rawCfg.language || rawCfg.lang || 'zh-CN';
       const promptFn =
         typeof this._relaunchHooks?.promptUser === 'function'
           ? this._relaunchHooks.promptUser

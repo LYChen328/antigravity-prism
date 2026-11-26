@@ -351,10 +351,23 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
   sandbox.globalThis = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const legacyDefaultCfg = {
+      ...cdp.DEFAULT_CONFIG,
+      language: 'auto',
+      homeRipple: true,
+      placeholderStyle: 'studio',
+      mascot: 'crab',
+      logoInk: 'accent',
+      sidebarRestyle: true,
+      prismRimStyle: 'prism',
+      cornerStyle: 'balanced',
+      codeLigatures: false,
+      hostLocalization: 'auto',
+    };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(legacyDefaultCfg), sandbox);
     assert.equal(res.status, 'ok');
     // Load Channel 10 Mascot (split out of Channel 1) & Channel 9 Settings on demand
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(legacyDefaultCfg), sandbox);
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
     assert.equal(html.getAttribute('data-ag-cs-style'), '1');
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'obsidian');
@@ -477,8 +490,8 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     assert.equal(sandbox.window.__agPrismThoughtSettingsUi, undefined, 'Default off mode must have 0 thought UI runtime');
 
     // Hot-plug Channel 5 while settings panel is already open
-    sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, thoughtTranslate: 'ai' });
-    const thoughtExprAi = cdp.buildThoughtExpression({ ...cdp.DEFAULT_CONFIG, thoughtTranslate: 'ai' });
+    sandbox.window.__agPrism.refreshConfig({ ...legacyDefaultCfg, thoughtTranslate: 'ai' });
+    const thoughtExprAi = cdp.buildThoughtExpression({ ...legacyDefaultCfg, thoughtTranslate: 'ai' });
     assert.ok(thoughtExprAi.length > 0, 'Expected non-empty Channel 5 expression in ai mode');
     const thoughtMountRes = vm.runInNewContext(thoughtExprAi, sandbox);
     assert.equal(thoughtMountRes.ok, true);
@@ -623,7 +636,7 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     appearanceH2.textContent = '外观';
 
     // Switching palette/mascot externally syncs root attrs & setting button active state immediately (claude alias normalized to warm)
-    sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, palette: 'claude' });
+    sandbox.window.__agPrism.refreshConfig({ ...legacyDefaultCfg, palette: 'claude' });
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'warm');
     const warmBtn = appearancePanel
       .querySelectorAll('#ag-cs-settings-sec button')
@@ -662,7 +675,7 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     assert.ok(batchCall, 'Expected patch-batch payload over setting binding');
     assert.equal(batchCall.entries.accentTone, 'iris');
     assert.equal(batchCall.entries.ambientIntensity, '70');
-    assert.equal(html.getAttribute('data-ag-cs-target-fps'), '180');
+    assert.equal(html.getAttribute('data-ag-cs-target-fps'), 'native');
 
     // HS-1: mascot 'minis' ("双宠+三蟹") must be preserved verbatim over wire (never downgraded to 'crab')
     const beforeMinisLen = bindingCalls.length;
@@ -677,7 +690,7 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     assert.equal(html.hasAttribute('data-ag-cs-sidebar-collapsed'), false);
 
     // CP-2: file-driven config refresh updates mutable base config so cross-window `storage` events & zero-arg refreshConfig() never roll back to boot defaults
-    sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, palette: 'warm', accentTone: 'cobalt', __fromFile: true });
+    sandbox.window.__agPrism.refreshConfig({ ...legacyDefaultCfg, palette: 'warm', accentTone: 'cobalt', __fromFile: true });
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'warm');
     assert.equal(html.getAttribute('data-ag-cs-accent'), 'cobalt');
     sandbox.dispatchWin('storage', { key: 'ag-prism:config' });
@@ -1084,10 +1097,23 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
   sandbox.globalThis = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const legacyDefaultCfg = {
+      ...cdp.DEFAULT_CONFIG,
+      language: 'auto',
+      homeRipple: true,
+      placeholderStyle: 'studio',
+      mascot: 'crab',
+      logoInk: 'accent',
+      sidebarRestyle: true,
+      prismRimStyle: 'prism',
+      cornerStyle: 'balanced',
+      codeLigatures: false,
+      hostLocalization: 'auto',
+    };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(legacyDefaultCfg), sandbox);
     assert.equal(res.status, 'ok');
     // Load Channel 10 Mascot (split out of Channel 1) & Channel 9 Settings on demand
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(legacyDefaultCfg), sandbox);
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
 
     // 1. Q&A takeover card alone: wrapper raised by 46px with data-ag-cs-takeover="1"
@@ -1099,7 +1125,7 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
     // 2. When queued message is also present, queuedWrap takes the 46px clearance and takeoverWrap avoids double spacing
     const queuedItem = makeEl('div', { text: '排队中的消息' });
     queuedWrap.appendChild(queuedItem);
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(queuedWrap.getAttribute('data-ag-cs-queued'), '1');
     assert.equal(queuedWrap.style.getPropertyValue('margin-bottom'), '46px');
     assert.equal(takeoverWrap.hasAttribute('data-ag-cs-takeover'), false);
@@ -1109,14 +1135,14 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
     queuedItem.remove();
     const sideQ = makeEl('div', { attrs: { 'data-testid': 'side-question-panel' } });
     rtcWrap.insertBefore(sideQ, contentsWrap);
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(sideQ.getAttribute('data-ag-cs-takeover'), '1');
     assert.equal(sideQ.style.getPropertyValue('margin-bottom'), '46px');
     assert.equal(takeoverWrap.hasAttribute('data-ag-cs-takeover'), false);
 
     // 4. When running-items-panel expands (grid-rows-[1fr]), its wrapper takes the 46px clearance
     runningPanel.className = 'grid grid-rows-[1fr]';
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(runningWrap.getAttribute('data-ag-cs-queued'), '1');
     assert.equal(runningWrap.style.getPropertyValue('margin-bottom'), '46px');
     assert.equal(sideQ.hasAttribute('data-ag-cs-takeover'), false);
@@ -1125,13 +1151,13 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
     // 5. Turning mascot off clears all takeover/queued clearances cleanly
     runningPanel.className = 'grid grid-rows-[0fr]';
     sideQ.remove();
-    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, mascot: 'off' });
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...legacyDefaultCfg, mascot: 'off' });
     assert.equal(takeoverWrap.hasAttribute('data-ag-cs-takeover'), false);
     assert.equal(takeoverWrap.style.getPropertyValue('margin-bottom'), '');
     assert.equal(runningWrap.hasAttribute('data-ag-cs-queued'), false);
 
     // 6. Re-enable crab, verify takeover clearance returns, then verify REMOVE_EXPRESSION tears down cleanly
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(takeoverWrap.getAttribute('data-ag-cs-takeover'), '1');
     assert.equal(takeoverWrap.style.getPropertyValue('margin-bottom'), '46px');
     vm.runInNewContext(cdp.REMOVE_EXPRESSION, sandbox);
@@ -1482,10 +1508,23 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
   docRef.defaultView = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const legacyDefaultCfg = {
+      ...cdp.DEFAULT_CONFIG,
+      language: 'auto',
+      homeRipple: true,
+      placeholderStyle: 'studio',
+      mascot: 'crab',
+      logoInk: 'accent',
+      sidebarRestyle: true,
+      prismRimStyle: 'prism',
+      cornerStyle: 'balanced',
+      codeLigatures: false,
+      hostLocalization: 'auto',
+    };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(legacyDefaultCfg), sandbox);
     assert.equal(res.status, 'ok');
     // Load Channel 10 Mascot (split out of Channel 1) & Channel 9 Settings on demand
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(legacyDefaultCfg), sandbox);
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
 
     // 1. Dual mascot stage mounts 2 real actor canvases (Clawd & Cat, 96x84)
@@ -1538,7 +1577,7 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
     claudeMenuItem.className = 'agy-overlay-item text-foreground';
     modelBtn.setAttribute('aria-label', 'Select model, current: Claude Sonnet 4.6');
     modelSpan.textContent = 'Claude Sonnet 4.6';
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(claudeRowGlyph.getAttribute('data-selected'), 'true');
     assert.equal(claudeRowGlyph.style.getPropertyValue('opacity'), '1');
     assert.ok(claudeRowGlyph.style.getPropertyValue('filter').includes('drop-shadow'));
@@ -1551,7 +1590,7 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
     hoverHydrogenOpt.setAttribute('data-selected', 'true');
     modelBtn.setAttribute('aria-label', 'Select model, current: Gemini 4 Hydrogen Extra');
     modelSpan.textContent = 'Gemini 4 Hydrogen Extra';
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(glyph.getAttribute('data-brand'), 'gemini');
     assert.equal(glyph.getAttribute('data-tier'), 'xhigh');
     assert.equal(hydrogenRowGlyph.getAttribute('data-selected'), 'true');
@@ -1561,9 +1600,9 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
     assert.equal(cesRow.getAttribute('data-row-hidden'), 'false');
 
     // Disabling composerRestyle cleanly removes panel row glyphs, and re-enabling restores them idempotently
-    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, composerRestyle: false });
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...legacyDefaultCfg, composerRestyle: false });
     assert.equal(modelPanel.querySelectorAll('.ag-cs-panel-row-glyph').length, 0);
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(modelPanel.querySelectorAll('.ag-cs-panel-row-glyph').length, 3);
 
     // 4. Thinking spark mounts on thinking-collapsible-trigger
@@ -1990,7 +2029,7 @@ test('v3.6.1 auto-unfolds inner thinking & tool collapsibles idempotently and dr
 });
 
 test('v3.7 orchestrates 4-tier motionLevel, Hero A~E optical transitions, dual-track streaming 250ms unwrap, cryo-lens, and lossless host icons', async () => {
-  const injectExpr = cdp.buildInjectExpression(cdp.DEFAULT_CONFIG);
+  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, sidebarRestyle: true, mascot: 'crab', homeRipple: true, prismRimStyle: 'prism' });
   const timers = new Set();
   const winListeners = new Map();
   const docListeners = new Map();

@@ -314,7 +314,7 @@ test('Task 1: syncCrabClearance ignores hidden/collapsed/zero-height/decor befor
   body.appendChild(subTab);
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }), sandbox);
     assert.equal(res.status, 'ok');
 
     // None of the hidden/empty/collapsed/zero-height/decor nodes may steal data-ag-cs-queued
@@ -389,7 +389,7 @@ test('Task 1 fallback: v2.34 non-sibling interaction-takeover-card inside outer 
   body.appendChild(convView);
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }), sandbox);
     assert.equal(res.status, 'ok');
     assert.equal(html.hasAttribute('data-ag-cs-takeover-open'), false);
 
@@ -670,7 +670,7 @@ test('Red-Team P0 #1A: display:contents wrappers (0x0 rect & checkVisibility=fal
   body.appendChild(convView);
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }), sandbox);
     assert.equal(res.status, 'ok');
 
     // Normal visible queued card docks crab on its roof with zero gap (data-ag-cs-queued cleared),
@@ -757,7 +757,7 @@ test('Red-Team P0 #1B & P1 #4: running-items-panel grid-rows-[1fr] at 0px frame 
     body.appendChild(convView);
 
     try {
-      const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+      const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }), sandbox);
       assert.equal(res.status, 'ok');
       assert.equal(runningWrap.hasAttribute('data-ag-cs-queued'), false, `Collapsed 0fr panel must not take clearance (sameShell=${sameShell})`);
 
@@ -822,7 +822,7 @@ test('Red-Team P0 #2 & P1 #5 & P2 #8: dual non-subagent composers preserve prima
   body.appendChild(auxPaneWrap);
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }), sandbox);
     assert.equal(res.status, 'ok');
 
     // Non-primary card2 must NEVER erase html[data-ag-cs-takeover-open] or primary card1's takeoverWrap1 clearance
@@ -926,7 +926,7 @@ test('Red-Team P1 #3: syncCrabClearance performs zero layout reads after clearan
   body.appendChild(convView);
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }), sandbox);
     assert.equal(res.status, 'ok');
 
     const mainMo = observers.find((o) => Array.isArray(o.opts?.attributeFilter) && o.opts.attributeFilter.includes('hidden'));

@@ -431,11 +431,31 @@ test('installer manifest validators match inject.js, cdp.js, and config.example.
   assert.deepEqual(VALIDATORS.ambientIntensity, ['0', '35', '70', '100']);
   assert.deepEqual(VALIDATORS.thoughtView, ['immersive', 'bilingual']);
   assert.equal(exampleCfg.accentTone, 'follow');
-  assert.equal(exampleCfg.cornerStyle, 'balanced');
+  assert.equal(exampleCfg.cornerStyle, 'soft');
   assert.equal(exampleCfg.codeFont, 'default');
-  assert.equal(exampleCfg.codeLigatures, false);
+  assert.equal(exampleCfg.codeLigatures, true);
   assert.equal(exampleCfg.ambientIntensity, '100');
   assert.equal(exampleCfg.thoughtView, 'immersive');
+  for (const [k, v] of Object.entries({
+    language: 'zh-CN',
+    lang: 'zh-CN',
+    targetFps: 'native',
+    homeRipple: false,
+    ripple: 'off',
+    prismRimStyle: 'simple',
+    placeholderStyle: 'host',
+    promptStyle: 'host',
+    mascot: 'off',
+    logoInk: 'antigravity',
+    sidebarRestyle: false,
+    sidebar: 'off',
+    cornerStyle: 'soft',
+    codeLigatures: true,
+    hostLocalization: 'off',
+  })) {
+    assert.equal(cdp.DEFAULT_CONFIG[k], v, `DEFAULT_CONFIG.${k} must match user-calibrated default`);
+    assert.equal(exampleCfg[k], v, `config.example.json.${k} must match user-calibrated default`);
+  }
   assert.ok(cdp.RUNTIME_PARTS.includes('host-workbench-enhancer.js'));
   assert.ok(cdp.SYNC_ROOT_FILES.includes('host-workbench-enhancer.js'));
 });

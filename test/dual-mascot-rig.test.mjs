@@ -3015,7 +3015,7 @@ test('PR #51 queued-messages-card roof-perch: zero bottom gap, interactive roof 
   const flushRaf = () => { while (rafQueue.length) rafQueue.shift()(Date.now()); };
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG, { bundleCachePath: '' }), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }, { bundleCachePath: '' }), sandbox);
     assert.equal(res.status, 'ok');
 
     // 1) Visible queued-messages-card becomes mascot roof anchor with zero bottom gap & full interactivity

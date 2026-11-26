@@ -48,26 +48,26 @@
     palette: mkSp(['obsidian', 'host', 'warm'], null, { claude: 'warm' }),
     lightPreset: mkSp(['crystal', 'alabaster']),
     accentTone: mkSp(['follow', 'cobalt', 'iris', 'amber', 'mono']),
-    cornerStyle: mkSp(['sharp', 'balanced', 'soft'], 'balanced'),
+    cornerStyle: mkSp(['sharp', 'balanced', 'soft'], 'soft'),
     ambientIntensity: mkSp(['0', '35', '70', '100'], '100'),
     motionLevel: mkSp(['off', 'subtle', 'standard', 'ultra'], 'ultra'),
-    targetFps: mkSp(['60', '120', '180', 'native'], '180'),
+    targetFps: mkSp(['60', '120', '180', 'native'], 'native'),
     homeLayout: mkSp(['studio', 'classic', 'off']),
-    homeRipple: S_T,
-    logoInk: mkSp(['accent', 'foreground', 'antigravity']),
+    homeRipple: S_F,
+    logoInk: mkSp(['accent', 'foreground', 'antigravity'], 'antigravity'),
     language: mkSp(['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de'], 'zh-CN', { yue: 'zh-CN', 'zh-HK': 'zh-TW', 'zh-MO': 'zh-TW' }),
-    hostLocalization: S_AUTO,
+    hostLocalization: mkSp(['auto', 'on', 'off'], 'off'),
     composerRestyle: S_T,
     prismRim: S_T,
-    prismRimStyle: mkSp(['prism', 'simple']),
-    placeholderStyle: mkSp(['studio', 'host']),
+    prismRimStyle: mkSp(['prism', 'simple'], 'simple'),
+    placeholderStyle: mkSp(['studio', 'host'], 'host'),
     smoothCaret: S_T,
     scrollBottomMotion: mkSp(['smooth', 'instant']),
     contextMenu: S_T,
     codeFont: mkSp(['default', 'jetbrains', 'cascadia', 'sfmono']),
-    codeLigatures: S_F,
-    mascot: mkSp(['crab', 'quad', 'quad-minis', 'off'], null, { dual: 'crab' }),
-    sidebarRestyle: S_T,
+    codeLigatures: S_T,
+    mascot: mkSp(['crab', 'quad', 'quad-minis', 'off'], 'off', { dual: 'crab' }),
+    sidebarRestyle: S_F,
     sidebarCompact: S_F,
     sidebarNavFold: mkSp(['off', 'on']),
     thoughtTranslate: mkSp(['off', 'machine', 'ai']),
@@ -3436,7 +3436,6 @@
           const resetBtn = mkB('ag-cs-cfg-btn', U('cfgResetBtn', 'Reset Defaults'), 'data-ag-cs-cfg-action', 'reset');
           onClk(resetBtn, () => {
             const defs = getDefaultSettingsPatch();
-            defs.language = 'auto';
             pendingCfgToast = { key: 'cfgResetOk', fallback: 'OK', tone: 'ok', exp: Date.now() + 2500 };
             applyBatch(defs);
             const curTh = getThoughtUiHandle();

@@ -127,7 +127,7 @@
     }
   };
 
-  const BOOL_ALIAS_PAIRS = [['homeRipple', 'ripple'], ['composerRestyle', 'composer'], ['sidebarRestyle', 'sidebar']];
+  const BOOL_ALIAS_PAIRS = [['homeRipple', 'ripple', false], ['composerRestyle', 'composer', true], ['sidebarRestyle', 'sidebar', false]];
   const ONOFF_STR_KEYS = 'telemetryModule|effortSliderModule|effortMemory|periodicModelPicker|omniModule|sidebarStudio|autoUpdate|sidebarNavFold'.split('|');
   const pickOf = (v, s, d) => (s.split('|').includes(v) ? v : d);
 
@@ -136,26 +136,32 @@
     out.palette = pickOf(out.palette === 'claude' ? 'warm' : out.palette, 'host|obsidian|warm', 'obsidian');
     out.lightPreset = out.lightPreset === 'alabaster' ? 'alabaster' : 'crystal';
     out.motionLevel = pickOf(out.motionLevel, 'off|subtle|standard|ultra', 'ultra');
-    out.targetFps = pickOf(out.targetFps, '60|120|180|native', '180');
-    for (const k of ['telemetryModule', 'effortSliderModule', 'hostLocalization']) out[k] = pickOf(out[k], 'on|off', 'auto');
+    out.targetFps = pickOf(out.targetFps, '60|120|180|native', 'native');
+    for (const k of ['telemetryModule', 'effortSliderModule']) out[k] = pickOf(out[k], 'on|off', 'auto');
+    out.hostLocalization = pickOf(out.hostLocalization, 'auto|on', 'off');
     out.thoughtTranslate = pickOf(out.thoughtTranslate, 'machine|ai', 'off');
     out.thoughtTrigger = out.thoughtTrigger === 'expand' ? 'expand' : 'preload';
     out.homeLayout = out.homeMode = pickOf(out.homeLayout ?? out.homeMode, 'classic|off', 'studio');
-    for (const [bKey, sKey] of BOOL_ALIAS_PAIRS) {
+    for (const [bKey, sKey, defVal] of BOOL_ALIAS_PAIRS) {
       const v = out[bKey] !== undefined ? out[bKey] : out[sKey];
-      const on = v === undefined ? true : v !== false && v !== 'off';
+      const on = v === undefined ? defVal : v !== false && v !== 'off';
       out[bKey] = on;
       out[sKey] = on ? 'on' : 'off';
     }
-    out.placeholderStyle = out.promptStyle = (out.placeholderStyle ?? out.promptStyle) === 'host' ? 'host' : 'studio';
-    out.prismRimStyle = out.prismRimStyle === 'simple' ? 'simple' : 'prism';
-    out.logoInk = pickOf(out.logoInk, 'foreground|antigravity', 'accent');
-    out.mascot = out.mascot === 'off' || out.mascot === false ? 'off' : /^(minis|quad(-minis)?|r:[ckdw0-4,+m]+)$/.test(out.mascot) ? out.mascot : 'crab';
-    for (const k of ['sidebarCompact', 'codeLigatures', 'autoArchiveOnExit']) out[k] = out[k] === true || out[k] === 'on';
+    out.placeholderStyle = out.promptStyle = (out.placeholderStyle ?? out.promptStyle) === 'studio' ? 'studio' : 'host';
+    out.prismRimStyle = out.prismRimStyle === 'prism' ? 'prism' : 'simple';
+    out.logoInk = pickOf(out.logoInk, 'accent|foreground', 'antigravity');
+    out.mascot =
+      out.mascot === 'crab' || out.mascot === 'dual'
+        ? 'crab'
+        : /^(minis|quad(-minis)?|r:[ckdw0-4,+m]+)$/.test(out.mascot)
+          ? out.mascot
+          : 'off';
+    for (const k of ['sidebarCompact', 'autoArchiveOnExit']) out[k] = out[k] === true || out[k] === 'on';
     for (const k of ['sidebarNavFold', 'sidebarStudio', 'autoUpdate']) out[k] = out[k] === 'on' || out[k] === true ? 'on' : 'off';
-    for (const k of ['smoothCaret', 'contextMenu', 'prismRim']) out[k] = out[k] === undefined ? true : out[k] !== false && out[k] !== 'off';
+    for (const k of ['smoothCaret', 'contextMenu', 'prismRim', 'codeLigatures']) out[k] = out[k] === undefined ? true : out[k] !== false && out[k] !== 'off';
     out.accentTone = pickOf(out.accentTone, 'follow|cobalt|iris|amber|mono', 'follow');
-    out.cornerStyle = pickOf(out.cornerStyle, 'sharp|balanced|soft', 'balanced');
+    out.cornerStyle = pickOf(out.cornerStyle, 'sharp|balanced|soft', 'soft');
     out.scrollBottomMotion = out.scrollBottomMotion === 'instant' ? 'instant' : 'smooth';
     out.codeFont = pickOf(out.codeFont, 'default|jetbrains|cascadia|sfmono', 'default');
     out.ambientIntensity = pickOf(String(out.ambientIntensity ?? '100'), '0|35|70|100', '100');
@@ -361,21 +367,21 @@
   const getEffectivePalette = () => pickOf(cfg.palette === 'claude' ? 'warm' : cfg.palette, 'obsidian|warm|host', 'obsidian');
   const getLightPreset = () => (cfg.lightPreset === 'alabaster' ? 'alabaster' : 'crystal');
   const getMotionLevel = () => pickOf(cfg.motionLevel, 'off|subtle|standard|ultra', 'ultra');
-  const getTargetFps = () => pickOf(String(cfg.targetFps || ''), '60|120|180|native', '180');
+  const getTargetFps = () => pickOf(String(cfg.targetFps || ''), '60|120|180|native', 'native');
   const getMinFrameGapMs = () => ({ native: 0, 60: 15.2, 120: 7.5 })[getTargetFps()] ?? 4.8;
   const getTelemetryMode = () => pickOf(cfg.telemetryModule, 'on|off', 'auto');
   const getEffortSliderMode = () => pickOf(cfg.effortSliderModule, 'on|off', 'auto');
   const onOffMode = (k) => (cfg[k] === 'off' || cfg[k] === false ? 'off' : 'on');
   const getEffortMemoryMode = () => onOffMode('effortMemory');
   const getPeriodicPickerMode = () => onOffMode('periodicModelPicker');
-  const getHostLocalizationMode = () => pickOf(cfg.hostLocalization, 'on|off', 'auto');
+  const getHostLocalizationMode = () => pickOf(cfg.hostLocalization, 'auto|on', 'off');
   const getThoughtTranslateMode = () => pickOf(cfg.thoughtTranslate, 'machine|ai', 'off');
   const getThoughtTriggerTiming = () => (cfg.thoughtTrigger === 'expand' ? 'expand' : 'preload');
   const getAccentTone = () => pickOf(cfg.accentTone, 'cobalt|iris|amber|mono', 'follow');
-  const getRimStyle = () => (cfg.prismRimStyle === 'simple' ? 'simple' : 'prism');
-  const getCornerStyle = () => pickOf(cfg.cornerStyle, 'sharp|soft', 'balanced');
+  const getRimStyle = () => (cfg.prismRimStyle === 'prism' ? 'prism' : 'simple');
+  const getCornerStyle = () => pickOf(cfg.cornerStyle, 'sharp|balanced', 'soft');
   const getCodeFont = () => pickOf(cfg.codeFont, 'jetbrains|cascadia|sfmono', 'default');
-  const isCodeLigaturesEnabled = () => cfg.codeLigatures === true || cfg.codeLigatures === 'on';
+  const isCodeLigaturesEnabled = () => cfg.codeLigatures !== false && cfg.codeLigatures !== 'off';
   const isContextMenuEnabled = () => cfg.contextMenu !== false && cfg.contextMenu !== 'off';
   const getAmbientIntensitySetting = () => pickOf(String(cfg.ambientIntensity ?? '100'), '0|35|70|100', '100');
   const getAmbientFloat = () => Number(getAmbientIntensitySetting()) / 100;
@@ -1105,8 +1111,8 @@
         'scroll-bottom': cfg.scrollBottomMotion === 'instant' ? 'instant' : 'smooth', 'code-font': getCodeFont(),
         ligatures: isCodeLigaturesEnabled() ? '1' : '0', ambient: getAmbientCssValue(),
         home: cfg.homeLayout === 'classic' ? 'classic' : cfg.homeLayout === 'off' ? 'off' : 'studio',
-        composer: cfg.composerRestyle === false ? 'off' : 'on', rim: cfg.prismRim === false ? 'off' : 'on', 'rim-style': getRimStyle(), 'logo-ink': cfg.logoInk === 'foreground' ? 'foreground' : cfg.logoInk === 'antigravity' ? 'antigravity' : 'accent',
-        sidebar: cfg.sidebarRestyle === false ? 'off' : 'on', 'sidebar-compact': cfg.sidebarCompact === true ? 'on' : 'off',
+        composer: cfg.composerRestyle === false ? 'off' : 'on', rim: cfg.prismRim === false ? 'off' : 'on', 'rim-style': getRimStyle(), 'logo-ink': cfg.logoInk === 'foreground' ? 'foreground' : cfg.logoInk === 'accent' ? 'accent' : 'antigravity',
+        sidebar: cfg.sidebarRestyle === true || cfg.sidebarRestyle === 'on' ? 'on' : 'off', 'sidebar-compact': cfg.sidebarCompact === true ? 'on' : 'off',
         'sb-fold': cfg.sidebarNavFold === 'on' ? 'on' : 'off', lang,
       };
       for (const [k, v] of O.entries(csA)) setAttrIfChanged(html, 'data-ag-cs-' + k, v);
@@ -1300,7 +1306,7 @@
     if (awaitingNow !== lastSyncedAwaitingDecision || freshErrorEdge) { lastSyncedAwaitingDecision = awaitingNow; convAuraCtl.setSemanticState({ awaitingDecision: awaitingNow ? true : null, hasError: freshErrorEdge }); }
   };
   const isRimOn = () => cfg.composerRestyle !== false && cfg.prismRim !== false;
-  const isColorRim = () => isRimOn() && cfg.prismRimStyle !== 'simple';
+  const isColorRim = () => isRimOn() && cfg.prismRimStyle === 'prism';
   const syncQueuedPrismBoxes = () => {
     const qCards = qa(D, '[data-testid="queued-messages-card"], [data-testid="interaction-takeover-card"]');
     if (!qCards?.length) return;

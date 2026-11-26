@@ -200,7 +200,7 @@ test('v107 A2-3: config changes miss cache cleanly, cap retained variants at BUN
     // Equivalent alias / undefined property normalization hits the exact same entry
     const aliasVariant = {
       ...variants[variants.length - 1],
-      homeRipple: 'on',
+      homeRipple: 'off',
       unusedOptionalField: undefined,
     };
     const aliasExpr = cdpFresh.buildInjectExpression(aliasVariant, { cachePath });
@@ -526,6 +526,7 @@ test('v107 A2-8: single-pass PrismDaemon.rebuildBundle cold hit parses .bundle-c
     const cdpSeed = loadFreshCdp(snap.cdpPath);
     cdpSeed.writeConfig({
       ...cdpSeed.DEFAULT_CONFIG,
+      mascot: 'crab',
       omniModule: 'on',
       sidebarStudio: 'on',
       hostLocalization: 'on',

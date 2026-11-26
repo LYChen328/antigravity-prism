@@ -436,14 +436,14 @@ test('mountOrSyncSettingsSection mounts all 27 settings (including omniModule, l
     const exportedObj = JSON.parse(clipboardWrites[0]);
     assert.equal(Object.keys(exportedObj.settings).length, 38);
     assert.equal(exportedObj.settings.prismRim, true);
-    assert.equal(exportedObj.settings.prismRimStyle, 'prism');
+    assert.equal(exportedObj.settings.prismRimStyle, 'simple');
     assert.equal(exportedObj.settings.autoArchiveOnExit, false);
     assert.equal(exportedObj.settings.effortMemory, 'on');
     assert.equal(exportedObj.settings.periodicModelPicker, 'on');
     assert.equal(exportedObj.settings.sidebarNavFold, 'off');
     assert.equal(exportedObj.settings.scrollBottomMotion, 'smooth');
     assert.equal(exportedObj.settings.updateChannel, 'stable');
-    assert.equal(exportedObj.settings.hostLocalization, 'auto');
+    assert.equal(exportedObj.settings.hostLocalization, 'off');
     assert.equal(exportedObj.settings.omniModule, 'on');
     assert.equal(exportedObj.settings.linkTarget, 'external');
     assert.equal(exportedObj.settings.sidebarStudio, 'on');
@@ -471,10 +471,10 @@ test('mountOrSyncSettingsSection mounts all 27 settings (including omniModule, l
     assert.equal(statusAfterImport.getAttribute('data-tone'), 'ok', 'Green toast must survive cross-language panel rebuild');
     assert.equal(statusAfterImport.textContent, i18nLocales.getUiStrings('en').cfgImportOk);
 
-    // 6. Cross-language Reset Defaults (en -> auto -> zh-CN) restores defaults & preserves green 'ok' toast in zh-CN
+    // 6. Cross-language Reset Defaults restores default 'zh-CN' & preserves green 'ok' toast in zh-CN
     sec.querySelector('button[data-ag-cs-cfg-action="reset"]').click();
     sec = doc.getElementById(settingsPanel.SETTINGS_SEC_ID);
-    assert.equal(state.language, 'auto');
+    assert.equal(state.language, 'zh-CN');
     assert.equal(sec.getAttribute('data-ag-cs-lang'), 'zh-CN');
     assert.equal(state.omniModule, 'on');
     assert.equal(state.linkTarget, 'builtin');

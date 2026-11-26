@@ -707,7 +707,7 @@ test('v1.0.7-beta.4: ui-runtime switches host-i18n to off reverse-restore on off
   sandbox.globalThis = sandbox;
   doc.defaultView = sandbox;
 
-  const expr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, hostLocalization: 'on', language: 'zh-CN' });
+  const expr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, hostLocalization: 'on', language: 'zh-CN', mascot: 'crab' });
   const res = vm.runInNewContext(expr, sandbox);
   assert.equal(res.status, 'ok');
   try {

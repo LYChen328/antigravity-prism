@@ -866,7 +866,7 @@ test('Channel 4 isolation: main bundle < 690 KiB without dict, shouldEnableHostI
   assert.equal(mainExpr.includes('mountHostI18n'), false, 'Main bundle must NOT contain Channel 4 runtime');
   assert.equal(mainExpr.includes('浏览器子智能体已被您的管理员禁用'), false, 'Main bundle must NOT contain zh-CN.json entries');
 
-  assert.equal(cdp.DEFAULT_CONFIG.hostLocalization, 'auto');
+  assert.equal(cdp.DEFAULT_CONFIG.hostLocalization, 'off');
   assert.deepEqual(cdp.VALIDATORS.hostLocalization, ['auto', 'on', 'off']);
 
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'off', language: 'zh-CN' }), true);
