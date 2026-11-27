@@ -28,14 +28,8 @@ const FB_ROWS={
 'zh-CN':'缓存|吞吐速率|首字延迟|最近速率|上下文窗口|当前模型|已用|剩余|代理|5h|周|5h 配额|周配额',
 'zh-TW':'快取|吞吐速率|首字延遲|最近速率|上下文視窗|目前模型|已用|剩餘|代理|5h|週|5h 額度|週額度',
 en:'Cache|Throughput|TTFT|Latest Rate|Context Window|Active Model|used|free| sub|5h|Wk|5h Quota|Weekly Quota',
-ja:'キャッシュ|スループット|初回応答|最新速度|コンテキスト|現在のモデル|使用|残り| サブ|5h|週|5h 枠|週間枠',
-ko:'캐시|처리 속도|첫 토큰 지연|최근 속도|컨텍스트 창|현재 모델|사용|여유| 서브|5h|주|5h 할당|주간 할당',
-es:'Caché|Rendimiento|TTFT|Velocidad rec.|Ventana de ctx|Modelo activo|usado|libre| sub|5h|Sem|Cuota 5h|Cuota sem.',
-fr:'Cache|Débit|TTFT|Dernier débit|Fenêtre ctx|Modèle actif|utilisé|libre| sous|5h|Heb|Quota 5h|Quota hebdo',
-de:'Cache|Durchsatz|TTFT|Akt. Rate|Kontextfenster|Aktives Modell|belegt|frei| Sub|5h|W|5h-Kontingent|Wochenkontingent',
-tr:'Önbellek|Verim|TTFT|Son Hız|Bağlam|Aktif Model|dolu|boş| alt|5h|Hf|5s Kota|Haftalık Kota',
 };
-const LANG_M=[[/^(?:yue(?:-|$)|zh-yue|.*cantonese)/,'zh-CN'],[/^(?:zh-(?:tw|hant|hk|mo)|tw$|hant$)/,'zh-TW'],[/^zh/,'zh-CN'],[/^(?:ja|jp|japanese$)/,'ja'],[/^(?:ko|kr|korean$)/,'ko'],[/^(?:es|spanish$)/,'es'],[/^(?:fr|french$)/,'fr'],[/^(?:de|german$)/,'de'],[/^(?:tr|turkish$|türkçe$|turkce$)/,'tr']];
+const LANG_M=[[/^(?:yue(?:-|$)|zh-yue|.*cantonese)/,'zh-CN'],[/^(?:zh-(?:tw|hant|hk|mo)|tw$|hant$)/,'zh-TW'],[/^zh/,'zh-CN']];
 function normFbLang(raw,win){
 let v=String(raw||'').trim();
 if(!v||v.toLowerCase()==='auto'){const nv=win&&'navigator'in win?win.navigator:(typeof navigator!=='undefined'?navigator:null);v=String(nv?.languages?.[0]||nv?.language||'').trim();}
@@ -131,7 +125,7 @@ function createTelemetryController(envOpts){
 const gW=()=>(envOpts&&envOpts.window)||(typeof window!=='undefined'?window:globalRoot);
 const gD=()=>(envOpts&&envOpts.document)||gW()?.document||null;
 
-let mode='auto',quotaMode='compact',waitTm=null,rescTm=null,pollTm=null,swTm=null,burstTm=null,burstIdx=0,burstGen=0,burstBase=null,burstCid=null,cmpOff=null,pickCmpAt=0,wasBusy=false;
+let mode='auto',quotaMode='both',waitTm=null,rescTm=null,pollTm=null,swTm=null,burstTm=null,burstIdx=0,burstGen=0,burstBase=null,burstCid=null,cmpOff=null,pickCmpAt=0,wasBusy=false;
 let hasHost=false,yielded=false,lastSig='',detAt=0,lastHealAt=0;
 let docOff=null,popOff=null,winResOff=null,lastSnap=null,mApi=null,mRes=null,seatObs=null,healTm=null;
 let expLang='',activeHost=null,winBlur=false,pollSusp=false,blurOff=null,blurObs=null,extGuardHeld=false,lastHref='',lastUrlCid='';
@@ -761,7 +755,7 @@ return{mode,quotaMode,mountedFallback:m,mountedCount:n,waitingForExternal:waitTm
 
 function sync(cfg){
 if(cfg&&typeof cfg.language==='string'&&cfg.language)expLang=cfg.language.trim().toLowerCase()==='auto'?'':normFbLang(cfg.language,gW());
-if(cfg&&Object.prototype.hasOwnProperty.call(cfg,'telemetryQuotaMode'))quotaMode=cfg.telemetryQuotaMode==='both'?'both':'compact';
+if(cfg&&Object.prototype.hasOwnProperty.call(cfg,'telemetryQuotaMode'))quotaMode=cfg.telemetryQuotaMode==='compact'?'compact':'both';
 else{const aQm=readAttrQuotaMode();if(aQm)quotaMode=aQm;}
 const raw=cfg?.telemetryModule;mode=raw==='on'||raw==='off'?raw:'auto';
 if(insts.size&&mode!=='off')for(const it of insts.values()){syncLblsFor(it.sr);if(it.snap||lastSnap)applySnapToInst(it,it.snap||lastSnap);}

@@ -1572,25 +1572,22 @@ test('Battle 3: strict HTML sandbox="allow-scripts", srcdoc CSP meta, /sandbox-i
   await svgEnv.settle();
   assert.equal(svgMetaCalls, callsBeforeReload + 1, 'Visible document must reload on parent reload message');
 
-  // 5. Full 9 locales coverage (zero yue column) & strict 0 CJK in non-CJK locales (en/ko/es/fr/de/tr)
+  // 5. Full 3 locales coverage (zero yue column) & strict 0 CJK in en
   const cjkRe = /[\u3400-\u9FFF\uF900-\uFAFF]/;
-  const localeCols = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
+  const localeCols = ['zh-CN', 'zh-TW', 'en'];
   for (const [key, row] of Object.entries(WORKBENCH_I18N)) {
-    assert.equal(row.length, localeCols.length, `WORKBENCH_I18N.${key} must provide all 9 locale columns`);
+    assert.equal(row.length, localeCols.length, `WORKBENCH_I18N.${key} must provide all 3 locale columns`);
     for (let i = 0; i < localeCols.length; i++) {
       assert.ok(typeof row[i] === 'string' && row[i].length > 0, `WORKBENCH_I18N.${key}[${localeCols[i]}] must be non-empty`);
-      if (['en', 'ko', 'es', 'fr', 'de', 'tr'].includes(localeCols[i])) {
-        assert.equal(cjkRe.test(row[i]), false, `WORKBENCH_I18N.${key}[${localeCols[i]}] must contain 0 CJK chars: ${row[i]}`);
+      if (localeCols[i] === 'en') {
+        assert.equal(cjkRe.test(row[i]), false, `WORKBENCH_I18N.${key}[en] must contain 0 CJK chars: ${row[i]}`);
       }
     }
   }
 
   for (const [lang, expectedBadge, expectedLightChecker] of [
-    ['ko', '샌드박스 격리', '밝은 체커'],
-    ['es', 'Aislado en sandbox', 'Damero claro'],
-    ['fr', 'Isolé en sandbox', 'Damier clair'],
-    ['de', 'Sandbox-isoliert', 'Helles Raster'],
-    ['tr', 'Yalıtılmış sandbox', 'Açık dama'],
+    ['zh-TW', '沙盒隔離', '淺棋盤格'],
+    ['en', 'Sandbox Isolated', 'Light Checker'],
   ]) {
     const p = renderWorkbenchHtml({
       kind: 'svg',

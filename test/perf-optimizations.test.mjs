@@ -2167,4 +2167,9 @@ test('perf guard 22: home-ripple-host coalesces burst ResizeObserver ticks via r
   assert.ok(fnSlice.includes("ga(btn, 'data-tooltip-id')"), 'bSig must include data-tooltip-id');
   assert.ok(fnSlice.includes("ga(btn, 'role')"), 'bSig must include role');
   assert.ok(fnSlice.includes('rawSvgCls'), 'bSig must include original <svg> className to prevent stale copy->check->copy hits');
+
+  // 3) ui-runtime caches onDocCaretEvent activeElement lookup and scopes hidden wakeup away from spurious full icon scans
+  assert.ok(uiSrc.includes('let lastCaretAe = null, lastCaretIn = false;'), 'ui-runtime must cache activeElement S_IB check in onDocCaretEvent');
+  assert.ok(uiSrc.includes('pendingHiddenSync = 2;') && uiSrc.includes('if (pendingHiddenSync < 1) pendingHiddenSync = 1;'), 'ui-runtime must differentiate structural vs non-structural hidden wakeup');
+  assert.ok(uiSrc.includes('dirtyFlags.c = dirtyFlags.r = dirtyFlags.t = dirtyFlags.s = dirtyFlags.g = dirtyFlags.m = true;'), 'non-structural hidden wakeup must avoid markAllDirty/flags.f full rescan');
 });

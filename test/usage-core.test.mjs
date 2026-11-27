@@ -684,6 +684,17 @@ test('UX-4 & UX-9 Effort Slider off-mode trigger tint cleanup and 5-language tit
   assert.equal(hostBox.children[0].getAttribute('aria-label'), 'Reasoning Effort');
   mountedEn.unmount();
 
+  curSliderLang = 'zh-TW';
+  const hostBoxTw = makeNode('div');
+  const mountedTw = upstreamSlider.mountCodexEffortSlider({
+    container: hostBoxTw,
+    document: sliderDoc,
+    window: { document: sliderDoc },
+    seat: { getLevels: () => ['low', 'medium', 'high'], getIndex: () => 1, setIndex() {} },
+  });
+  assert.equal(hostBoxTw.children[0].getAttribute('aria-label'), '推理等級');
+  mountedTw.unmount();
+
   curSliderLang = 'ja';
   const hostBoxJa = makeNode('div');
   const mountedJa = upstreamSlider.mountCodexEffortSlider({
@@ -692,7 +703,7 @@ test('UX-4 & UX-9 Effort Slider off-mode trigger tint cleanup and 5-language tit
     window: { document: sliderDoc },
     seat: { getLevels: () => ['low', 'medium', 'high'], getIndex: () => 1, setIndex() {} },
   });
-  assert.equal(hostBoxJa.children[0].getAttribute('aria-label'), '推論レベル');
+  assert.equal(hostBoxJa.children[0].getAttribute('aria-label'), 'Reasoning Effort');
   mountedJa.unmount();
   ctl.destroy();
 });
@@ -2362,10 +2373,13 @@ test('Redteam #193 [P0-2, P1-3, P2-1]: style hot-upgrade overwrite, data-ag-pris
     assert.equal(ctl.getScopeKey(), 'local');
     assert.equal(dom1.doc.documentElement.getAttribute('data-ag-prism-scope'), null);
 
-    // 3) [P2-1] Japanese greeting uses Japanese ideographic comma '、' while zh-CN uses '，'
+    // 3) [P2-1] Removed locale ja normalizes cleanly to English greeting punctuation ', ...?' while zh-TW/zh-CN use '，...？'
     ctl.syncGreeting(true);
     const h1 = dom1.doc.querySelector('[data-testid="home-greeting"] h1');
-    assert.equal(h1.textContent, '次は何をしますか、太郎？', 'Japanese greeting must use Japanese comma 、');
+    assert.equal(h1.textContent, "What's up next, 太郎?", 'Removed locale ja must normalize cleanly to en greeting');
+    activeLang = 'zh-TW';
+    ctl.syncGreeting(true);
+    assert.equal(h1.textContent, '接下來做什麼，太郎？', 'zh-TW greeting must use Chinese comma ， and ？');
     activeLang = 'zh-CN';
     activeName = '小明';
     ctl.syncGreeting(true);
@@ -4246,25 +4260,20 @@ test('PR #41: Home Studio distinguishes cumulative vs active-only sessions with 
   assert.equal(actAgg.tokens, 1600, 'Active-only mode must exclude both archived main and its inherited subagent');
   assert.equal(actAgg.calls, 3);
 
-  const EXPECTED_8 = {
+  const EXPECTED_3 = {
     'zh-CN': { all: '含归档', active: '仅当前', kA: '当前', kH: '归档' },
     'zh-TW': { all: '含歸檔', active: '僅當前', kA: '當前', kH: '歸檔' },
     en: { all: 'All', active: 'Current', kA: 'Active', kH: 'Archived' },
-    ja: { all: '履歴含む', active: '現在のみ', kA: '現在', kH: 'アーカイブ' },
-    ko: { all: '보관 포함', active: '현재만', kA: '현재', kH: '보관' },
-    es: { all: 'Todo', active: 'Actuales', kA: 'Activas', kH: 'Archiv.' },
-    fr: { all: 'Tout', active: 'Actuelles', kA: 'Actives', kH: 'Archiv.' },
-    de: { all: 'Alle', active: 'Aktuell', kA: 'Aktiv', kH: 'Archiv.' },
   };
-  const NON_CJK = new Set(['en', 'es', 'fr', 'de']);
+  const NON_CJK = new Set(['en']);
   const HAN_RE = /[\u4E00-\u9FFF]/;
 
   const prevWin = globalThis.window;
   const prevDoc = globalThis.document;
   const prevLs = globalThis.localStorage;
   try {
-    // 2) Panel stamping/clearing of archived flag, SVG toggle, focus restoration, persistence, and 8-language verification
-    for (const [lang, exp] of Object.entries(EXPECTED_8)) {
+    // 2) Panel stamping/clearing of archived flag, SVG toggle, focus restoration, persistence, and 3-language verification
+    for (const [lang, exp] of Object.entries(EXPECTED_3)) {
       const storeMem = new Map();
       const key = `test:scope-toggle:rollup:${lang}`;
       storeMem.set(key, JSON.stringify({
@@ -4386,17 +4395,12 @@ test('PR #49: Home Studio clarifies local-sessions-only scope across all 8 langu
   const prevDoc = globalThis.document;
   const prevStorage = globalThis.localStorage;
 
-  const EXPECTED_LOCAL_8 = {
+  const EXPECTED_LOCAL_3 = {
     'zh-CN': ['仅本地', '仅统计本机已保存会话（不含云端）'],
     'zh-TW': ['僅本機', '僅統計本機已儲存工作階段（不含雲端）'],
     en: ['Local only', 'Counts saved local sessions only (excludes cloud)'],
-    ja: ['ローカルのみ', 'ローカル保存済みセッションのみ集計（クラウド除く）'],
-    ko: ['로컬만', '로컬 저장 세션만 집계 (클라우드 제외)'],
-    es: ['Solo local', 'Solo sesiones locales guardadas (sin nube)'],
-    fr: ['Local', 'Sessions locales enregistrées uniquement (hors cloud)'],
-    de: ['Nur lokal', 'Nur lokal gespeicherte Sitzungen (ohne Cloud)'],
   };
-  const NON_CJK = new Set(['en', 'es', 'fr', 'de']);
+  const NON_CJK = new Set(['en']);
   const HAN_RE = /[\u4E00-\u9FFF]/;
 
   const sec = 1763400900;
@@ -4410,7 +4414,7 @@ test('PR #49: Home Studio clarifies local-sessions-only scope across all 8 langu
 
   try {
     const runScenario = async (lang, withSubagent, withArchived = false) => {
-      const [expTag, expNote] = EXPECTED_LOCAL_8[lang];
+      const [expTag, expNote] = EXPECTED_LOCAL_3[lang];
       const ui = i18nLocales.getUiStrings(lang);
       assert.equal(ui.homeLocalOnlyTag, expTag, `i18n homeLocalOnlyTag mismatch for ${lang}`);
       assert.equal(ui.homeLocalScopeNote, expNote, `i18n homeLocalScopeNote mismatch for ${lang}`);
@@ -4551,14 +4555,14 @@ test('PR #49: Home Studio clarifies local-sessions-only scope across all 8 langu
       assert.equal(dom.doc.querySelector('.ag-cs-home-local-note'), null, 'Quotas tab must not render local-scope note');
     };
 
-    for (const lang of Object.keys(EXPECTED_LOCAL_8)) {
+    for (const lang of Object.keys(EXPECTED_LOCAL_3)) {
       await runScenario(lang, false, false);
     }
     await runScenario('en', true, false);
     await runScenario('en', true, true);
     await runScenario('zh-CN', true, true);
 
-    // Empty Models tab also displays local-scope note
+    // Empty Models tab also displays local-scope note (removed 'de' migrates cleanly to 'en')
     const emptyDom = createMockStudioDom('obsidian-prism — Antigravity');
     globalThis.document = emptyDom.doc;
     globalThis.window = { document: emptyDom.doc, location: { href: 'vscode-file://vscode-app/workbench.html' } };
@@ -4581,7 +4585,7 @@ test('PR #49: Home Studio clarifies local-sessions-only scope across all 8 langu
     assert.ok(emptyDom.doc.querySelector('.ag-cs-home-models-empty'));
     const emptyNote = emptyDom.doc.querySelector('.ag-cs-home-local-note');
     assert.ok(emptyNote, 'Empty Models tab must still render local-scope note');
-    assert.equal(emptyNote.textContent, EXPECTED_LOCAL_8.de[1]);
+    assert.equal(emptyNote.textContent, EXPECTED_LOCAL_3.en[1]);
   } finally {
     if (prevWin === undefined) delete globalThis.window;
     else globalThis.window = prevWin;

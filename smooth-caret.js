@@ -276,8 +276,11 @@
         });
         const clientLeft = host.clientLeft || 0;
         const clientTop = host.clientTop || 0;
-        const cleanText = (ed.textContent || '').replace(/\u200b/g, '');
-        const isNowEmpty = cleanText.length === 0 && ed.querySelectorAll('p, div').length <= 1;
+        let _cn = ed.firstChild, _hv = false;
+        for (let _cd = 0; _cn && _cd < 3; _cd++, _cn = _cn.firstChild) {
+          if (_cn.nodeType === 3 && typeof _cn.nodeValue === 'string' && /[^\u200b]/.test(_cn.nodeValue)) { _hv = true; break; }
+        }
+        const isNowEmpty = !_hv && !/[^\u200b]/.test(ed.textContent || '') && ed.querySelectorAll('p, div').length <= 1;
         list.push({
           ed,
           host,

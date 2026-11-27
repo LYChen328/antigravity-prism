@@ -220,15 +220,15 @@ test('P0 Bug B (Client UI): inline-diff-client renders explicit 8-locale privacy
   const clientSrc = fs.readFileSync(path.join(ROOT, 'vendor', 'inline-diff', 'inline-diff-client.js'), 'utf8');
   assert.equal(clientSrc.includes('innerHTML'), false, 'inline-diff-client.js must contain 0 innerHTML');
 
-  // Verify 8-locale completeness & 0 CJK in non-CJK locales for inlineDiffSensitive
+  // Verify 3-locale completeness & 0 CJK in en for inlineDiffSensitive
   const m = /inlineDiffSensitive\s*:\s*\{([\s\S]*?)\},/.exec(clientSrc);
   assert.ok(m, 'inlineDiffSensitive must be declared in DIFF_FALLBACK');
   const block = m[1];
   const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
-  for (const loc of ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de']) {
+  for (const loc of ['zh-CN', 'zh-TW', 'en']) {
     const lm = new RegExp(`['"]?${loc}['"]?\\s*:\\s*'([^']+)'`).exec(block);
     assert.ok(lm && lm[1].length > 8, `inlineDiffSensitive[${loc}] missing or empty`);
-    if (['en', 'ko', 'es', 'fr', 'de'].includes(loc)) {
+    if (loc === 'en') {
       assert.equal(CJK_RE.test(lm[1]), false, `inlineDiffSensitive[${loc}] must contain 0 CJK chars: ${lm[1]}`);
     }
   }

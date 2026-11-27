@@ -28,7 +28,7 @@ test('step-plan checklist card and home-panel align with Obsidian Prism floating
 
   // PR #43 + v1.0.8 layered monochrome mirror optics & 5-state obsidian star-core icons on step-plan
   assert.ok(spLine.includes('& [data-testid="step-plan"]{'), 'must style step-plan card');
-  assert.match(spLine, /border-radius:13px\s*!important;/, 'step-plan must match overview-shell 13px radius');
+  assert.ok(spLine.includes('border-radius:var(--ag-cs-r-lg)!important;') || spLine.includes('border-radius:var(--ag-cs-r-lg) !important;'), 'step-plan must share overview-shell --ag-cs-r-lg corner radius');
   assert.ok(spLine.includes('var(--ag-cs-menu-bg,var(--ag-cs-panel-bg,rgba(14,16,22,.94)))'), 'step-plan must share overview-shell dark obsidian surface');
   assert.match(spLine, /radial-gradient\(108% 52px at 50% 0%?,rgba\(168,200,255,\.048\)(?: 0%)?,transparent 74%\),var\(--ag-cs-menu-sheen\)/, 'step-plan must layer restrained cool-silver top diffusion over sheen');
   assert.ok(spLine.includes('var(--ag-cs-menu-bd)'), 'step-plan must share overview-shell 1px stepped border');
@@ -67,7 +67,7 @@ test('step-plan checklist card and home-panel align with Obsidian Prism floating
 
   // Home panel upgraded to floating overview-shell material while preserving backdrop-filter:none & zero blur(
   const homePanelLine = css.split('\n').find((l) => l.startsWith('.ag-cs-home-panel{')) || '';
-  assert.ok(homePanelLine.includes('border-radius:13px;'), '.ag-cs-home-panel must share overview-shell 13px radius');
+  assert.ok(homePanelLine.includes('border-radius:var(--ag-cs-r-lg);'), '.ag-cs-home-panel must share overview-shell --ag-cs-r-lg corner radius');
   assert.ok(homePanelLine.includes('var(--ag-cs-menu-bg,'), '.ag-cs-home-panel must share overview-shell obsidian surface');
   assert.ok(homePanelLine.includes('var(--ag-cs-menu-sheen)'), '.ag-cs-home-panel must share overview-shell top-light sheen');
   assert.ok(homePanelLine.includes('backdrop-filter:none') && !homePanelLine.includes('blur('), '.ag-cs-home-panel must keep backdrop-filter:none with zero blur(');
@@ -567,7 +567,14 @@ test('stream-choreography decouples triggerHeroALiftoff / triggerHeroBHomeReturn
     });
     // 1) Initialize in Home -> samples home composer rect (top=480)
     ctl.syncHeroRouteChoreography({ inHome: true, formalConv: null, checkCaustics: false });
-    // 2) Transition Home -> Conv (input wrapped in v2.35.1 .animate-fade-in) -> triggers triggerHeroALiftoff with clamped dy
+    // 1b) Switching Home -> existing Conv WITHOUT Home launch submit skips Hero A liftoff
+    ctl.syncHeroRouteChoreography({ inHome: false, formalConv: conv, convInputRect: { left: 0, top: 820, width: 640, height: 96 }, checkCaustics: false });
+    assert.equal(springCalls.length, 0, 'Switching from Home to existing conversation must NOT play Hero A liftoff');
+    ctl.syncHeroRouteChoreography({ inHome: true, formalConv: null, checkCaustics: false });
+    staggerCalls.length = 0;
+
+    // 2) Transition Home -> New Conv (after Home submit) -> triggers triggerHeroALiftoff with clamped dy
+    ctl.triggerHomeLiftoffRippleBurst();
     ctl.syncHeroRouteChoreography({ inHome: false, formalConv: conv, convInputRect: { left: 0, top: 820, width: 640, height: 96 }, checkCaustics: false });
     assert.equal(springCalls.length, 1);
     const dyMatch = springCalls[0].kfs[0].transform.match(/translateY\((-?\d+)px\)/);

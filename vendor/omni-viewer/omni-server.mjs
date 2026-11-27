@@ -38,14 +38,14 @@ const VIEWER_CSP = [
 ].join('; ');
 
 export const SANDBOX_HTML_CSP = "sandbox allow-scripts; connect-src 'none'; form-action 'none'; navigate-to 'none'";
-const SUPPORTED_VIEWER_LANGS = Object.freeze(['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr']);
+const SUPPORTED_VIEWER_LANGS = Object.freeze(['zh-CN', 'zh-TW', 'en']);
 function normalizeViewerLang(raw) {
   const s = String(raw || '').trim();
   if (!s) return 'zh-CN';
   const lo = s.toLowerCase();
   if (lo === 'yue' || lo.startsWith('yue-') || lo === 'zh-yue' || lo.includes('cantonese')) return 'zh-CN';
   if (lo === 'zh-hk' || lo === 'zh-mo' || lo === 'zh-tw' || lo.startsWith('zh-hant')) return 'zh-TW';
-  if (lo === 'tr' || lo.startsWith('tr-') || lo === 'turkish' || lo === 'türkçe') return 'tr';
+  if (lo === 'en' || lo.startsWith('en-') || /^(?:ja|jp|ko|kr|es|fr|de|tr)(?:$|[-_])|^(?:japanese|korean|spanish|french|german|turkish|türkçe)$/.test(lo)) return 'en';
   return SUPPORTED_VIEWER_LANGS.includes(s) ? s : 'zh-CN';
 }
 

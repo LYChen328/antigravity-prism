@@ -30,12 +30,6 @@ function normalizeLangIdNode(rawLang, fallback = 'en') {
   const raw = typeof rawLang === 'string' ? rawLang.trim().toLowerCase().replace(/_/g, '-') : '';
   if (!raw || raw === 'auto') return fallback;
   if (raw === 'en' || raw.startsWith('en-') || raw === 'english') return 'en';
-  if (raw === 'ja' || raw.startsWith('ja-') || raw === 'jp' || raw === 'japanese') return 'ja';
-  if (raw === 'ko' || raw.startsWith('ko-') || raw === 'kr' || raw === 'korean') return 'ko';
-  if (raw === 'es' || raw.startsWith('es-') || raw === 'spanish') return 'es';
-  if (raw === 'fr' || raw.startsWith('fr-') || raw === 'french') return 'fr';
-  if (raw === 'de' || raw.startsWith('de-') || raw === 'german') return 'de';
-  if (raw === 'tr' || raw.startsWith('tr-') || raw === 'turkish' || raw === 'türkçe' || raw === 'turkce') return 'tr';
   if (raw === 'yue' || raw.startsWith('yue-') || raw === 'zh-yue' || raw.includes('cantonese')) return 'zh-CN';
   if (raw === 'zh-tw' || raw === 'zh-hk' || raw.startsWith('zh-hk-') || raw === 'zh-mo' || raw === 'zh-hant' || raw.startsWith('zh-hant-') || raw === 'tw' || raw === 'hant') return 'zh-TW';
   if (raw === 'zh' || raw === 'zh-cn' || raw === 'zh-hans' || raw.startsWith('zh-')) return 'zh-CN';
@@ -135,7 +129,7 @@ function createCh1Templates({
           const m = e?.hostLocalization, l = e?.language;
           const navL = String((typeof navigator !== 'undefined' && (navigator.languages?.[0] || navigator.language)) || '').trim();
           if (m === 'off' || m === 'on') W.__agPrismHostI18n?.setMode?.(m);
-          else if ((l && l !== 'zh-CN' && l !== 'tr' && l !== 'auto') || ((!l || l === 'auto') && navL && !/^(?:zh(?:$|-(?:cn|hans|sg)(?:-|$))|tr(?:$|-))/i.test(navL))) W.__agPrismHostI18n?.destroy?.();
+          else if ((l && l !== 'zh-CN' && l !== 'auto') || ((!l || l === 'auto') && navL && !/^zh(?:$|-(?:cn|hans|sg)(?:-|$))/i.test(navL))) W.__agPrismHostI18n?.destroy?.();
           else W.__agPrismHostI18n?.setMode?.('auto');
         });
         if (e?.mascot === 'off' || e?.mascot === false) {

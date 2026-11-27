@@ -40,21 +40,21 @@
 
   const RENDER_WORKER_SRC = [
     "'use strict';var mode='glow',cv,gl,P,u={},raf=0,pa=0,dd=0,rd=0,dpr=1,fS=0,lC=0,lD=0,lA=0,iMs=1200,mF=0,fc=0,fr=0,fw=7,fh=15,fz=10,fg='',cT,aT,aC,aX,aK='';",
-    "var cur={dark:1,intensity:.6,presence:1,reach:.47,prism:0,surge:0,speed:1,spec:0,sem:0,still:1,anim:0,continuous:0,timeSec:12,hu:null};",
+    "var cur={dark:1,intensity:.6,presence:1,reach:.47,prism:0,surge:0,speed:1,spec:0,sem:0,dots:1,still:1,anim:0,continuous:0,timeSec:12,hu:null};",
     "var nw=()=>typeof performance!=='undefined'&&performance.now?performance.now():Date.now(),sR=()=>{if(raf&&typeof cancelAnimationFrame==='function')cancelAnimationFrame(raf);raf=0},pm=o=>{try{self.postMessage(o)}catch{}};",
     "var frG=()=>{if(gl)try{P&&gl.deleteProgram(P);cT&&gl.deleteTexture(cT);aT&&gl.deleteTexture(aT)}catch{}P=cT=aT=null;u={};aK=''};",
     "var mT=(i,f)=>{var t=gl.createTexture();gl.activeTexture(gl.TEXTURE0+i);gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,f);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,f);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t};",
     "var aC2=()=>{cT&&gl.deleteTexture(cT);cT=mT(0,gl.NEAREST);if(fc>0&&fr>0)gl.texStorage2D(gl.TEXTURE_2D,1,gl.RGBA8,fc,fr)};",
     "var bld=(vs,fs,ns)=>{frG();var cp=(t,s)=>{var h=gl.createShader(t);gl.shaderSource(h,s);gl.compileShader(h);if(!gl.getShaderParameter(h,gl.COMPILE_STATUS)){var l=gl.getShaderInfoLog(h)||'sh';gl.deleteShader(h);throw new Error(l)}return h},v=cp(gl.VERTEX_SHADER,vs),f=cp(gl.FRAGMENT_SHADER,fs);P=gl.createProgram();gl.attachShader(P,v);gl.attachShader(P,f);gl.linkProgram(P);gl.deleteShader(v);gl.deleteShader(f);if(!gl.getProgramParameter(P,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(P)||'link');gl.useProgram(P);for(var n of ns.split(','))u[n]=gl.getUniformLocation(P,n)};",
     "var u1=(l,v)=>l&&gl.uniform1f(l,v),u3=(l,v)=>l&&v&&gl.uniform3f(l,v[0],v[1],v[2]),u4=(l,v)=>l&&v&&gl.uniform4f(l,v[0],v[1],v[2],v[3]),ps=s=>s.split(',').map(x=>x.split(':'));",
-    "var G3=ps('uBaseA:baseA,uBaseB:baseB,uPrismA:prismA,uPrismB:prismB,uLightA:lightA,uLightB:lightB,uSurgeLead:surgeLead,uChimeLead:chimeLead,uHotAnchor:hotAnchor,uSemA:semA,uSemB:semB'),G1=ps('uDark:dark,uReach:reach,uIntensity:intensity,uPresence:presence,uPrism:prism,uSurge:surge,uSpeed:speed,uSpectrum:spec,uSemantic:sem'),F3=ps('ink:ink,wave:wave,uSpec0:sp0,uSpec1:sp1,uSpec2:sp2,uSpec3:sp3'),F4=ps('aura:aura,optics:optics,uIdleParams:idle,neb0:n0,neb1:n1,neb2:n2,nebOpt:nOpt');",
+    "var G3=ps('uBaseA:baseA,uBaseB:baseB,uPrismA:prismA,uPrismB:prismB,uLightA:lightA,uLightB:lightB,uSurgeLead:surgeLead,uChimeLead:chimeLead,uHotAnchor:hotAnchor,uSemA:semA,uSemB:semB'),G1=ps('uDark:dark,uReach:reach,uIntensity:intensity,uPresence:presence,uPrism:prism,uSurge:surge,uSpeed:speed,uSpectrum:spec,uSemantic:sem,uDots:dots'),F3=ps('ink:ink,wave:wave,uSpec0:sp0,uSpec1:sp1,uSpec2:sp2,uSpec3:sp3'),F4=ps('aura:aura,optics:optics,uIdleParams:idle,neb0:n0,neb1:n1,neb2:n2,nebOpt:nOpt');",
     "var bAtl=(fn,d)=>{var k=fn+'|'+d;if(k===aK)return;if(!aC){aC=new OffscreenCanvas(1,1);aX=aC.getContext('2d');if(!aX)throw new Error('no-2d')}var w=Math.ceil(fw*d),h=Math.ceil(fh*d);aC.width=w*fg.length;aC.height=h;aX.setTransform(w/fw,0,0,h/fh,0,0);aX.clearRect(0,0,fw*fg.length,fh);aX.font=fz+'px '+fn;aX.textBaseline='middle';aX.textAlign='center';aX.fillStyle='#fff';for(var i=0;i<fg.length;i++)aX.fillText(fg[i],i*fw+fw/2,fh/2);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,aT);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,aC);gl.uniform2f(u.atlasCell,w,h);u1(u.glyphCount,fg.length);aK=k};",
     "var dr=()=>{gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3)},okG=()=>gl&&P&&cv&&cv.width>0&&cv.height>0&&!gl.isContextLost?.();",
     "var pG=t=>{if(!okG())return;gl.viewport(0,0,cv.width,cv.height);gl.useProgram(P);gl.uniform2f(u.uRes,cv.width,cv.height);u1(u.uDpr,dpr);u1(u.uTime,t);for(var p of G1)u1(u[p[0]],cur[p[1]]);var h=cur.hu;if(h){u4(u.uPre0,h.pre0);u4(u.uPre1,h.pre1);u4(u.uSpecModes,h.modes);for(var p of G3)u3(u[p[0]],h[p[1]])}dr()};",
     "var pF=(p,b)=>{if(!okG()||fc<=0||fr<=0)return;gl.useProgram(P);bAtl(p.font,p.dpr);gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(u.size,cv.width,cv.height);gl.uniform2f(u.grid,fc,fr);gl.uniform2f(u.cellPixels,fw*p.dpr,fh*p.dpr);for(var k of F3)u3(u[k[0]],p[k[1]]);for(var k of F4)u4(u[k[0]],p[k[1]]);u1(u.auraLift,p.auraLift);u1(u.auraPhase,p.auraPhase);u1(u.lightMode,p.lightMode);u1(u.nebulaLift,p.nLift);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,cT);if(b)gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,fc,fr,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(b));dr()};",
     "var tk=ts=>{raf=0;if(dd||pa||!rd||mode!=='glow'||!cur.anim||cur.still)return;var n=typeof ts==='number'?ts:nw();if(!cur.continuous&&iMs>0&&lA>0&&n-lA>=iMs){cur.anim=0;sR();pm({type:'slept'});return}var g=mF>0?1e3/mF:0;if(g>0&&lD>0&&n-lD<g-.5){if(typeof requestAnimationFrame==='function')raf=requestAnimationFrame(tk);return}var dt=lC>0?Math.min(.1,Math.max(0,(n-lC)/1e3)):.016;lC=lD=n;fS+=dt*cur.speed;pG(12+fS);if(typeof requestAnimationFrame==='function')raf=requestAnimationFrame(tk)};",
     "self.onmessage=ev=>{var m=ev?.data;if(!m||dd)return;var tp=m.type;",
-    "if(tp==='init'){try{mode=m.mode||'glow';cv=m.canvas;iMs=Number(m.idleTimeoutMs)||1200;mF=Number(m.maxFps)||0;cv?.addEventListener?.('webglcontextlost',e=>{e?.preventDefault?.();sR();rd=0;pm({type:'contextlost'})});gl=cv?.getContext?.('webgl2',{alpha:true,premultipliedAlpha:true,antialias:false,preserveDrawingBuffer:false})||null;if(!gl||gl.isContextLost?.())throw new Error('webgl2-unavailable');if(mode==='field'){fc=m.cols|0;fr=m.rows|0;fw=m.cellW||7;fh=m.cellH||15;fz=m.fontSize||10;fg=m.glyphs||'';bld(m.vs,m.fs,'cells,atlas,size,grid,cellPixels,atlasCell,glyphCount,ink,wave,aura,optics,auraLift,auraPhase,lightMode,neb0,neb1,neb2,nebOpt,nebulaLift,uSpec0,uSpec1,uSpec2,uSpec3,uIdleParams,uIdleMetrics');aC2();aT=mT(1,gl.LINEAR);gl.uniform1i(u.cells,0);gl.uniform1i(u.atlas,1);u4(u.uIdleMetrics,[fw,fh,1/(m.cloudScale||100),1/(m.breathScale||280)])}else bld(m.vs,m.fs,'uRes,uDpr,uTime,uDark,uReach,uIntensity,uPresence,uPrism,uSurge,uSpeed,uSpectrum,uSemantic,uPre0,uPre1,uSpecModes,uBaseA,uBaseB,uPrismA,uPrismB,uLightA,uLightB,uSurgeLead,uChimeLead,uHotAnchor,uSemA,uSemB');if(m.pw>0&&m.ph>0){cv.width=m.pw;cv.height=m.ph;dpr=m.dpr||1}rd=1;lA=nw();pm({type:'ready'})}catch(er){sR();frG();rd=0;pm({type:'error',reason:String(er?.message||er||'init-err')})}return}",
+    "if(tp==='init'){try{mode=m.mode||'glow';cv=m.canvas;iMs=Number(m.idleTimeoutMs)||1200;mF=Number(m.maxFps)||0;cv?.addEventListener?.('webglcontextlost',e=>{e?.preventDefault?.();sR();rd=0;pm({type:'contextlost'})});gl=cv?.getContext?.('webgl2',{alpha:true,premultipliedAlpha:true,antialias:false,preserveDrawingBuffer:false})||null;if(!gl||gl.isContextLost?.())throw new Error('webgl2-unavailable');if(mode==='field'){fc=m.cols|0;fr=m.rows|0;fw=m.cellW||7;fh=m.cellH||15;fz=m.fontSize||10;fg=m.glyphs||'';bld(m.vs,m.fs,'cells,atlas,size,grid,cellPixels,atlasCell,glyphCount,ink,wave,aura,optics,auraLift,auraPhase,lightMode,neb0,neb1,neb2,nebOpt,nebulaLift,uSpec0,uSpec1,uSpec2,uSpec3,uIdleParams,uIdleMetrics');aC2();aT=mT(1,gl.LINEAR);gl.uniform1i(u.cells,0);gl.uniform1i(u.atlas,1);u4(u.uIdleMetrics,[fw,fh,1/(m.cloudScale||100),1/(m.breathScale||280)])}else bld(m.vs,m.fs,'uRes,uDpr,uTime,uDark,uReach,uIntensity,uPresence,uPrism,uSurge,uSpeed,uSpectrum,uSemantic,uPre0,uPre1,uSpecModes,uBaseA,uBaseB,uPrismA,uPrismB,uLightA,uLightB,uSurgeLead,uChimeLead,uHotAnchor,uSemA,uSemB,uDots');if(m.pw>0&&m.ph>0){cv.width=m.pw;cv.height=m.ph;dpr=m.dpr||1}rd=1;lA=nw();pm({type:'ready'})}catch(er){sR();frG();rd=0;pm({type:'error',reason:String(er?.message||er||'init-err')})}return}",
     "if(tp==='resize'){if(!cv)return;var w=Math.max(0,m.pw|0),h=Math.max(0,m.ph|0);dpr=m.dpr||dpr||1;if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}if(mode==='field'){var c=Math.max(0,m.cols|0),r=Math.max(0,m.rows|0);if(rd&&(c!==fc||r!==fr)){fc=c;fr=r;aC2()}}else if(rd&&!pa&&w>0&&h>0&&m.syncDraw!==false)pG(12+fS);return}",
     "if(tp==='draw'){if(mode==='field'){pa=0;if(rd)try{pF(m.params,m.cellsBuf)}catch(e){pm({type:'error',reason:String(e?.message||e||'field-draw')})}return}pa=0;if(m.maxFps!==undefined)mF=Number(m.maxFps)||0;Object.assign(cur,m,{dark:m.dark?1:0,still:m.still?1:0,anim:m.anim?1:0,continuous:m.continuous?1:0,spec:m.spec||0,sem:m.sem||0,hu:m.hu||null});fS=Math.max(0,(m.timeSec||12)-12);lA=lC=lD=nw();if(rd&&cv?.width>0&&cv.height>0)pG(cur.timeSec);if(cur.anim&&!cur.still&&!raf&&typeof requestAnimationFrame==='function')raf=requestAnimationFrame(tk);else if(!cur.anim||cur.still)sR();return}",
     "if(tp==='clear'){sR();pa=1;if(gl&&cv?.width>0&&cv.height>0&&!gl.isContextLost?.()){gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT)}return}",
@@ -203,7 +203,7 @@
       draw(_w, _h, _d, timeSec, dark, intensity, presence, reach, prism, surge, speed, spec, sem, meta) {
         sleeping = Boolean(meta?.still); if (!sleeping) paused = false;
         const hu = core.computeHorizonUniforms?.(Boolean(dark), presence, prism, surge, speed, spec, sem) || null;
-        const m = { type: 'draw', dark: Boolean(dark), intensity, presence, reach, prism, surge, speed, spec, sem, hu, timeSec, still: sleeping, anim: Boolean(!sleeping && o.workerAutoLoop === true), continuous: Boolean(meta?.continuous), maxFps: getPerfProfile(doc).maxFps };
+        const m = { type: 'draw', dark: Boolean(dark), intensity, presence, reach, prism, surge, speed, spec, sem, dots: meta?.dots ?? 1, hu, timeSec, still: sleeping, anim: Boolean(!sleeping && o.workerAutoLoop === true), continuous: Boolean(meta?.continuous), maxFps: getPerfProfile(doc).maxFps };
         if (ch.state().ready) ch.post(m); else pD = m;
       },
       dispose() { sleeping = paused = true; ch.dispose(); },
@@ -221,7 +221,7 @@
   }
 
   function mountManagedGlow(cfg = {}) {
-    const { getCanvas, swapCanvas, rippleCore, doc, prefer2D, allowWorker = true, onContextLost, onFallbackDone, onUpgradeReady } = cfg;
+    const { getCanvas, swapCanvas, rippleCore, doc, prefer2D, allowWorker = true, halftone, onContextLost, onFallbackDone, onUpgradeReady } = cfg;
     const cv0 = isF(getCanvas) ? getCanvas() : null, noop = { mode: 'none', resize() {}, clear() {}, draw() {}, drawStaticSnapshot() {}, dispose() {} };
     if (!cv0 || !rippleCore?.mountBrandHorizonGlow) return noop;
     mgDepth += 1;
@@ -230,7 +230,7 @@
         let inSync = true, syncFb = false, syncRet = null;
         const prevN = lastNested; lastNested = null;
         const w = mountGlowWorker(cv0, {
-          rippleCore, doc, width: 0, height: 0, probeTimeoutMs: cfg.probeTimeoutMs, probeRetryDelayMs: cfg.probeRetryDelayMs, initTimeoutMs: cfg.initTimeoutMs, onContextLost,
+          rippleCore, doc, width: 0, height: 0, halftone, probeTimeoutMs: cfg.probeTimeoutMs, probeRetryDelayMs: cfg.probeRetryDelayMs, initTimeoutMs: cfg.initTimeoutMs, onContextLost,
           onFallback: (r) => { if (inSync && isF(onFallbackDone)) syncFb = true; try { syncRet = onFallbackDone?.(r); } catch {} },
           onProbeReady: (r) => { try { onUpgradeReady?.(r); } catch {} },
         });
@@ -238,7 +238,7 @@
         if (w) return w;
         if (syncFb) { const res = inner || (syncRet && typeof syncRet === 'object' ? syncRet : noop); if (mgDepth > 1) lastNested = res; return res; }
       }
-      const mk = (u) => rippleCore.mountBrandHorizonGlow(getCanvas(), { prefer2D: !!u, width: 0, height: 0, onContextLost });
+      const mk = (u) => rippleCore.mountBrandHorizonGlow(getCanvas(), { prefer2D: !!u, width: 0, height: 0, halftone, onContextLost });
       let g = mk(prefer2D);
       if (g?.mode === 'none' && !prefer2D && isF(swapCanvas)) { try { g.dispose?.(true); } catch {} swapCanvas(); g = mk(true); }
       if (mgDepth > 1) lastNested = g;

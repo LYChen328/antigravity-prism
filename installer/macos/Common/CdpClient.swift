@@ -582,36 +582,37 @@ enum CdpHelper {
         return String(h, radix: 36)
     }
 
-    private static let canonicalLangValues = ["auto", "zh-CN", "zh-TW", "en", "ja", "ko", "es", "fr", "de", "tr"]
+    private static let canonicalLangValues = ["auto", "zh-CN", "zh-TW", "en"]
     private static let onOffValues = ["on", "off"]
     private static let autoOnOffValues = ["auto", "on", "off"]
     private static let strictOnBoolKeys = ["ignoreReducedMotion", "sidebarCompact", "codeLigatures", "autoArchiveOnExit"]
-    private static let notOffBoolKeys = ["smoothCaret", "contextMenu"]
+    private static let notOffBoolKeys = ["smoothCaret", "contextMenu", "prismRim"]
 
-    // 单源声明式 Schema 表（与 src/config/schema.cjs 全部 54 键 100% 对齐：40 枚举 + 9 非可选布尔 + 2 字符串 + 1 整数 + 2 可选受控布尔）
+    // 单源声明式 Schema 表（与 src/config/schema.cjs 全部 56 键 100% 对齐）
     private static let enumSchemaSpecs: [(String, String, String)] = [
-        ("language", "auto", "L"), ("lang", "auto", "L"),
+        ("language", "zh-CN", "L"), ("lang", "zh-CN", "L"),
         ("palette", "obsidian", "host,obsidian,warm,claude"), ("lightPreset", "crystal", "crystal,alabaster"),
         ("darkAuraStyle", "prism", "prism,neon"), ("motionLevel", "ultra", "off,subtle,standard,ultra"),
-        ("performanceMode", "balanced", "balanced,performance,quality,auto,eco"), ("targetFps", "180", "60,120,180,native"),
-        ("telemetryModule", "auto", "A"), ("telemetryQuotaMode", "compact", "compact,both"),
+        ("performanceMode", "balanced", "balanced,performance,quality,auto,eco"), ("targetFps", "native", "60,120,180,native"),
+        ("telemetryModule", "auto", "A"), ("telemetryQuotaMode", "both", "compact,both"),
         ("effortSliderModule", "auto", "A"), ("effortMemory", "on", "O"), ("periodicModelPicker", "on", "O"),
         ("thoughtTranslate", "off", "off,machine,ai"), ("thoughtTrigger", "preload", "preload,expand"),
         ("homeLayout", "studio", "studio,classic,off"), ("homeMode", "studio", "studio,classic,off"),
         ("convRipple", "off", "off,subtle,medium,full"), ("ripple", "on", "O"), ("composer", "on", "O"),
-        ("placeholderStyle", "studio", "studio,host"), ("promptStyle", "studio", "studio,host"),
-        ("mascot", "crab", "crab,minis,quad,quad-minis,dual,off"), ("logoInk", "accent", "accent,foreground"),
-        ("sidebar", "on", "O"), ("sidebarNavFold", "off", "off,on"),
+        ("prismRimStyle", "simple", "prism,simple"),
+        ("placeholderStyle", "host", "studio,host"), ("promptStyle", "host", "studio,host"),
+        ("mascot", "off", "crab,minis,quad,quad-minis,dual,off"), ("logoInk", "antigravity", "accent,foreground,antigravity"),
+        ("sidebar", "off", "O"), ("sidebarNavFold", "off", "off,on"),
         ("scrollBottomMotion", "smooth", "smooth,instant"), ("accentTone", "follow", "follow,cobalt,iris,amber,mono"),
-        ("cornerStyle", "balanced", "sharp,balanced,soft"), ("chatFont", "default", "default,system-sans,noto-sans,inter,harmony,custom"),
+        ("cornerStyle", "soft", "sharp,balanced,soft"), ("chatFont", "default", "default,system-sans,noto-sans,inter,harmony,custom"),
         ("codeFont", "default", "default,jetbrains,cascadia,sfmono,custom"), ("ambientIntensity", "100", "0,35,70,100"),
-        ("darkAura", "balanced", "subtle,balanced,vivid"), ("thoughtView", "immersive", "immersive,bilingual"),
+        ("darkAura", "subtle", "subtle,balanced,vivid"), ("thoughtView", "immersive", "immersive,bilingual"),
         ("omniModule", "on", "O"), ("linkTarget", "builtin", "builtin,external"),
-        ("sidebarStudio", "off", "O"), ("hostLocalization", "auto", "A"),
+        ("sidebarStudio", "off", "O"), ("hostLocalization", "off", "A"),
         ("autoUpdate", "off", "O"), ("updateChannel", "stable", "stable,beta"),
     ]
-    private static let boolSchemaDefaultTrueKeys = ["homeRipple", "composerRestyle", "sidebarRestyle", "smoothCaret", "contextMenu"]
-    private static let boolSchemaDefaultFalseKeys = ["ignoreReducedMotion", "sidebarCompact", "codeLigatures", "autoArchiveOnExit"]
+    private static let boolSchemaDefaultTrueKeys = ["ignoreReducedMotion", "homeRipple", "composerRestyle", "prismRim", "smoothCaret", "contextMenu", "codeLigatures"]
+    private static let boolSchemaDefaultFalseKeys = ["sidebarRestyle", "sidebarCompact", "autoArchiveOnExit"]
     private static let stringSchemaKeys = ["chatFontCustom", "codeFontCustom"]
 
     private static func expandEnumSpec(_ spec: String) -> JsonValue {
@@ -736,6 +737,9 @@ enum CdpHelper {
             if lowLang == "yue" || lowLang.hasPrefix("yue-") || lowLang == "zh-yue" || lowLang.contains("cantonese") {
                 out["language"] = .string("zh-CN")
                 out["lang"] = .string("zh-CN")
+            } else if ["japanese", "korean", "spanish", "español", "espanol", "french", "français", "francais", "german", "deutsch", "turkish", "türkçe", "turkce"].contains(lowLang) || ["ja", "jp", "ko", "kr", "es", "fr", "de", "tr"].contains(where: { lowLang == $0 || lowLang.hasPrefix($0 + "-") }) {
+                out["language"] = .string("en")
+                out["lang"] = .string("en")
             }
         }
 

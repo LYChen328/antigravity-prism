@@ -1266,3 +1266,71 @@ test('#257: Velvet stream feathering — Layer A block reveal, Layer B 5-bucket 
     globalThis.cancelAnimationFrame = prevCaf;
   }
 });
+
+test('smooth-caret: isNowEmpty short-circuits via firstChild leaf text without reading textContent or querySelectorAll', () => {
+  require(path.join(ROOT_DIR, 'smooth-caret.js'));
+  const smoothCaretMod = globalThis.__agPrismSmoothCaret;
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevGetCs = globalThis.getComputedStyle;
+  const prevRaf = globalThis.requestAnimationFrame;
+
+  const textLeaf = { nodeType: 3, nodeValue: 'typing prompt' };
+  const para = { nodeType: 1, firstChild: textLeaf, childNodes: [textLeaf] };
+  let fullTextReads = 0, blockQueryCalls = 0;
+  const ed = {
+    parentElement: null,
+    firstChild: para,
+    childNodes: [para],
+    scrollLeft: 0, scrollTop: 0,
+    contains: (n) => n === textLeaf || n === para,
+    get textContent() { fullTextReads += 1; return 'typing prompt'; },
+    querySelectorAll(s) {
+      if (s === 'p, div') blockQueryCalls += 1;
+      return [para];
+    },
+    getAttribute: (k) => (k === 'data-lexical-editor' ? 'true' : k === 'contenteditable' ? 'true' : null),
+    setAttribute() {}, removeAttribute() {},
+    closest: (s) => (s === '.surface-composer-card' ? host : null),
+    getBoundingClientRect: () => ({ left: 40, top: 100, right: 440, bottom: 140, width: 400, height: 40 }),
+  };
+  const host = {
+    clientLeft: 0, clientTop: 0, scrollLeft: 0, scrollTop: 0,
+    setAttribute() {}, getAttribute: () => null, hasAttribute: () => false, removeAttribute() {},
+    getBoundingClientRect: () => ({ left: 40, top: 100, right: 440, bottom: 140, width: 400, height: 40 }),
+    appendChild() {}, querySelector: () => null,
+  };
+  ed.parentElement = host;
+  const selObj = {
+    rangeCount: 1, isCollapsed: true, focusNode: textLeaf, focusOffset: 4,
+    getRangeAt: () => ({
+      collapsed: true, startContainer: textLeaf, startOffset: 4, endContainer: textLeaf, endOffset: 4,
+      getClientRects: () => [{ left: 68, top: 110, width: 2, height: 18 }],
+      getBoundingClientRect: () => ({ left: 68, top: 110, width: 2, height: 18 }),
+    }),
+  };
+  globalThis.window = { devicePixelRatio: 1, getSelection: () => selObj };
+  globalThis.getComputedStyle = () => ({ paddingLeft: '8px', paddingTop: '8px', fontSize: '14px', lineHeight: '22px' });
+  globalThis.requestAnimationFrame = () => 1;
+  globalThis.document = {
+    activeElement: ed,
+    getSelection: () => selObj,
+    createElement: () => ({ className: '', style: {}, setAttribute() {}, getAttribute: () => null }),
+    querySelectorAll: (s) => (s.includes('[contenteditable="true"]') || s.includes('[data-lexical-editor="true"]') ? [ed] : []),
+  };
+
+  const ctl = smoothCaretMod.createSmoothCaretController({ isDestroyed: () => false, isEnabled: () => true });
+  try {
+    const snap = ctl.measureSnapshot(false, false);
+    assert.ok(snap && snap.length === 1);
+    assert.equal(snap[0].isNowEmpty, false);
+    assert.equal(fullTextReads, 0, 'non-empty paragraph leaf must short-circuit before ed.textContent walk');
+    assert.equal(blockQueryCalls, 0, 'non-empty paragraph leaf must skip querySelectorAll("p, div")');
+    ctl.teardown();
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.getComputedStyle = prevGetCs;
+    globalThis.requestAnimationFrame = prevRaf;
+  }
+});

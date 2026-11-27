@@ -448,11 +448,37 @@ test('installer manifest validators match inject.js, cdp.js, and config.example.
   assert.deepEqual(VALIDATORS.ambientIntensity, ['0', '35', '70', '100']);
   assert.deepEqual(VALIDATORS.thoughtView, ['immersive', 'bilingual']);
   assert.equal(exampleCfg.accentTone, 'follow');
-  assert.equal(exampleCfg.cornerStyle, 'balanced');
+  assert.equal(exampleCfg.cornerStyle, 'soft');
   assert.equal(exampleCfg.codeFont, 'default');
-  assert.equal(exampleCfg.codeLigatures, false);
+  assert.equal(exampleCfg.codeLigatures, true);
   assert.equal(exampleCfg.ambientIntensity, '100');
   assert.equal(exampleCfg.thoughtView, 'immersive');
+  for (const [k, v] of Object.entries({
+    language: 'zh-CN',
+    lang: 'zh-CN',
+    ignoreReducedMotion: true,
+    targetFps: 'native',
+    telemetryQuotaMode: 'both',
+    homeRipple: true,
+    ripple: 'on',
+    prismRim: true,
+    prismRimStyle: 'simple',
+    placeholderStyle: 'host',
+    promptStyle: 'host',
+    mascot: 'off',
+    logoInk: 'antigravity',
+    sidebarRestyle: false,
+    sidebar: 'off',
+    cornerStyle: 'soft',
+    chatFont: 'default',
+    chatFontCustom: '',
+    codeLigatures: true,
+    darkAura: 'subtle',
+    hostLocalization: 'off',
+  })) {
+    assert.equal(cdp.DEFAULT_CONFIG[k], v, `DEFAULT_CONFIG.${k} must match user-calibrated default`);
+    assert.equal(exampleCfg[k], v, `config.example.json.${k} must match user-calibrated default`);
+  }
   assert.ok(cdp.DEFERRED_ROOT_MODULES.includes('host-workbench-enhancer.js'));
   assert.ok(cdp.SYNC_ROOT_FILES.includes('host-workbench-enhancer.js'));
 });
@@ -2510,7 +2536,7 @@ test(
           '      { "unknownKey", CdpHelper.ValidateConfigEntry(m, "totallyUnknownKey", "x") }',
           '    };',
           '    var patch = new Dictionary<string, object>(StringComparer.Ordinal) {',
-          '      { "telemetryQuotaMode", "both" },',
+          '      { "telemetryQuotaMode", "compact" },',
           '      { "lightPreset", "alabaster" },',
           '      { "darkAuraStyle", "neon" },',
           '      { "performanceMode", "auto" },',
@@ -2576,8 +2602,8 @@ test(
       assert.equal(res.readBefore.mascot, 'minis');
       assert.equal(res.readBefore.chatFontCustom, 'InterBadName');
       assert.equal(res.readBefore.codeFontCustom, '');
-      assert.equal(res.readBefore.telemetryQuotaMode, 'compact');
-      assert.equal(res.readBefore.targetFps, '180');
+      assert.equal(res.readBefore.telemetryQuotaMode, 'both');
+      assert.equal(res.readBefore.targetFps, 'native');
       assert.equal(res.readBefore.pollIntervalMs, 2500);
       assert.equal(Object.prototype.hasOwnProperty.call(res.readBefore, 'autoPromptCdpRelaunch'), false, 'C# ReadConfig must reject string value for strictBoolean autoPromptCdpRelaunch');
       assert.equal(res.readBefore.autoRelaunchOnBareLaunch, false);
@@ -2611,7 +2637,7 @@ test(
       for (const k of Object.keys(cdp.DEFAULT_CONFIG)) {
         assert.ok(Object.prototype.hasOwnProperty.call(res.persisted, k), `Persisted config.json silently dropped key "${k}"`);
       }
-      assert.equal(res.persisted.telemetryQuotaMode, 'both');
+      assert.equal(res.persisted.telemetryQuotaMode, 'compact');
       assert.equal(res.persisted.lightPreset, 'alabaster');
       assert.equal(res.persisted.darkAuraStyle, 'neon');
       assert.equal(res.persisted.performanceMode, 'balanced');

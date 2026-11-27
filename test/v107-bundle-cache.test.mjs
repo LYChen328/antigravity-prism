@@ -527,6 +527,8 @@ test('v107 A2-8: single-pass PrismDaemon.rebuildBundle cold hit parses .bundle-c
     const cdpSeed = loadFreshCdp(snap.cdpPath);
     cdpSeed.writeConfig({
       ...cdpSeed.DEFAULT_CONFIG,
+      mascot: 'crab',
+      homeLayout: 'studio',
       omniModule: 'on',
       sidebarStudio: 'on',
       hostLocalization: 'on',

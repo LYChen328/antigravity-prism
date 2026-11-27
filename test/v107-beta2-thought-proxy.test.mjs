@@ -1422,17 +1422,15 @@ test('6) thought-settings-ui.js: custom proxy URL live validation, 8-locale sync
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(savedPayloads[savedPayloads.length - 1].customProxyUrl, 'socks5h://127.0.0.1:1080');
 
-  // 8-locale sync check + yue->zh-CN migration
+  // 3-locale sync check + yue->zh-CN & removed->en migration
   for (const [loc, expectProxyWord] of [
     ['zh-CN', '自定义代理地址'],
     ['zh-TW', '自訂代理位址'],
     ['yue', '自定义代理地址'],
     ['en', 'Custom Proxy URL'],
-    ['ja', 'カスタムプロキシ URL'],
-    ['ko', '사용자 프록시 URL'],
-    ['es', 'URL de proxy personalizada'],
-    ['fr', 'URL de proxy personnalisée'],
-    ['de', 'Eigene Proxy-URL'],
+    ['ja', 'Custom Proxy URL'],
+    ['ko', 'Custom Proxy URL'],
+    ['tr', 'Custom Proxy URL'],
   ]) {
     docEl.setAttribute('data-ag-cs-lang', loc);
     uiHandle.onLanguageChanged(loc);
@@ -2409,15 +2407,15 @@ test('14) Conversation titles auto-translation: config persistence, safe filteri
       assert.equal(titlesRow.getAttribute(k), v, `titles row must carry anti-translation attr ${k}=${v}`);
     }
 
-    // 8-locale label & description verification (+ yue->zh-CN migration)
+    // 3-locale label & description verification (+ yue->zh-CN migration)
     const seenDescs = new Set();
-    for (const loc of ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de']) {
+    for (const loc of ['zh-CN', 'zh-TW', 'en']) {
       curLang = loc;
       uiHandle.onLanguageChanged(loc);
       assert.ok(titlesDesc.textContent.length > 15, `titles desc must be non-empty for ${loc}`);
       seenDescs.add(titlesDesc.textContent);
     }
-    assert.equal(seenDescs.size, 8, 'All 8 locales must have distinct localized title-translation descriptions');
+    assert.equal(seenDescs.size, 3, 'All 3 locales must have distinct localized title-translation descriptions');
     const zhDesc = (() => {
       curLang = 'zh-CN';
       uiHandle.onLanguageChanged('zh-CN');

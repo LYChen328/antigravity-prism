@@ -18,38 +18,22 @@ const { CHANNEL_MAIN_FRAME_HOST_GUARD } = require('./host-guard.cjs');
 const DICT_COMPRESS_THRESHOLD_BYTES = 470000;
 
 function createI18nChannelBuilders({ rootDir, readConfig, detectSystemUiLocale, bundleCache }) {
-  function resolveHostI18nLocale(language, hostLocaleHint = null) {
-    const raw = String(language || 'auto').trim().toLowerCase().replace(/_/g, '-');
-    const effective =
-      raw === 'auto'
-        ? String(hostLocaleHint || detectSystemUiLocale() || '').trim().split(/[.@]/)[0].toLowerCase().replace(/_/g, '-')
-        : raw;
-    return effective === 'tr' || effective.startsWith('tr-') || effective === 'turkish' || effective === 'türkçe' || effective === 'turkce'
-      ? 'tr'
-      : 'zh-CN';
+  function resolveHostI18nLocale() {
+    return 'zh-CN';
   }
 
-  function getHostI18nDictionaryPath(config, hostLocaleHint = null) {
-    const cfg = config && typeof config === 'object' ? reconcileConfigAliases(config) : readConfig();
-    const effective = resolveHostI18nLocale(cfg.language || cfg.lang || 'auto', hostLocaleHint);
-    return path.join(rootDir, 'vendor', 'host-i18n', effective === 'tr' ? 'tr.json' : 'zh-CN.json');
+  function getHostI18nDictionaryPath() {
+    return path.join(rootDir, 'vendor', 'host-i18n', 'zh-CN.json');
   }
 
-  function getSwarmI18nDictionaryPath(config, hostLocaleHint = null) {
-    const cfg = config && typeof config === 'object' ? reconcileConfigAliases(config) : readConfig();
-    const effective = resolveHostI18nLocale(cfg.language || cfg.lang || 'auto', hostLocaleHint);
-    return path.join(rootDir, 'vendor', 'host-i18n', effective === 'tr' ? 'swarm-tr.json' : 'swarm-zh-CN.json');
+  function getSwarmI18nDictionaryPath() {
+    return path.join(rootDir, 'vendor', 'host-i18n', 'swarm-zh-CN.json');
   }
 
   function shouldEnableHostI18n(config, hostLocaleHint = null) {
     const cfg = config && typeof config === 'object' ? reconcileConfigAliases(config) : readConfig();
     const mode = cfg.hostLocalization || 'auto';
     const lang = cfg.language || cfg.lang || 'auto';
-    const effective = resolveHostI18nLocale(lang, hostLocaleHint);
-    if (effective === 'tr') {
-      if (mode === 'off') return false;
-      return fs.existsSync(path.join(rootDir, 'vendor', 'host-i18n', 'tr.json'));
-    }
     // off 模式挂载第四通道进入反向英文还原（温和压制外部运行时 DOM 汉化，零 app.asar 修改）
     if (mode === 'off') return true;
     if (mode === 'on') return true;
@@ -97,7 +81,7 @@ function createI18nChannelBuilders({ rootDir, readConfig, detectSystemUiLocale, 
         const parsedDict = JSON.parse(fs.readFileSync(dictPath, 'utf8'));
         const plainJson = JSON.stringify(parsedDict).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
         const dictRaw =
-          effectiveLang === 'tr' || Buffer.byteLength(plainJson, 'utf8') > DICT_COMPRESS_THRESHOLD_BYTES
+          Buffer.byteLength(plainJson, 'utf8') > DICT_COMPRESS_THRESHOLD_BYTES
             ? `JSON.parse(${packTextJsExpr(plainJson, 5600)})`
             : plainJson;
         const codeHash = computeHash(`${minRuntime}:${dictRaw}`);
@@ -142,8 +126,6 @@ function createI18nChannelBuilders({ rootDir, readConfig, detectSystemUiLocale, 
     }
     const mode = cfg.hostLocalization === 'on' ? 'on' : cfg.hostLocalization === 'off' ? 'off' : 'auto';
     const modeJson = serializeJsonForEval(mode);
-    const localeOption = effectiveHostLang === 'tr' ? 'locale: "tr",' : '';
-    const effectiveLangJson = serializeJsonForEval(effectiveHostLang);
     const hashJson = serializeJsonForEval(codeHash);
 
     return `(() => {
@@ -161,28 +143,21 @@ ${CHANNEL_MAIN_FRAME_HOST_GUARD}
         } else {
           targetMode = 'auto';
           const liveLang = liveCfg.language || liveCfg.lang || '';
-          if (${effectiveLangJson} === 'tr') {
-            if (liveLang && liveLang !== 'tr' && liveLang !== 'auto') {
+          if (liveLang && liveLang !== 'zh-CN' && liveLang !== 'auto') {
+            try { window.__agPrismHostI18n?.destroy?.(); document.documentElement?.removeAttribute?.('data-ag-prism-host-i18n'); } catch {}
+            return { ok: true, status: 'off', skippedByLiveCfg: true };
+          }
+          if (!liveLang || liveLang === 'auto') {
+            const navLang = String(
+              (typeof navigator !== 'undefined' && ((navigator.languages && navigator.languages[0]) || navigator.language)) || ''
+            )
+              .trim()
+              .split(/[.@]/)[0]
+              .toLowerCase()
+              .replace(/_/g, '-');
+            if (navLang && navLang !== 'zh' && !/^zh-(?:cn|hans|sg)(?:-|$)/.test(navLang)) {
               try { window.__agPrismHostI18n?.destroy?.(); document.documentElement?.removeAttribute?.('data-ag-prism-host-i18n'); } catch {}
               return { ok: true, status: 'off', skippedByLiveCfg: true };
-            }
-          } else {
-            if (liveLang && liveLang !== 'zh-CN' && liveLang !== 'auto') {
-              try { window.__agPrismHostI18n?.destroy?.(); document.documentElement?.removeAttribute?.('data-ag-prism-host-i18n'); } catch {}
-              return { ok: true, status: 'off', skippedByLiveCfg: true };
-            }
-            if (!liveLang || liveLang === 'auto') {
-              const navLang = String(
-                (typeof navigator !== 'undefined' && ((navigator.languages && navigator.languages[0]) || navigator.language)) || ''
-              )
-                .trim()
-                .split(/[.@]/)[0]
-                .toLowerCase()
-                .replace(/_/g, '-');
-              if (navLang && navLang !== 'zh' && !/^zh-(?:cn|hans|sg)(?:-|$)/.test(navLang)) {
-                try { window.__agPrismHostI18n?.destroy?.(); document.documentElement?.removeAttribute?.('data-ag-prism-host-i18n'); } catch {}
-                return { ok: true, status: 'off', skippedByLiveCfg: true };
-              }
             }
           }
         }
@@ -223,7 +198,6 @@ ${CHANNEL_MAIN_FRAME_HOST_GUARD}
         root: window,
         doc: document,
         mode: targetMode,
-        ${localeOption}
         dict: ${dictRaw},
       });
       if (inst && typeof inst === 'object') {

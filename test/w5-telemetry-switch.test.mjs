@@ -365,11 +365,13 @@ test('W5-1 (PR #115 + beta.4 cold-start): standalone chooseQuotaGroupFallback wo
     assert.equal(kids[1], wChip, 'weekly chip must sit second in .bar');
     assert.equal(kids[2], sChip, 'speed chip follows weekly chip');
 
-    // Default telemetryQuotaMode='compact': 5h=91% vs weekly=33% -> only tighter weekly chip is shown in bar
-    assert.equal(ctrl.getState().quotaMode, 'compact');
-    assert.equal(fChip.hidden, true, 'compact mode hides looser 5h chip when weekly is tighter');
+    // Default telemetryQuotaMode='both': both 5h=91% and weekly=33% chips are visible simultaneously
+    assert.equal(ctrl.getState().quotaMode, 'both');
+    assert.equal(fChip.hidden, false, 'both mode shows 5h chip');
     assert.equal(sr.getElementById('five-balance').textContent, '91%');
-    assert.equal(wChip.hidden, false, 'compact mode shows tighter weekly chip');
+    assert.equal(fChip.getAttribute('data-warn'), null);
+    assert.ok((fChip.getAttribute('title') || '').includes('Gemini · 5h 91%'));
+    assert.equal(wChip.hidden, false, 'both mode shows weekly chip');
     assert.equal(sr.getElementById('week-balance').textContent, '33%');
     assert.equal(wChip.getAttribute('data-warn'), '1', '<=35% must set data-warn="1"');
     assert.ok((wChip.getAttribute('title') || '').includes('Wk 33%'));
@@ -381,15 +383,11 @@ test('W5-1 (PR #115 + beta.4 cold-start): standalone chooseQuotaGroupFallback wo
     assert.match(sr.getElementById('context-speed').textContent, /58\.4 tok\/s · TTFT 0\.65s/);
     assert.equal(sr.getElementById('context-cache').textContent, '91.0%');
 
-    // Switch to telemetryQuotaMode='both' -> both 5h and weekly chips are visible simultaneously
-    ctrl.sync({ telemetryModule: 'on', telemetryQuotaMode: 'both', language: 'en' });
-    assert.equal(ctrl.getState().quotaMode, 'both');
-    assert.equal(fChip.hidden, false);
-    assert.equal(sr.getElementById('five-balance').textContent, '91%');
-    assert.equal(fChip.getAttribute('data-warn'), null);
-    assert.ok((fChip.getAttribute('title') || '').includes('Gemini · 5h 91%'));
-    assert.equal(wChip.hidden, false);
-    assert.equal(sr.getElementById('week-balance').textContent, '33%');
+    // Switch to telemetryQuotaMode='compact': only tighter weekly chip is shown in bar
+    ctrl.sync({ telemetryModule: 'on', telemetryQuotaMode: 'compact', language: 'en' });
+    assert.equal(ctrl.getState().quotaMode, 'compact');
+    assert.equal(fChip.hidden, true, 'compact mode hides looser 5h chip when weekly is tighter');
+    assert.equal(wChip.hidden, false, 'compact mode shows tighter weekly chip');
 
     // Click 5h chip -> opens #context-card
     const xCard = sr.getElementById('context-card');
@@ -626,11 +624,11 @@ test('W5-4 (Issue #110 i18n): periodic-picker 8-locale tierNonPlanner & unrelNon
   const block = pickerSrc.slice(startIdx, endIdx);
   const PP_I18N = new Function(`${block}; return PP_I18N;`)();
 
-  const CANONICAL_9 = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
-  const NON_CJK = new Set(['en', 'ko', 'es', 'fr', 'de', 'tr']);
+  const CANONICAL_3 = ['zh-CN', 'zh-TW', 'en'];
+  const NON_CJK = new Set(['en']);
   const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
 
-  for (const loc of CANONICAL_9) {
+  for (const loc of CANONICAL_3) {
     const pack = PP_I18N[loc];
     assert.ok(pack, `PP_I18N missing locale ${loc}`);
     for (const key of ['tierNonPlanner', 'unrelNonPlanner']) {
@@ -655,15 +653,15 @@ test('W6-Footer-UX: decoupled footerTier/barTier 6-tier layout, compact vs both 
   // 1) Hygiene & schema/i18n contracts
   assert.equal(/\.\s*innerHTML\s*=/.test(inlineSrc), false, 'inline-fallback.js must have 0 innerHTML writes');
   assert.equal(/:has\(/.test(inlineSrc), false, 'inline-fallback.js must have 0 :has(');
-  assert.equal(cdp.DEFAULT_CONFIG.telemetryQuotaMode, 'compact');
+  assert.equal(cdp.DEFAULT_CONFIG.telemetryQuotaMode, 'both');
   assert.equal(cdp.validateConfigEntry('telemetryQuotaMode', 'compact'), true);
   assert.equal(cdp.validateConfigEntry('telemetryQuotaMode', 'both'), true);
   assert.equal(cdp.validateConfigEntry('telemetryQuotaMode', 'invalid'), false);
 
-  const CANONICAL_9 = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
-  const NON_CJK = new Set(['en', 'ko', 'es', 'fr', 'de', 'tr']);
+  const CANONICAL_3 = ['zh-CN', 'zh-TW', 'en'];
+  const NON_CJK = new Set(['en']);
   const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
-  for (const loc of CANONICAL_9) {
+  for (const loc of CANONICAL_3) {
     const d = i18nExt.getStrings(loc);
     for (const k of ['setTelemetryQuotaModeTitle', 'setTelemetryQuotaModeDesc', 'optQuotaCompact', 'optQuotaBoth']) {
       assert.ok(typeof d[k] === 'string' && d[k].trim().length > 0, `i18n-ext-beta4[${loc}].${k} must be non-empty`);

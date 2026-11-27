@@ -1343,23 +1343,21 @@ test('auto-previews normal .html/.htm/.svg in aux-pane-split without error banne
     assert.equal(switcher.getAttribute(attr), expected, `Aux bar must set ${attr}="${expected}"`);
   }
 
-  // 4) All 8 locales update switcher & badge cleanly with 0 CJK in non-CJK locales
+  // 4) All 3 locales + removed legacy locales update switcher & badge cleanly with 0 CJK in en
   const cjkRe = /[\u3400-\u9FFF\uF900-\uFAFF]/;
   const expectedBadges = {
     'zh-CN': '沙盒隔离',
     'zh-TW': '沙盒隔離',
     en: 'Sandbox Isolated',
-    ja: 'サンドボックス隔離',
-    ko: '샌드박스 격리',
-    es: 'Aislado en sandbox',
-    fr: 'Isolé en sandbox',
-    de: 'Sandbox-isoliert',
+    ja: 'Sandbox Isolated',
+    ko: 'Sandbox Isolated',
+    tr: 'Sandbox Isolated',
   };
   for (const [lang, expectedBadge] of Object.entries(expectedBadges)) {
     document.documentElement.setAttribute('data-ag-cs-lang', lang);
     client.sync({ omniModule: 'on' });
     assert.equal(badge.textContent, expectedBadge, `Badge text mismatch for ${lang}`);
-    if (['en', 'ko', 'es', 'fr', 'de'].includes(lang)) {
+    if (!lang.startsWith('zh')) {
       assert.equal(cjkRe.test(badge.textContent), false, `${lang} badge must contain 0 CJK chars`);
       assert.equal(cjkRe.test(switcher.children[0].textContent), false, `${lang} preview btn must contain 0 CJK chars`);
       assert.equal(cjkRe.test(switcher.children[1].textContent), false, `${lang} source btn must contain 0 CJK chars`);

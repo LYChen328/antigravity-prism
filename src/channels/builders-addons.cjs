@@ -203,26 +203,23 @@ ${CHANNEL_MAIN_FRAME_HOST_GUARD}
     if (!fs.existsSync(locPath) || !fs.existsSync(setPath)) {
       return { sig: '', minRuntime: '', codeHash: '' };
     }
-    const locTrPath = path.join(rootDir, 'src', 'runtime', 'i18n-tr-locale.js');
     const brandPath = path.join(rootDir, 'assets', 'brand-mark-svg.js');
     const atlasPath = path.join(rootDir, 'vendor', 'clawd-mascot', 'tavern-atlas-data.js');
     const stageGlPath = path.join(rootDir, 'vendor', 'clawd-mascot', 'octopath-stage-webgl.js');
     const i18nExtPath = path.join(rootDir, 'src', 'runtime', 'i18n-ext-beta4.js');
     const setExtPath = path.join(rootDir, 'src', 'runtime', 'settings-ext-beta4.js');
-    const hasLocTr = fs.existsSync(locTrPath);
     const hasBrand = fs.existsSync(brandPath);
     const hasAtlas = fs.existsSync(atlasPath);
     const hasStageGl = fs.existsSync(stageGlPath);
     const hasI18nExt = fs.existsSync(i18nExtPath);
     const hasSetExt = fs.existsSync(setExtPath);
-    const sig = `${hasLocTr ? getFileSig(locTrPath) : '0'}|${getFileSig(locPath)}|${hasBrand ? getFileSig(brandPath) : '0'}|${hasAtlas ? getFileSig(atlasPath) : '0'}|${hasStageGl ? getFileSig(stageGlPath) : '0'}|${getFileSig(setPath)}|${hasI18nExt ? getFileSig(i18nExtPath) : '0'}|${hasSetExt ? getFileSig(setExtPath) : '0'}`;
+    const sig = `${getFileSig(locPath)}|${hasBrand ? getFileSig(brandPath) : '0'}|${hasAtlas ? getFileSig(atlasPath) : '0'}|${hasStageGl ? getFileSig(stageGlPath) : '0'}|${getFileSig(setPath)}|${hasI18nExt ? getFileSig(i18nExtPath) : '0'}|${hasSetExt ? getFileSig(setExtPath) : '0'}`;
     const cachePath = resolveBundleCachePathOption(opts);
     const curMem = bundleCache.getChannelMemCache('settings');
     if (!cachePath && curMem && curMem.sig === sig && curMem.codeHash) {
       return curMem;
     }
     const fileEntries = [];
-    if (hasLocTr) fileEntries.push({ rel: 'src/runtime/i18n-tr-locale.js', fullPath: locTrPath });
     fileEntries.push({ rel: 'i18n-locales.js', fullPath: locPath });
     if (hasBrand) fileEntries.push({ rel: 'assets/brand-mark-svg.js', fullPath: brandPath });
     if (hasAtlas) fileEntries.push({ rel: 'vendor/clawd-mascot/tavern-atlas-data.js', fullPath: atlasPath });
@@ -237,13 +234,6 @@ ${CHANNEL_MAIN_FRAME_HOST_GUARD}
       opts,
       compileFn: () => {
         const parts = [];
-        if (hasLocTr) {
-          try { delete require.cache[require.resolve(locTrPath)]; } catch {}
-          const trData = require(locTrPath);
-          const trJson = JSON.stringify(trData).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-          const packedTr = packTextJsExpr(trJson, 5600);
-          parts.push(`globalThis.__agPrismI18nTr=JSON.parse(${packedTr});if(typeof window!=="undefined")window.__agPrismI18nTr=globalThis.__agPrismI18nTr`);
-        }
         parts.push(minifySingleSource(fs.readFileSync(locPath, 'utf8'), { allowMemberProps: false }));
         if (hasBrand) parts.push(minifySingleSource(fs.readFileSync(brandPath, 'utf8'), { allowMemberProps: false }));
         if (hasAtlas) parts.push(fs.readFileSync(atlasPath, 'utf8').trim());

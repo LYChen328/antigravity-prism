@@ -405,7 +405,7 @@ test('2) PR #114 home top-toolbar clearance + ask_question frame-0 peek/pointer-
   vm.runInNewContext(hopSrc, env.win);
 
   vm.runInNewContext(
-    `(${uiMainFactory.toString()})(${JSON.stringify({ ...cdp.DEFAULT_CONFIG, mascot: 'crab', motionLevel: 'standard', smoothCaret: false })}, { version: '1.0.8-beta.4', codeHash: 'w5-qa-1' });`,
+    `(${uiMainFactory.toString()})(${JSON.stringify({ ...cdp.DEFAULT_CONFIG, mascot: 'crab', prismRimStyle: 'prism', motionLevel: 'standard', smoothCaret: false })}, { version: '1.0.8-beta.4', codeHash: 'w5-qa-1' });`,
     env.win
   );
   const api = env.win.__agPrism;

@@ -22,8 +22,8 @@ const i18nCore = require(path.join(ROOT, 'i18n-core.js'));
 const motionEngine = require(path.join(ROOT, 'motion-engine.js'));
 const pulseVialBridge = require(path.join(ROOT, 'pulse-vial-bridge.js'));
 
-const CANONICAL_9_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
-const NON_CJK_LOCALES = ['en', 'ko', 'es', 'fr', 'de', 'tr'];
+const CANONICAL_3_LOCALES = ['zh-CN', 'zh-TW', 'en'];
+const NON_CJK_LOCALES = ['en'];
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
 const FORBIDDEN_TERM_RE = /八方旅人|octopath/i;
 
@@ -154,7 +154,7 @@ function createFakeDom(initialHtmlAttrs = {}) {
 }
 
 test('Issue #98 + #101 Schema contract: defaults, validators, maxLength=160, and config.example.json alignment', () => {
-  assert.equal(cdp.DEFAULT_CONFIG.ignoreReducedMotion, false);
+  assert.equal(cdp.DEFAULT_CONFIG.ignoreReducedMotion, true);
   assert.equal(cdp.DEFAULT_CONFIG.chatFont, 'default');
   assert.equal(cdp.DEFAULT_CONFIG.chatFontCustom, '');
   assert.equal(cdp.DEFAULT_CONFIG.codeFont, 'default');
@@ -179,7 +179,7 @@ test('Issue #98 + #101 Schema contract: defaults, validators, maxLength=160, and
   assert.equal(cdp.validateConfigEntry('codeFontCustom', 42), false);
 
   const exampleCfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.example.json'), 'utf8'));
-  assert.equal(exampleCfg.ignoreReducedMotion, false);
+  assert.equal(exampleCfg.ignoreReducedMotion, true);
   assert.equal(exampleCfg.chatFont, 'default');
   assert.equal(exampleCfg.chatFontCustom, '');
   assert.equal(exampleCfg.codeFontCustom, '');
@@ -382,16 +382,16 @@ test('Issue #101 in-page ignoreReducedMotion honors motionLevel="off" top priori
   }
 });
 
-test('9-locale i18n-ext-beta4 completeness: 0 CJK leakage in non-CJK locales, 0 yue, 0 forbidden terms', () => {
-  assert.deepEqual([...i18nExt.LOCALES], CANONICAL_9_LOCALES);
+test('3-locale i18n-ext-beta4 completeness: 0 CJK leakage in non-CJK locales, 0 yue, 0 forbidden terms', () => {
+  assert.deepEqual([...i18nExt.LOCALES], CANONICAL_3_LOCALES);
   const keys = Object.keys(i18nExt.TABLE);
   assert.ok(keys.length >= 16);
 
   for (const k of keys) {
-    assert.equal(i18nExt.TABLE[k].length, 9, `Key ${k} must have exactly 9 locale entries`);
+    assert.equal(i18nExt.TABLE[k].length, 3, `Key ${k} must have exactly 3 locale entries`);
   }
 
-  for (const loc of CANONICAL_9_LOCALES) {
+  for (const loc of CANONICAL_3_LOCALES) {
     const dict = i18nExt.getStrings(loc);
     for (const k of keys) {
       assert.ok(typeof dict[k] === 'string' && dict[k].trim().length > 0, `i18n-ext-beta4[${loc}].${k} must be non-empty`);
@@ -402,7 +402,9 @@ test('9-locale i18n-ext-beta4 completeness: 0 CJK leakage in non-CJK locales, 0 
     }
   }
   assert.equal(i18nExt.normalizeLocale('yue'), 'zh-CN');
-  assert.equal(i18nExt.normalizeLocale('tr-TR'), 'tr');
+  for (const removed of ['ja-JP', 'ko-KR', 'es-ES', 'fr-FR', 'de-DE', 'tr-TR']) {
+    assert.equal(i18nExt.normalizeLocale(removed), 'en', `Removed locale ${removed} must normalize to en`);
+  }
 });
 
 test('Settings panel beta.4 extension mounts ignoreReducedMotion, chatFont & codeFont custom controls with opt-in local font probe and live persistence', async () => {

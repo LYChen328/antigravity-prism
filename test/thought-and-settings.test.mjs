@@ -369,7 +369,7 @@ test('mountOrSyncSettingsSection mounts all 27 settings (including omniModule, l
     assert.equal(sec.getAttribute('data-agy-no-translate'), 'true');
     assert.equal(sec.getAttribute('data-antigravity-zh-skip'), '1');
     const allRows = sec.querySelectorAll('[data-ag-cs-row]');
-    assert.equal(allRows.length, 38, 'Must render all 38 setting rows');
+    assert.equal(allRows.length, 40, 'Must render all 40 setting rows');
     const interactionGrp = sec.querySelector('[data-ag-cs-group="interaction"]');
     const interactionRowKeys = interactionGrp.querySelectorAll('[data-ag-cs-row]').map((r) => r.getAttribute('data-ag-cs-row'));
     assert.ok(interactionRowKeys.includes('sidebarNavFold'), 'interaction group must include sidebarNavFold');
@@ -440,8 +440,10 @@ test('mountOrSyncSettingsSection mounts all 27 settings (including omniModule, l
     await new Promise((r) => setTimeout(r, 25));
     assert.equal(clipboardWrites.length, 1);
     const exportedObj = JSON.parse(clipboardWrites[0]);
-    assert.equal(Object.keys(exportedObj.settings).length, 39);
-    assert.equal(exportedObj.settings.darkAura, 'balanced');
+    assert.equal(Object.keys(exportedObj.settings).length, 41);
+    assert.equal(exportedObj.settings.prismRim, true);
+    assert.equal(exportedObj.settings.prismRimStyle, 'simple');
+    assert.equal(exportedObj.settings.darkAura, 'subtle');
     assert.equal(exportedObj.settings.darkAuraStyle, 'prism');
     assert.equal(exportedObj.settings.convRipple, 'off');
     assert.equal(exportedObj.settings.autoArchiveOnExit, false);
@@ -450,7 +452,7 @@ test('mountOrSyncSettingsSection mounts all 27 settings (including omniModule, l
     assert.equal(exportedObj.settings.sidebarNavFold, 'off');
     assert.equal(exportedObj.settings.scrollBottomMotion, 'smooth');
     assert.equal(exportedObj.settings.updateChannel, 'stable');
-    assert.equal(exportedObj.settings.hostLocalization, 'auto');
+    assert.equal(exportedObj.settings.hostLocalization, 'off');
     assert.equal(exportedObj.settings.omniModule, 'on');
     assert.equal(exportedObj.settings.linkTarget, 'external');
     assert.equal(exportedObj.settings.sidebarStudio, 'on');
@@ -478,10 +480,10 @@ test('mountOrSyncSettingsSection mounts all 27 settings (including omniModule, l
     assert.equal(statusAfterImport.getAttribute('data-tone'), 'ok', 'Green toast must survive cross-language panel rebuild');
     assert.equal(statusAfterImport.textContent, i18nLocales.getUiStrings('en').cfgImportOk);
 
-    // 6. Cross-language Reset Defaults (en -> auto -> zh-CN) restores defaults & preserves green 'ok' toast in zh-CN
+    // 6. Cross-language Reset Defaults restores default 'zh-CN' & preserves green 'ok' toast in zh-CN
     sec.querySelector('button[data-ag-cs-cfg-action="reset"]').click();
     sec = doc.getElementById(settingsPanel.SETTINGS_SEC_ID);
-    assert.equal(state.language, 'auto');
+    assert.equal(state.language, 'zh-CN');
     assert.equal(sec.getAttribute('data-ag-cs-lang'), 'zh-CN');
     assert.equal(state.omniModule, 'on');
     assert.equal(state.linkTarget, 'builtin');
@@ -691,15 +693,15 @@ test('settings-panel lazy foldBody deferral on collapsed mount, memoized syncRoo
     // Updating state while collapsed updates fold summary in O(1) without building or scanning buttons
     state.palette = 'warm';
     mountOrSync();
-    assert.equal(summaryEl.textContent, 'auto:warm:ultra');
+    assert.equal(summaryEl.textContent, 'zh-CN:warm:ultra');
     assert.equal(foldBody.children.length, 0);
     assert.equal(matchCalls, 0);
 
-    // First click on foldHead lazily constructs all 38 rows and 6 groups
+    // First click on foldHead lazily constructs all 40 rows and 6 groups
     foldHead.click();
     assert.equal(sec.getAttribute('data-open'), '1');
     assert.equal(sec.getAttribute('data-body-built'), '1');
-    assert.equal(sec.querySelectorAll('[data-ag-cs-row]').length, 38);
+    assert.equal(sec.querySelectorAll('[data-ag-cs-row]').length, 40);
     assert.equal(sec.querySelectorAll('.ag-cs-settings-group').length, 6);
     assert.equal(sec.querySelector('button[data-ag-cs-repo-sync]')?.getAttribute('data-tone'), 'secondary');
     assert.equal(sec.querySelector('button[data-ag-cs-update-check]')?.getAttribute('data-tone'), null);

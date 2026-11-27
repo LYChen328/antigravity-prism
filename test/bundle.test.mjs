@@ -351,16 +351,29 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
   sandbox.globalThis = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const legacyDefaultCfg = {
+      ...cdp.DEFAULT_CONFIG,
+      language: 'auto',
+      homeRipple: true,
+      placeholderStyle: 'studio',
+      mascot: 'crab',
+      logoInk: 'accent',
+      sidebarRestyle: true,
+      prismRimStyle: 'prism',
+      cornerStyle: 'balanced',
+      codeLigatures: false,
+      hostLocalization: 'auto',
+    };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(legacyDefaultCfg), sandbox);
     assert.equal(res.status, 'ok');
     // Load Channel 10 Mascot, Channel 12 Home Studio, Channel 9 Settings & Phase 3B offloaded Channels 13~16 on demand
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildHomeStudioChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildHomeStudioChannelExpression(legacyDefaultCfg), sandbox);
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
-    vm.runInNewContext(cdp.buildTelemetryChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildEffortSliderChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildWorkbenchEnhancerChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildContextMenuChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildTelemetryChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildEffortSliderChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildWorkbenchEnhancerChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildContextMenuChannelExpression(legacyDefaultCfg), sandbox);
     assert.equal(html.getAttribute('data-ag-cs-style'), '1');
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'obsidian');
     assert.equal(html.getAttribute('data-ag-cs-home'), 'studio');
@@ -484,8 +497,8 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     assert.equal(sandbox.window.__agPrismThoughtSettingsUi, undefined, 'Default off mode must have 0 thought UI runtime');
 
     // Hot-plug Channel 5 while settings panel is already open
-    sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, thoughtTranslate: 'ai' });
-    const thoughtExprAi = cdp.buildThoughtExpression({ ...cdp.DEFAULT_CONFIG, thoughtTranslate: 'ai' });
+    sandbox.window.__agPrism.refreshConfig({ ...legacyDefaultCfg, thoughtTranslate: 'ai' });
+    const thoughtExprAi = cdp.buildThoughtExpression({ ...legacyDefaultCfg, thoughtTranslate: 'ai' });
     assert.ok(thoughtExprAi.length > 0, 'Expected non-empty Channel 5 expression in ai mode');
     const thoughtMountRes = vm.runInNewContext(thoughtExprAi, sandbox);
     assert.equal(thoughtMountRes.ok, true);
@@ -532,9 +545,11 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
         .map((b) => b.getAttribute('data-ag-cs-key'))
         .filter(Boolean)
     );
-    assert.equal(settingKeys.size, 38);
+    assert.equal(settingKeys.size, 40);
     assert.ok(settingKeys.has('darkAura'), 'Expected darkAura setting key in Appearance panel');
     assert.ok(settingKeys.has('darkAuraStyle'), 'Expected darkAuraStyle setting key in Appearance panel');
+    assert.ok(settingKeys.has('prismRim'), 'Expected prismRim setting key in Appearance panel');
+    assert.ok(settingKeys.has('prismRimStyle'), 'Expected prismRimStyle setting key in Appearance panel');
     for (const expectedKey of [
       'palette',
       'lightPreset',
@@ -597,44 +612,28 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
       assert.equal(placeholder.getAttribute('data-ag-cs-placeholder'), expectedPlaceholder);
     };
 
-    // Verify all 9 language buttons switch dashboard, greeting, placeholder & settings copy + emit CDP binding (no yue)
-    assert.equal(getLangBtns().length, 9, 'Expected exactly 9 language buttons');
+    // Verify all 3 language buttons switch dashboard, greeting, placeholder & settings copy + emit CDP binding (no yue or removed locales)
+    assert.equal(getLangBtns().length, 3, 'Expected exactly 3 language buttons');
     assert.equal(getLangBtns().some((b) => b.getAttribute('data-ag-cs-val') === '"yue"'), false, 'yue button must be removed');
     checkLangSwitch('zh-TW', '外觀', '介面語言', '概覽', '接下來做什麼？', '描述任務或提出問題');
-    checkLangSwitch('ko', 'Appearance', 'UI 언어', '개요', '다음은 무엇을 할까요?', '작업 설명이나 질문을 입력하세요');
     assert.equal(html.getAttribute('data-ag-cs-cjk'), '1');
-    checkLangSwitch('es', 'Appearance', 'Idioma de la interfaz', 'Resumen', '¿Qué hacemos ahora?', 'Describe una tarea o haz una pregunta');
-    assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
-    checkLangSwitch('fr', 'Appearance', 'Langue de l’interface', 'Aperçu', 'Que faisons-nous ensuite ?', 'Décrivez une tâche ou posez une question');
-    assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
-    checkLangSwitch('de', 'Appearance', 'UI-Sprache', 'Übersicht', 'Was steht als Nächstes an?', 'Aufgabe beschreiben oder Frage stellen');
-    assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
-    checkLangSwitch('tr', 'Appearance', 'Arayüz dili', 'Genel bakış', 'Sırada ne var?', 'Bir görev açıklayın veya soru sor...');
-    assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
     checkLangSwitch('en', 'Appearance', 'UI Language', 'Overview', "What's up next?", 'How can I help you today?');
     assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
-    checkLangSwitch('ja', '外観', '表示言語', '概要', '次は何をしますか？', 'タスクの説明や質問を入力してください');
-    assert.equal(html.getAttribute('data-ag-cs-cjk'), '1');
     checkLangSwitch('zh-CN', '外观', '界面语言', '概览', '接下来做什么？', '描述任务或提出问题');
+    assert.equal(html.getAttribute('data-ag-cs-cjk'), '1');
 
     assert.deepEqual(
       bindingCalls.map((c) => [c.key, c.value]),
       [
         ['language', 'zh-TW'],
-        ['language', 'ko'],
-        ['language', 'es'],
-        ['language', 'fr'],
-        ['language', 'de'],
-        ['language', 'tr'],
         ['language', 'en'],
-        ['language', 'ja'],
         ['language', 'zh-CN'],
       ]
     );
     appearanceH2.textContent = '外观';
 
     // Switching palette/mascot externally syncs root attrs & setting button active state immediately (claude alias normalized to warm)
-    sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, palette: 'claude' });
+    sandbox.window.__agPrism.refreshConfig({ ...legacyDefaultCfg, palette: 'claude' });
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'warm');
     const warmBtn = appearancePanel
       .querySelectorAll('#ag-cs-settings-sec button')
@@ -673,7 +672,7 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     assert.ok(batchCall, 'Expected patch-batch payload over setting binding');
     assert.equal(batchCall.entries.accentTone, 'iris');
     assert.equal(batchCall.entries.ambientIntensity, '70');
-    assert.equal(html.getAttribute('data-ag-cs-target-fps'), '180');
+    assert.equal(html.getAttribute('data-ag-cs-target-fps'), 'native');
 
     // HS-1: mascot 'minis' ("双宠+三蟹") must be preserved verbatim over wire (never downgraded to 'crab')
     const beforeMinisLen = bindingCalls.length;
@@ -688,7 +687,7 @@ test('inject expression mounts cleanly without model-button or telemetry conflic
     assert.equal(html.hasAttribute('data-ag-cs-sidebar-collapsed'), false);
 
     // CP-2: file-driven config refresh updates mutable base config so cross-window `storage` events & zero-arg refreshConfig() never roll back to boot defaults
-    sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, palette: 'warm', accentTone: 'cobalt', __fromFile: true });
+    sandbox.window.__agPrism.refreshConfig({ ...legacyDefaultCfg, palette: 'warm', accentTone: 'cobalt', __fromFile: true });
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'warm');
     assert.equal(html.getAttribute('data-ag-cs-accent'), 'cobalt');
     sandbox.dispatchWin('storage', { key: 'ag-prism:config' });
@@ -1095,16 +1094,29 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
   sandbox.globalThis = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const legacyDefaultCfg = {
+      ...cdp.DEFAULT_CONFIG,
+      language: 'auto',
+      homeRipple: true,
+      placeholderStyle: 'studio',
+      mascot: 'crab',
+      logoInk: 'accent',
+      sidebarRestyle: true,
+      prismRimStyle: 'prism',
+      cornerStyle: 'balanced',
+      codeLigatures: false,
+      hostLocalization: 'auto',
+    };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(legacyDefaultCfg), sandbox);
     assert.equal(res.status, 'ok');
     // Load Channel 10 Mascot, Channel 12 Home Studio, Channel 9 Settings & Phase 3B offloaded Channels 13~16 on demand
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildHomeStudioChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildHomeStudioChannelExpression(legacyDefaultCfg), sandbox);
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
-    vm.runInNewContext(cdp.buildTelemetryChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildEffortSliderChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildWorkbenchEnhancerChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildContextMenuChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildTelemetryChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildEffortSliderChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildWorkbenchEnhancerChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildContextMenuChannelExpression(legacyDefaultCfg), sandbox);
 
     // 1. Q&A takeover card alone: wrapper raised by 46px with data-ag-cs-takeover="1"
     assert.equal(takeoverWrap.getAttribute('data-ag-cs-takeover'), '1');
@@ -1115,7 +1127,7 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
     // 2. When queued message is also present, queuedWrap takes the 46px clearance and takeoverWrap avoids double spacing
     const queuedItem = makeEl('div', { text: '排队中的消息' });
     queuedWrap.appendChild(queuedItem);
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(queuedWrap.getAttribute('data-ag-cs-queued'), '1');
     assert.equal(queuedWrap.style.getPropertyValue('margin-bottom'), '46px');
     assert.equal(takeoverWrap.hasAttribute('data-ag-cs-takeover'), false);
@@ -1125,14 +1137,14 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
     queuedItem.remove();
     const sideQ = makeEl('div', { attrs: { 'data-testid': 'side-question-panel' } });
     rtcWrap.insertBefore(sideQ, contentsWrap);
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(sideQ.getAttribute('data-ag-cs-takeover'), '1');
     assert.equal(sideQ.style.getPropertyValue('margin-bottom'), '46px');
     assert.equal(takeoverWrap.hasAttribute('data-ag-cs-takeover'), false);
 
     // 4. When running-items-panel expands (grid-rows-[1fr]), its wrapper takes the 46px clearance
     runningPanel.className = 'grid grid-rows-[1fr]';
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(runningWrap.getAttribute('data-ag-cs-queued'), '1');
     assert.equal(runningWrap.style.getPropertyValue('margin-bottom'), '46px');
     assert.equal(sideQ.hasAttribute('data-ag-cs-takeover'), false);
@@ -1141,13 +1153,13 @@ test('Q&A takeover card, side-question panel, and running tasks clear Clawd masc
     // 5. Turning mascot off clears all takeover/queued clearances cleanly
     runningPanel.className = 'grid grid-rows-[0fr]';
     sideQ.remove();
-    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, mascot: 'off' });
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...legacyDefaultCfg, mascot: 'off' });
     assert.equal(takeoverWrap.hasAttribute('data-ag-cs-takeover'), false);
     assert.equal(takeoverWrap.style.getPropertyValue('margin-bottom'), '');
     assert.equal(runningWrap.hasAttribute('data-ag-cs-queued'), false);
 
     // 6. Re-enable crab, verify takeover clearance returns, then verify REMOVE_EXPRESSION tears down cleanly
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(takeoverWrap.getAttribute('data-ag-cs-takeover'), '1');
     assert.equal(takeoverWrap.style.getPropertyValue('margin-bottom'), '46px');
     vm.runInNewContext(cdp.REMOVE_EXPRESSION, sandbox);
@@ -1498,16 +1510,29 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
   docRef.defaultView = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const legacyDefaultCfg = {
+      ...cdp.DEFAULT_CONFIG,
+      language: 'auto',
+      homeRipple: true,
+      placeholderStyle: 'studio',
+      mascot: 'crab',
+      logoInk: 'accent',
+      sidebarRestyle: true,
+      prismRimStyle: 'prism',
+      cornerStyle: 'balanced',
+      codeLigatures: false,
+      hostLocalization: 'auto',
+    };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(legacyDefaultCfg), sandbox);
     assert.equal(res.status, 'ok');
     // Load Channel 10 Mascot, Channel 12 Home Studio, Channel 9 Settings & Phase 3B offloaded Channels 13~16 on demand
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildHomeStudioChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildHomeStudioChannelExpression(legacyDefaultCfg), sandbox);
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
-    vm.runInNewContext(cdp.buildTelemetryChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildEffortSliderChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildWorkbenchEnhancerChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
-    vm.runInNewContext(cdp.buildContextMenuChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildTelemetryChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildEffortSliderChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildWorkbenchEnhancerChannelExpression(legacyDefaultCfg), sandbox);
+    vm.runInNewContext(cdp.buildContextMenuChannelExpression(legacyDefaultCfg), sandbox);
 
     // 1. Dual mascot stage mounts 2 real actor canvases (Clawd & Cat, 96x84)
     const stageEl = card.querySelector('.ag-cs-crab');
@@ -1560,7 +1585,7 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
     claudeMenuItem.className = 'agy-overlay-item text-foreground';
     modelBtn.setAttribute('aria-label', 'Select model, current: Claude Sonnet 4.6');
     modelSpan.textContent = 'Claude Sonnet 4.6';
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(claudeRowGlyph.getAttribute('data-selected'), 'true');
     assert.equal(claudeRowGlyph.style.getPropertyValue('opacity'), '1');
     assert.ok(claudeRowGlyph.style.getPropertyValue('filter').includes('drop-shadow'));
@@ -1574,7 +1599,7 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
     hoverHydrogenOpt.setAttribute('data-selected', 'true');
     modelBtn.setAttribute('aria-label', 'Select model, current: Gemini 4 Hydrogen Extra');
     modelSpan.textContent = 'Gemini 4 Hydrogen Extra';
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(glyph.getAttribute('data-brand'), 'gemini');
     assert.equal(glyph.getAttribute('data-tier'), 'xhigh');
     assert.equal(hydrogenRowGlyph.getAttribute('data-selected'), 'true');
@@ -1584,9 +1609,9 @@ test('v3.5.1 mounts dual mascot stage, brand optical glyphs, Orchestrator crysta
     assert.equal(cesRow.getAttribute('data-row-hidden'), 'false');
 
     // Disabling composerRestyle cleanly removes panel row glyphs, and re-enabling restores them idempotently
-    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, composerRestyle: false });
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...legacyDefaultCfg, composerRestyle: false });
     assert.equal(modelPanel.querySelectorAll('.ag-cs-panel-row-glyph').length, 0);
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(legacyDefaultCfg);
     assert.equal(modelPanel.querySelectorAll('.ag-cs-panel-row-glyph').length, 3);
 
     // 4. Thinking spark mounts on thinking-collapsible-trigger
@@ -2013,7 +2038,7 @@ test('v3.6.1 auto-unfolds inner thinking & tool collapsibles idempotently and dr
 });
 
 test('v3.7 orchestrates 4-tier motionLevel, Hero A~E optical transitions, dual-track streaming 250ms unwrap, cryo-lens, and lossless host icons', async () => {
-  const injectExpr = cdp.buildInjectExpression(cdp.DEFAULT_CONFIG);
+  const injectExpr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, sidebarRestyle: true, mascot: 'crab', homeRipple: true, prismRimStyle: 'prism' });
   const timers = new Set();
   const winListeners = new Map();
   const docListeners = new Map();
@@ -2968,34 +2993,39 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     // ── Check 0: Legacy storage migrated to localStorage['ag-prism:config'] ──
     assert.ok(sandbox.localStorage.getItem('ag-prism:config'), 'Expected legacy ag-claude-style:config migrated to ag-prism:config');
 
-    // ── Check ③: Conversation horizon aura 32% height + 20fps~45fps living flow in standard/ultra + 0fps sleep in subtle/off ──
+    // ── Check ③: Conversation horizon aura 32% height + 0fps idle (no persistent glow) + active running flow / subtle 0fps sleep ──
     const auraHost = stageShell.querySelector('.ag-cs-conv-aura-host');
     assert.ok(auraHost, 'Expected .ag-cs-conv-aura-host mounted');
     assert.equal(auraHost.style.getPropertyValue('height'), '32%');
     assert.equal(auraHost.style.getPropertyValue('bottom'), '0');
-    assert.equal(auraHost.hasAttribute('data-aura-sleep'), false, 'Ultra/Standard idle aura must keep breathing (never frozen)');
+    assert.equal(auraHost.getAttribute('data-aura-sleep'), '1', 'Idle conversation must clear persistent glow and sleep at 0fps');
 
     const stIdle = sandbox.window.__agPrism.getState();
     assert.equal(stIdle.convAuraPhase, 'idle');
-    assert.equal(stIdle.convAuraSleeping, false, 'Expected convAuraSleeping === false in ultra idle living flow');
+    assert.equal(stIdle.convAuraSleeping, true, 'Expected convAuraSleeping === true in idle (running-only aura)');
     assert.equal(stIdle.convAuraCanvasSize.height, Math.round(750 * 0.32), 'Canvas height must be 32% of parent (68% pixel savings)');
-    assert.equal(stIdle.convAuraOptics.frameMs, 110, 'Idle living flow runs at low-power 110ms (~9fps)');
-    assert.equal(stIdle.convAuraOptics.speed, 0.72, 'Idle living flow speed must be 0.72');
-    assert.ok(Math.abs(stIdle.convAuraOptics.strength - 0.52) < 0.05, 'Daylight idle aura base strength must breathe around 0.52');
+    assert.equal(stIdle.convAuraOptics.strength, 0, 'Idle conversation aura strength must be 0');
+    assert.equal(stIdle.convAuraOptics.speed, 0, 'Idle conversation aura speed must be 0');
     const drawsAtMount = stIdle.convAuraDrawCount;
-    assert.ok(drawsAtMount >= 1);
+    fakeNow += 200;
+    await new Promise((r) => setTimeout(r, 60));
+    assert.equal(sandbox.window.__agPrism.getState().convAuraDrawCount, drawsAtMount, 'Idle conversation aura must draw 0 frames');
 
-    // Advance clock & poll up to 600ms -> continuous living flow draws new frames cleanly even on loaded CI runners
-    fakeNow += 180;
-    let drawsAfterFlow = drawsAtMount;
+    // Start running task -> wakes living running aura; switch to subtle -> sleeps at 0fps; back to ultra -> resumes
+    const tempCancelBtn = makeNode('button', { attrs: { 'data-testid': 'input-cancel-button' } });
+    convView.appendChild(tempCancelBtn);
+    sandbox.window.__agPrism.sync();
+    assert.equal(sandbox.window.__agPrism.getState().convAuraSleeping, false, 'Running task must wake conversation aura');
+    const drawsBeforeRunFlow = sandbox.window.__agPrism.getState().convAuraDrawCount;
+    fakeNow += 80;
+    let drawsAfterFlow = drawsBeforeRunFlow;
     for (let w = 0; w < 24; w++) {
       await new Promise((r) => setTimeout(r, 25));
       drawsAfterFlow = sandbox.window.__agPrism.getState().convAuraDrawCount;
-      if (drawsAfterFlow > drawsAtMount) break;
+      if (drawsAfterFlow > drawsBeforeRunFlow) break;
     }
-    assert.ok(drawsAfterFlow > drawsAtMount, `Expected continuous living aura frames in ultra idle (${drawsAfterFlow} > ${drawsAtMount})`);
+    assert.ok(drawsAfterFlow > drawsBeforeRunFlow, `Expected continuous running aura frames (${drawsAfterFlow} > ${drawsBeforeRunFlow})`);
 
-    // Switch motionLevel to 'subtle' -> enters true 0fps static sleep!
     sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, lightPreset: 'crystal', motionLevel: 'subtle' });
     assert.equal(sandbox.window.__agPrism.getState().convAuraSleeping, true, 'Subtle motion tier must sleep at 0fps');
     assert.equal(auraHost.getAttribute('data-aura-sleep'), '1');
@@ -3004,9 +3034,11 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     await new Promise((r) => setTimeout(r, 70));
     assert.equal(sandbox.window.__agPrism.getState().convAuraDrawCount, drawsWhenSleeping, 'Subtle/off aura must draw 0 extra frames while sleeping');
 
-    // Switch back to 'ultra' -> wakes living flow immediately!
     sandbox.window.__agPrism.refreshConfig({ ...cdp.DEFAULT_CONFIG, lightPreset: 'crystal', motionLevel: 'ultra' });
     assert.equal(sandbox.window.__agPrism.getState().convAuraSleeping, false);
+    tempCancelBtn.remove();
+    fakeNow += 1500;
+    sandbox.window.__agPrism.sync();
 
     // Also test About Git Repo Sync button with mocked __agPrismRepoBridge (no-remote & remote pull)
     vm.runInNewContext(cdp.buildSettingsChannelExpression(), sandbox);
@@ -3053,8 +3085,8 @@ test('Prism v1.0 regression guard: Thought Translator overlay (.ag-prism-thought
     const stRunning = sandbox.window.__agPrism.getState();
     assert.equal(stRunning.convAuraPhase, 'running');
     assert.equal(stRunning.convAuraOptics.frameMs, 32);
-    assert.equal(stRunning.convAuraOptics.speed, 1.45);
-    assert.equal(stRunning.convAuraOptics.prism, 0.7);
+    assert.equal(stRunning.convAuraOptics.speed, 1.75);
+    assert.equal(stRunning.convAuraOptics.prism, 0.74);
     const rootObs = activeObservers.find((o) => o.target === html);
     const streamObs = activeObservers.find((o) => o.target === convView);
     assert.ok(rootObs && streamObs, 'Expected root and stream MutationObservers');
@@ -4202,9 +4234,10 @@ test('PR #114: home toolbarPlacement="top" gets 46px mascot clearance and z-inde
   sandbox.globalThis = sandbox;
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const qaTopCfg = { ...cdp.DEFAULT_CONFIG, mascot: 'crab' };
+    const res = vm.runInNewContext(cdp.buildInjectExpression(qaTopCfg), sandbox);
     assert.equal(res.status, 'ok');
-    vm.runInNewContext(cdp.buildMascotChannelExpression(cdp.DEFAULT_CONFIG), sandbox);
+    vm.runInNewContext(cdp.buildMascotChannelExpression(qaTopCfg), sandbox);
     assert.equal(topToolbarWrap.getAttribute('data-ag-cs-top-toolbar'), '1', 'home top toolbar wrapper must get data-ag-cs-top-toolbar');
     assert.equal(topToolbarWrap.style.getPropertyValue('margin-bottom'), '46px', 'home top toolbar wrapper must reserve 46px for mascot');
     const crabStage = card.querySelector('.ag-cs-crab');
@@ -4214,11 +4247,11 @@ test('PR #114: home toolbarPlacement="top" gets 46px mascot clearance and z-inde
     const cssSrc = fs.readFileSync(path.join(path.dirname(require.resolve('../cdp.js')), 'style.css'), 'utf8');
     assert.ok(cssSrc.includes('[data-ag-cs-top-toolbar="1"]{margin-bottom:46px !important;position:relative !important;z-index:12 !important;}'), 'style.css must lower top toolbar z-index to 12 below mascot stage 22');
 
-    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, mascot: 'off' });
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...qaTopCfg, mascot: 'off' });
     assert.equal(topToolbarWrap.hasAttribute('data-ag-cs-top-toolbar'), false, 'mascot=off must clear data-ag-cs-top-toolbar');
     assert.equal(topToolbarWrap.style.getPropertyValue('margin-bottom'), '', 'mascot=off must clear margin-bottom');
 
-    sandbox.window.__agClaudeStyle.refreshConfig(cdp.DEFAULT_CONFIG);
+    sandbox.window.__agClaudeStyle.refreshConfig(qaTopCfg);
     assert.equal(topToolbarWrap.getAttribute('data-ag-cs-top-toolbar'), '1');
     vm.runInNewContext(cdp.REMOVE_EXPRESSION, sandbox);
     assert.equal(topToolbarWrap.hasAttribute('data-ag-cs-top-toolbar'), false, 'REMOVE_EXPRESSION must strip data-ag-cs-top-toolbar');

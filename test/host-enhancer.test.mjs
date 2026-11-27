@@ -797,6 +797,8 @@ test('style.css covers all 6 Wave-2 config hooks, eliminates double borders & en
     'data-ag-cs-corners="sharp"',
     'data-ag-cs-corners="balanced"',
     'data-ag-cs-corners="soft"',
+    '--ag-cs-r-sm:6px;--ag-cs-r-md:10px;--ag-cs-r-lg:14px;--ag-cs-r-xl:16px;',
+    '--ag-cs-r-sm:8px;--ag-cs-r-md:12px;--ag-cs-r-lg:21px;--ag-cs-r-xl:24px;',
     'data-ag-cs-code-font="jetbrains"',
     'data-ag-cs-code-font="cascadia"',
     'data-ag-cs-code-font="sfmono"',
@@ -1068,16 +1070,14 @@ test('Host enhancer supports 8 languages + yue->zh-CN migration + live switch, a
   const turnNums = pop.querySelectorAll('.ag-cs-nav-outline-item').map((n) => n.getAttribute('data-turn-num'));
   assert.deepEqual(turnNums, ['27', '28', '29'], 'Mid-history virtualized slice must anchor to active turn dot #28');
 
-  // Switch across all 8 languages dynamically -> sync()/onThemeChange(false) refreshes fold button & open outline immediately
+  // Switch across supported 3 languages + removed legacy locales -> sync()/onThemeChange(false) refreshes fold button & open outline immediately
   for (const [nextLang, expFold, expFoldSteps] of [
     ['zh-TW', '摺疊 (52行)', '收起步驟'],
-    ['ja', '折りたたむ (52行)', '手順を畳む'],
-    ['ko', '접기 (52줄)', '단계 접기'],
-    ['es', 'Contraer (52L)', 'Contraer pasos'],
-    ['fr', 'Replier (52L)', 'Replier étapes'],
-    ['de', 'Einklappen (52Z)', 'Schritte einklappen'],
-    ['tr', 'Katla (52 satır)', 'Adımları katla'],
     ['en', 'Fold (52L)', 'Fold Steps'],
+    ['ja', 'Fold (52L)', 'Fold Steps'],
+    ['ko', 'Fold (52L)', 'Fold Steps'],
+    ['tr', 'Fold (52L)', 'Fold Steps'],
+    ['zh-CN', '折叠 (52行)', '收起步骤'],
   ]) {
     curLang = nextLang;
     ctl.onThemeChange(false);
@@ -1950,7 +1950,7 @@ test('Wave D20: ui-runtime mounts bottom prism-reflect on interaction-takeover-c
   };
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, prismRimStyle: 'prism' }), sandbox);
     assert.equal(res.status, 'ok');
     assert.equal(subTakeover.hasAttribute('data-ag-cs-prism-reflect'), false, 'Subagent tab takeover card must remain excluded');
 
@@ -2137,9 +2137,12 @@ test('Navigator outline mounts dedicated trigger, yields to Base UI turn tooltip
     curLang = 'en';
     ctl.sync();
     assert.equal(trig.getAttribute('aria-label'), 'Outline', 'trigger aria-label must update when language switches to en');
+    curLang = 'zh-TW';
+    ctl.onThemeChange(false);
+    assert.equal(trig.getAttribute('aria-label'), '提問導覽', 'trigger aria-label must update on onThemeChange language switch');
     curLang = 'ja';
     ctl.onThemeChange(false);
-    assert.equal(trig.getAttribute('aria-label'), 'プロンプト目次', 'trigger aria-label must update on onThemeChange language switch');
+    assert.equal(trig.getAttribute('aria-label'), 'Outline', 'removed locale ja must fall back cleanly to en Outline');
 
     // On Base UI rails, hovering turn dot, gap wrapper, OR rail padding must NEVER flash/open outline
     rail.dispatchEvent({ type: 'pointerenter', target: rail });
@@ -2414,5 +2417,74 @@ test('侧栏出现时 .agy-scroll-bottom 层级/过渡/分屏宽度防裁切与 
     assert.equal(sqVp.scrollTop, 60, '主对话滚到底部不得影响右侧栏视口');
   } finally {
     ctl.destroy();
+  }
+});
+
+test('host-enhancer: incremental sync skips sealed historical response pre scans and caches negative scroll targets', () => {
+  const env = createMockEnv();
+  const cv = env.createElement('div', { 'data-testid': 'conversation-view' });
+  const rOld = env.createElement('div', { 'data-testid': 'agent-response' });
+  const rTail = env.createElement('div', { 'data-testid': 'agent-response' });
+  const makeCodePre = (lines) => {
+    const pre = env.createElement('pre');
+    const card = env.createElement('div', { class: 'border' });
+    const hdr = env.createElement('div', { class: 'border-b justify-between' });
+    const body = env.createElement('div');
+    body.textContent = Array.from({ length: lines }, (_, i) => `l${i}`).join('\n');
+    card.appendChild(hdr);
+    card.appendChild(body);
+    pre.appendChild(card);
+    return { pre, card, hdr, body };
+  };
+  const oldCode = makeCodePre(55);
+  const tailCode = makeCodePre(10);
+  rOld.appendChild(oldCode.pre);
+  rTail.appendChild(tailCode.pre);
+  cv.appendChild(rOld);
+  cv.appendChild(rTail);
+  env.body.appendChild(cv);
+
+  let oldPreQueries = 0;
+  const origOldQa = rOld.querySelectorAll.bind(rOld);
+  rOld.querySelectorAll = (s) => { if (s === 'pre') oldPreQueries += 1; return origOldQa(s); };
+
+  const sidebarList = env.createElement('div');
+  let scrollMeasureRuns = 0;
+  env.win.__agDomBus = {
+    measure(_name, fn) { scrollMeasureRuns += 1; fn(); },
+    mutate(_name, fn) { fn(); },
+  };
+  const scrollListeners = [];
+  env.win.addEventListener = (t, fn) => { if (t === 'scroll') scrollListeners.push(fn); };
+  env.win.removeEventListener = () => {};
+
+  const ctl = enhancerMod.createHostEnhancerController({
+    doc: env.doc,
+    win: env.win,
+    getLang: () => 'en',
+    isDestroyed: () => false,
+    isConvRunning: () => false,
+  });
+
+  try {
+    // 1st incremental sync scans unsealed rOld & rTail and seals rOld
+    ctl.sync({ c: true });
+    assert.equal(oldPreQueries, 1, 'initial incremental sync must inspect unsealed historical response');
+    assert.equal(oldCode.hdr.getAttribute('data-ag-cs-code-sticky'), '1');
+
+    // Subsequent incremental streaming syncs skip already-sealed rOld
+    ctl.sync({ c: true });
+    ctl.sync({ c: true });
+    assert.equal(oldPreQueries, 1, 'sealed historical non-tail response must skip repeated pre scans on stream deltas');
+
+    // Non-conversation scroll target is negatively cached cleanly
+    assert.equal(scrollListeners.length, 1);
+    scrollListeners[0]({ target: sidebarList });
+    scrollListeners[0]({ target: sidebarList });
+    scrollListeners[0]({ target: sidebarList });
+    assert.equal(scrollMeasureRuns, 1, 'repeated scroll on unrelated non-conv element must hit negative cache');
+  } finally {
+    ctl.destroy();
+    delete env.win.__agDomBus;
   }
 });

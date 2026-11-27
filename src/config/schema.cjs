@@ -12,7 +12,7 @@ const INLINE_DIFF_BINDING = '__agPrismInlineDiffCall';
 const WALLPAPER_BINDING = '__agPrismWallpaperCall';
 const SUGGESTER_BINDING = '__agPrismSuggestCall';
 
-const CANONICAL_LANG_VALUES = Object.freeze(['auto', 'zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr']);
+const CANONICAL_LANG_VALUES = Object.freeze(['auto', 'zh-CN', 'zh-TW', 'en']);
 const ON_OFF_VALUES = Object.freeze(['on', 'off']);
 const AUTO_ON_OFF_VALUES = Object.freeze(['auto', 'on', 'off']);
 
@@ -53,17 +53,17 @@ function normalizeMascotConfigValue(raw) {
 
 // 声明式配置 Schema：保持字段顺序与历史 DEFAULT_CONFIG / VALIDATORS / config.example.json 100% 对齐
 const CONFIG_SCHEMA = Object.freeze({
-  language: Object.freeze({ type: 'enum', values: CANONICAL_LANG_VALUES, default: 'auto', aliasPair: 'lang', aliasKind: 'string' }),
-  lang: Object.freeze({ type: 'enum', values: CANONICAL_LANG_VALUES, default: 'auto', aliasOf: 'language' }),
+  language: Object.freeze({ type: 'enum', values: CANONICAL_LANG_VALUES, default: 'zh-CN', aliasPair: 'lang', aliasKind: 'string' }),
+  lang: Object.freeze({ type: 'enum', values: CANONICAL_LANG_VALUES, default: 'zh-CN', aliasOf: 'language' }),
   palette: Object.freeze({ type: 'enum', values: Object.freeze(['host', 'obsidian', 'warm', 'claude']), default: 'obsidian', legacyMap: Object.freeze({ claude: 'warm' }) }),
   lightPreset: Object.freeze({ type: 'enum', values: Object.freeze(['crystal', 'alabaster']), default: 'crystal' }),
   darkAuraStyle: Object.freeze({ type: 'enum', values: Object.freeze(['prism', 'neon']), default: 'prism' }),
   motionLevel: Object.freeze({ type: 'enum', values: Object.freeze(['off', 'subtle', 'standard', 'ultra']), default: 'ultra' }),
   performanceMode: Object.freeze({ type: 'enum', values: Object.freeze(['balanced', 'performance', 'quality', 'auto', 'eco']), default: 'balanced', legacyMap: Object.freeze({ auto: 'balanced', eco: 'performance' }) }),
-  ignoreReducedMotion: Object.freeze({ type: 'boolean', default: false, stringBoolMode: 'strictOn' }),
-  targetFps: Object.freeze({ type: 'enum', values: Object.freeze(['60', '120', '180', 'native']), default: '180' }),
+  ignoreReducedMotion: Object.freeze({ type: 'boolean', default: true, stringBoolMode: 'strictOn' }),
+  targetFps: Object.freeze({ type: 'enum', values: Object.freeze(['60', '120', '180', 'native']), default: 'native' }),
   telemetryModule: Object.freeze({ type: 'enum', values: AUTO_ON_OFF_VALUES, default: 'auto', coerceBoolToOnOff: true }),
-  telemetryQuotaMode: Object.freeze({ type: 'enum', values: Object.freeze(['compact', 'both']), default: 'compact' }),
+  telemetryQuotaMode: Object.freeze({ type: 'enum', values: Object.freeze(['compact', 'both']), default: 'both' }),
   effortSliderModule: Object.freeze({ type: 'enum', values: AUTO_ON_OFF_VALUES, default: 'auto', coerceBoolToOnOff: true }),
   effortMemory: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'on', coerceBoolToOnOff: true }),
   periodicModelPicker: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'on', coerceBoolToOnOff: true }),
@@ -76,31 +76,33 @@ const CONFIG_SCHEMA = Object.freeze({
   ripple: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'on', aliasOf: 'homeRipple' }),
   composerRestyle: Object.freeze({ type: 'boolean', default: true, aliasPair: 'composer', aliasKind: 'boolOnOff' }),
   composer: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'on', aliasOf: 'composerRestyle' }),
-  placeholderStyle: Object.freeze({ type: 'enum', values: Object.freeze(['studio', 'host']), default: 'studio', aliasPair: 'promptStyle', aliasKind: 'string' }),
-  promptStyle: Object.freeze({ type: 'enum', values: Object.freeze(['studio', 'host']), default: 'studio', aliasOf: 'placeholderStyle' }),
-  mascot: Object.freeze({ type: 'enum', values: Object.freeze(['crab', 'minis', 'quad', 'quad-minis', 'dual', 'off']), default: 'crab', customValidate: normalizeMascotConfigValue }),
-  logoInk: Object.freeze({ type: 'enum', values: Object.freeze(['accent', 'foreground']), default: 'accent' }),
-  sidebarRestyle: Object.freeze({ type: 'boolean', default: true, aliasPair: 'sidebar', aliasKind: 'boolOnOff' }),
-  sidebar: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'on', aliasOf: 'sidebarRestyle' }),
+  prismRim: Object.freeze({ type: 'boolean', default: true, stringBoolMode: 'notOff' }),
+  prismRimStyle: Object.freeze({ type: 'enum', values: Object.freeze(['prism', 'simple']), default: 'simple' }),
+  placeholderStyle: Object.freeze({ type: 'enum', values: Object.freeze(['studio', 'host']), default: 'host', aliasPair: 'promptStyle', aliasKind: 'string' }),
+  promptStyle: Object.freeze({ type: 'enum', values: Object.freeze(['studio', 'host']), default: 'host', aliasOf: 'placeholderStyle' }),
+  mascot: Object.freeze({ type: 'enum', values: Object.freeze(['crab', 'minis', 'quad', 'quad-minis', 'dual', 'off']), default: 'off', customValidate: normalizeMascotConfigValue }),
+  logoInk: Object.freeze({ type: 'enum', values: Object.freeze(['accent', 'foreground', 'antigravity']), default: 'antigravity' }),
+  sidebarRestyle: Object.freeze({ type: 'boolean', default: false, aliasPair: 'sidebar', aliasKind: 'boolOnOff' }),
+  sidebar: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'off', aliasOf: 'sidebarRestyle' }),
   sidebarCompact: Object.freeze({ type: 'boolean', default: false, stringBoolMode: 'strictOn' }),
   sidebarNavFold: Object.freeze({ type: 'enum', values: Object.freeze(['off', 'on']), default: 'off', coerceBoolToOnOff: true }),
   smoothCaret: Object.freeze({ type: 'boolean', default: true, stringBoolMode: 'notOff' }),
   scrollBottomMotion: Object.freeze({ type: 'enum', values: Object.freeze(['smooth', 'instant']), default: 'smooth' }),
   contextMenu: Object.freeze({ type: 'boolean', default: true, stringBoolMode: 'notOff' }),
   accentTone: Object.freeze({ type: 'enum', values: Object.freeze(['follow', 'cobalt', 'iris', 'amber', 'mono']), default: 'follow' }),
-  cornerStyle: Object.freeze({ type: 'enum', values: Object.freeze(['sharp', 'balanced', 'soft']), default: 'balanced' }),
+  cornerStyle: Object.freeze({ type: 'enum', values: Object.freeze(['sharp', 'balanced', 'soft']), default: 'soft' }),
   chatFont: Object.freeze({ type: 'enum', values: Object.freeze(['default', 'system-sans', 'noto-sans', 'inter', 'harmony', 'custom']), default: 'default' }),
   chatFontCustom: Object.freeze({ type: 'string', default: '', maxLength: 160 }),
   codeFont: Object.freeze({ type: 'enum', values: Object.freeze(['default', 'jetbrains', 'cascadia', 'sfmono', 'custom']), default: 'default' }),
   codeFontCustom: Object.freeze({ type: 'string', default: '', maxLength: 160 }),
-  codeLigatures: Object.freeze({ type: 'boolean', default: false, stringBoolMode: 'strictOn' }),
+  codeLigatures: Object.freeze({ type: 'boolean', default: true, stringBoolMode: 'strictOn' }),
   ambientIntensity: Object.freeze({ type: 'enum', values: Object.freeze(['0', '35', '70', '100']), default: '100' }),
-  darkAura: Object.freeze({ type: 'enum', values: Object.freeze(['subtle', 'balanced', 'vivid']), default: 'balanced' }),
+  darkAura: Object.freeze({ type: 'enum', values: Object.freeze(['subtle', 'balanced', 'vivid']), default: 'subtle' }),
   thoughtView: Object.freeze({ type: 'enum', values: Object.freeze(['immersive', 'bilingual']), default: 'immersive' }),
   omniModule: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'on', coerceBoolToOnOff: true }),
   linkTarget: Object.freeze({ type: 'enum', values: Object.freeze(['builtin', 'external']), default: 'builtin' }),
   sidebarStudio: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'off', coerceBoolToOnOff: true }),
-  hostLocalization: Object.freeze({ type: 'enum', values: AUTO_ON_OFF_VALUES, default: 'auto' }),
+  hostLocalization: Object.freeze({ type: 'enum', values: AUTO_ON_OFF_VALUES, default: 'off' }),
   autoUpdate: Object.freeze({ type: 'enum', values: ON_OFF_VALUES, default: 'off', coerceBoolToOnOff: true }),
   updateChannel: Object.freeze({ type: 'enum', values: Object.freeze(['stable', 'beta']), default: 'stable' }),
   autoArchiveOnExit: Object.freeze({ type: 'boolean', default: false, stringBoolMode: 'strictOn' }),
@@ -187,6 +189,12 @@ function reconcileConfigAliases(raw) {
     if (lowLang === 'yue' || lowLang.startsWith('yue-') || lowLang === 'zh-yue' || lowLang.includes('cantonese')) {
       out.language = 'zh-CN';
       out.lang = 'zh-CN';
+    } else if (
+      /^(?:ja|jp|ko|kr|es|fr|de|tr)(?:-|$)/.test(lowLang) ||
+      /^(?:japanese|korean|spanish|español|espanol|french|français|francais|german|deutsch|turkish|türkçe|turkce)$/.test(lowLang)
+    ) {
+      out.language = 'en';
+      out.lang = 'en';
     }
   }
 

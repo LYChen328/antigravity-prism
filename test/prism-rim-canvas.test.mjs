@@ -202,3 +202,119 @@ test('interaction-takeover-card 与 .agy-takeover-frame 使用全周 prism rim�
     'style.css 必须赋予浅色问答卡清晰的边缘高光与质感'
   );
 });
+
+test('prism-rim-canvas: mirror card reuses origin radial gradients + reflection sprite cache and short-circuits unrelated scroll', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCancel = globalThis.cancelAnimationFrame;
+  const prevPerf = globalThis.performance;
+
+  const rafs = new Map();
+  let rafId = 1, now = 200;
+  let drawImageCalls = 0, outerRadialCreates = 0, linearCreates = 0, scrollMeasures = 0;
+  const winListeners = new Map();
+
+  const mkCtx = (isSpr) => ({
+    globalAlpha: 1, lineWidth: 1, strokeStyle: null, fillStyle: null,
+    save() {}, restore() {}, clip() {}, fillRect() {}, translate() {}, clearRect() {},
+    beginPath() {}, roundRect() {}, moveTo() {}, lineTo() {}, closePath() {},
+    fill: isSpr ? () => {} : undefined,
+    drawImage: isSpr ? undefined : () => { drawImageCalls += 1; },
+    stroke() {},
+    createRadialGradient(_x0, _y0, _r0, _x1, _y1, r1) { if (!isSpr && r1 !== 210) outerRadialCreates += 1; return { addColorStop() {} }; },
+    createLinearGradient() { if (isSpr) linearCreates += 1; return { addColorStop() {} }; },
+  });
+
+  const mkEl = (tag, attrsInit = {}) => {
+    const a = new Map(Object.entries(attrsInit)), k = [];
+    const el = {
+      tagName: tag.toUpperCase(), nodeType: 1, width: 0, height: 0, className: '', isConnected: true, parentElement: null,
+      style: { setProperty() {}, removeProperty() {} },
+      get firstElementChild() { return k[0] || null; },
+      get children() { return k; },
+      classList: { contains: (c) => el.className.split(/\s+/).includes(c) },
+      getAttribute: (n) => (a.has(n) ? a.get(n) : null),
+      setAttribute: (n, v) => a.set(n, String(v)),
+      hasAttribute: (n) => a.has(n),
+      removeAttribute: (n) => a.delete(n),
+      appendChild(c) { c.parentElement = el; c.isConnected = true; k.push(c); return c; },
+      remove() { el.isConnected = false; },
+      contains(other) { return other === el || k.includes(other); },
+      querySelector: (s) => (s === '.ag-cs-prism-rim-cv' ? k.find((c) => c.className.includes('ag-cs-prism-rim-cv')) || null : null),
+      getBoundingClientRect: () => ({ left: 40, top: 40, right: 320, bottom: 160, width: 280, height: 120 }),
+      getContext: (t) => (t === '2d' ? mkCtx(el.width === 56) : null),
+    };
+    return el;
+  };
+
+  const mirrorBox = mkEl('section', { 'data-ag-cs-prism-box': '1', 'data-ag-cs-prism-mirror': '1' });
+  mirrorBox.className = 'ag-cs-home-panel';
+  const unrelatedEl = mkEl('div');
+  const html = mkEl('html', { 'data-ag-cs-motion': 'ultra', 'data-ag-cs-ambient': '1' });
+  html.addEventListener = () => {};
+  html.removeEventListener = () => {};
+
+  globalThis.performance = { now: () => now };
+  globalThis.requestAnimationFrame = (fn) => { const id = rafId++; rafs.set(id, fn); return id; };
+  globalThis.cancelAnimationFrame = (id) => rafs.delete(id);
+  globalThis.window = {
+    devicePixelRatio: 1,
+    __agDomBus: { measure(name, fn) { if (name === 'rim:rects') scrollMeasures += 1; fn(); } },
+    addEventListener(t, fn) { winListeners.set(t, fn); },
+    removeEventListener(t) { winListeners.delete(t); },
+  };
+  globalThis.document = {
+    hidden: false,
+    documentElement: html,
+    createElement: (t) => mkEl(t),
+    getElementById: () => null,
+    addEventListener() {}, removeEventListener() {},
+    querySelectorAll(sel) {
+      if (sel.includes('[data-ag-cs-prism-box="1"]')) return [mirrorBox];
+      if (sel.includes('.ag-cs-prism-rim-cv')) return mirrorBox.firstElementChild ? [mirrorBox.firstElementChild] : [];
+      if (sel.includes('[data-ag-cs-prism-cv]')) return mirrorBox.hasAttribute('data-ag-cs-prism-cv') ? [mirrorBox] : [];
+      return [];
+    },
+  };
+
+  const ctl = createPrismRimCanvasController({
+    isDestroyed: () => false,
+    isDarkTheme: () => true,
+    motionReduced: () => false,
+    isPrismRimEnabled: () => true,
+    getMinFrameGapMs: () => 0,
+    getAmbientIntensity: () => 1,
+    getAccentTone: () => 'follow',
+    canMountRealCanvas: () => true,
+    setAttrIfChanged: (el, k, v) => el.setAttribute(k, v),
+    runGuardedMut: (fn) => fn(),
+  });
+
+  try {
+    for (let i = 0; i < 6; i++) {
+      now += 20;
+      ctl.onPointerMove({ clientX: 60 + i * 3, clientY: 60 + i * 2 });
+      const cb = rafs.entries().next().value;
+      if (cb) { rafs.delete(cb[0]); cb[1](now); }
+    }
+    assert.equal(outerRadialCreates, 1, 'isM steady moves must cache origin-centered outer stroke radial gradient once');
+    assert.equal(linearCreates, 2, 'reflection sprite must build linear gradients once across 6 frames');
+    assert.equal(drawImageCalls, 6, 'reflection sprite drawImage must blit cached cursor reflection each frame');
+
+    const onScroll = winListeners.get('scroll');
+    assert.ok(onScroll, 'scroll listener registered');
+    rafs.clear();
+    onScroll({ target: unrelatedEl });
+    assert.equal(scrollMeasures, 0, 'unrelated element scroll must skip rim:rects measure');
+    assert.equal(rafs.size, 0, 'unrelated element scroll must not schedule rAF');
+    ctl.teardown();
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCancel;
+    globalThis.performance = prevPerf;
+    delete globalThis.window?.__agDomBus;
+  }
+});

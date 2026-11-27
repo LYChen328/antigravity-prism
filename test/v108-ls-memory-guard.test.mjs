@@ -1160,10 +1160,8 @@ test('Settings panel 8-locale Memory/DB Guard + GOMEMLIMIT controls and engineer
   ];
   for (const k of newKeys) {
     const row = i18nLocales.UI_TABLE[k];
-    assert.ok(Array.isArray(row) && row.length === 9, `Missing 9-locale row for ${k}`);
-    for (const idx of [2, 5, 6, 7, 8]) {
-      assert.equal(CJK_RE.test(row[idx]), false, `CJK leak in ${k}[${idx}]: ${row[idx]}`);
-    }
+    assert.ok(Array.isArray(row) && row.length === 3, `Missing 3-locale row for ${k}`);
+    assert.equal(CJK_RE.test(row[2]), false, `CJK leak in ${k}[2]: ${row[2]}`);
   }
 
   // 2) Settings panel UI interaction test
@@ -1800,7 +1798,7 @@ test('Follow-up 1: language="auto" resolves live target page data-ag-cs-lang (an
     assert.equal(zhMount.mounted, true);
     assert.equal(zhDoc.querySelector('.ag-sg-title').textContent, zhExpectedTitle, 'language="auto" + zh-CN host page MUST render Simplified Chinese title');
 
-    // Case B: language='auto' + Japanese host page (data-ag-cs-lang="ja") -> Japanese banner copy
+    // Case B: language='auto' + removed host page (data-ag-cs-lang="ja") -> normalizes to en banner copy
     lastBannerExpr = '';
     daemon.sessions.set('ws://local-zh', {
       ...zhPageEntry,
@@ -1821,10 +1819,10 @@ test('Follow-up 1: language="auto" resolves live target page data-ag-cs-lang (an
       now: now + 1000,
     });
     assert.equal(jaRes.shown, true);
-    assert.equal(jaRes.lang, 'ja');
+    assert.equal(jaRes.lang, 'en');
     const { doc: jaDoc } = createMiniDom();
     vm.runInNewContext(lastBannerExpr, { document: jaDoc, window: {} });
-    assert.equal(jaDoc.querySelector('.ag-sg-title').textContent, i18nLocales.getUiStrings('ja').storageGuardTitle);
+    assert.equal(jaDoc.querySelector('.ag-sg-title').textContent, i18nLocales.getUiStrings('en').storageGuardTitle);
 
     // Case C: language='auto' + blank page lang attribute -> falls back to systemLocale ('zh-TW'), NOT hardcoded English
     lastBannerExpr = '';
@@ -2188,7 +2186,8 @@ test('Adversarial follow-up fixes: langProbe auto/html[lang] precedence, collaps
     for (const [label, domAttr, htmlLang, navLang, expectedLang] of [
       ['data-ag-cs-lang=auto falls through to navigator.language', 'auto', 'en', 'zh-CN', 'zh-CN'],
       ['missing data-ag-cs-lang prefers navigator.language over host html[lang=en]', null, 'en', 'zh-CN', 'zh-CN'],
-      ['missing navigator falls back to html[lang=ja]', null, 'ja', '', 'ja'],
+      ['missing navigator falls back to html[lang=zh-TW]', null, 'zh-TW', '', 'zh-TW'],
+      ['missing navigator with removed html[lang=ja] normalizes to en', null, 'ja', '', 'en'],
     ]) {
       let lastBannerExpr = '';
       daemon._storageGuardBannerShownAt = 0;

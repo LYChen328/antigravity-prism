@@ -959,7 +959,7 @@ test('8) ask_question 问答卡与 side-question-panel 点击焦点转移 + 多 
   };
   vm.runInNewContext(hopSrc, sb);
   vm.runInNewContext(
-    `(${uiMainFactory.toString()})(${JSON.stringify({ ...cdp.DEFAULT_CONFIG, mascot: 'crab', motionLevel: 'off', smoothCaret: false })}, { version: '1.0.8-beta.4', codeHash: 'ask-peek-e2e' });`,
+    `(${uiMainFactory.toString()})(${JSON.stringify({ ...cdp.DEFAULT_CONFIG, mascot: 'crab', prismRimStyle: 'prism', motionLevel: 'off', smoothCaret: false })}, { version: '1.0.8-beta.4', codeHash: 'ask-peek-e2e' });`,
     sb
   );
   const api = sb.__agPrism;

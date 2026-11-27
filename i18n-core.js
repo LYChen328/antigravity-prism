@@ -6,20 +6,14 @@
     { id: 'zh-CN', label: '简体中文', htmlLang: 'zh-CN', intl: 'zh-CN' },
     { id: 'zh-TW', label: '繁體中文', htmlLang: 'zh-TW', intl: 'zh-TW' },
     { id: 'en', label: 'English', htmlLang: 'en', intl: 'en-US' },
-    { id: 'ja', label: '日本語', htmlLang: 'ja', intl: 'ja-JP' },
-    { id: 'ko', label: '한국어', htmlLang: 'ko', intl: 'ko-KR' },
-    { id: 'es', label: 'Español', htmlLang: 'es', intl: 'es-ES' },
-    { id: 'fr', label: 'Français', htmlLang: 'fr', intl: 'fr-FR' },
-    { id: 'de', label: 'Deutsch', htmlLang: 'de', intl: 'de-DE' },
-    { id: 'tr', label: 'Türkçe', htmlLang: 'tr', intl: 'tr-TR' },
   ]);
 
   const SUPPORTED_LANG_IDS = Object.freeze(LANG_OPTIONS.map((opt) => opt.id));
-  const CJK_LANG_IDS = new Set(['zh-CN', 'zh-TW', 'ja', 'ko']);
+  const CJK_LANG_IDS = new Set(['zh-CN', 'zh-TW']);
   const LANG_META = Object.fromEntries(LANG_OPTIONS.map((opt) => [opt.id, opt]));
 
   /**
-   * 规范化界面语言标识至插件支持的 9 种本地化语言之一（历史 yue 平滑迁移至 zh-CN）。
+   * 规范化界面语言标识至插件支持的 3 种本地化语言之一（历史 yue 平滑迁移至 zh-CN）。
    */
   function normalizeLanguage(lang, fallback = 'zh-CN') {
     if (lang === true) return 'zh-CN';
@@ -29,16 +23,12 @@
     const clean = raw.split(/[.@]/)[0];
     if (!clean) return fallback;
     if (clean === 'en' || clean.startsWith('en-') || clean === 'english') return 'en';
-    if (clean === 'ja' || clean.startsWith('ja-') || clean === 'jp' || clean === 'japanese') return 'ja';
-    if (clean === 'ko' || clean.startsWith('ko-') || clean === 'kr' || clean === 'korean') return 'ko';
-    if (clean === 'es' || clean.startsWith('es-') || clean === 'spanish' || clean === 'español' || clean === 'espanol') {
-      return 'es';
+    if (
+      /^(?:ja|jp|ko|kr|es|fr|de|tr)(?:-|$)/.test(clean) ||
+      /^(?:japanese|korean|spanish|español|espanol|french|français|francais|german|deutsch|turkish|türkçe|turkce)$/.test(clean)
+    ) {
+      return 'en';
     }
-    if (clean === 'fr' || clean.startsWith('fr-') || clean === 'french' || clean === 'français' || clean === 'francais') {
-      return 'fr';
-    }
-    if (clean === 'de' || clean.startsWith('de-') || clean === 'german' || clean === 'deutsch') return 'de';
-    if (clean === 'tr' || clean.startsWith('tr-') || clean === 'turkish' || clean === 'türkçe' || clean === 'turkce') return 'tr';
     if (clean === 'yue' || clean.startsWith('yue-') || clean === 'zh-yue' || clean.includes('cantonese')) {
       return 'zh-CN';
     }

@@ -115,7 +115,7 @@ const CHANNEL_STATIC_SPECS = Object.freeze([
   defineSpec({
     id: 'hostI18n', cacheFormat: 'runtimeAndDict', channelNumber: 4, order: 40, tier: 'i18n',
     label: 'Host UI Localization', configKeys: ['hostLocalization', 'language'],
-    files: ['vendor/host-i18n/reverse-patterns.js', 'vendor/host-i18n/host-i18n-runtime.js', 'vendor/host-i18n/zh-CN.json', 'vendor/host-i18n/tr.json'],
+    files: ['vendor/host-i18n/reverse-patterns.js', 'vendor/host-i18n/host-i18n-runtime.js', 'vendor/host-i18n/zh-CN.json'],
     mountGlobal: '__agPrismHostI18n', respectSkippedByLiveCfg: true, budgetBytes: 560 * 1024,
     probeLines: [
       'hasHostI18n: Boolean(window.__agPrismHostI18n)',
@@ -133,7 +133,7 @@ const CHANNEL_STATIC_SPECS = Object.freeze([
     id: 'swarmI18n', cacheFormat: 'runtimeAndDict', channelNumber: 4.5, order: 45, tier: 'i18n',
     injectMode: 'oopif-swarm', precompileOnBoot: false,
     label: 'Swarm Board Localization', configKeys: ['hostLocalization', 'language'],
-    files: ['vendor/host-i18n/swarm-i18n-runtime.js', 'vendor/host-i18n/swarm-zh-CN.json', 'vendor/host-i18n/swarm-tr.json'],
+    files: ['vendor/host-i18n/swarm-i18n-runtime.js', 'vendor/host-i18n/swarm-zh-CN.json'],
     mountGlobal: '__agPrismSwarmI18n', probeKey: '', probeHashKey: '', probeExpr: '', budgetBytes: 48 * 1024,
     fieldOverrides: {
       hashSrcField: '', scriptField: '', mountedField: '', sigField: '', scriptSigField: '',
@@ -230,7 +230,7 @@ const CHANNEL_STATIC_SPECS = Object.freeze([
     label: 'Settings Panel & Full Locales',
     configKeys: ['language', 'performanceMode', 'ignoreReducedMotion', 'chatFont', 'chatFontCustom', 'codeFont', 'codeFontCustom', 'telemetryQuotaMode'],
     files: [
-      'src/runtime/i18n-tr-locale.js', 'i18n-locales.js', 'assets/brand-mark-svg.js', 'vendor/clawd-mascot/tavern-atlas-data.js',
+      'i18n-locales.js', 'assets/brand-mark-svg.js', 'vendor/clawd-mascot/tavern-atlas-data.js',
       'vendor/clawd-mascot/octopath-stage-webgl.js', 'src/runtime/i18n-ext-beta4.js',
       'settings-panel.js', 'src/runtime/settings-ext-beta4.js',
     ],

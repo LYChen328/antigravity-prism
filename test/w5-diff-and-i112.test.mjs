@@ -764,11 +764,11 @@ test('W5-4: 0 innerHTML, 0 :has(), pure ASCII CSS, 8-locale 0-CJK leak, 0 BOM/CR
     'INLINE_DIFF_CSS braces must balance'
   );
 
-  // 9-locale completeness & 0 CJK in non-CJK locales for all DIFF_FALLBACK keys (including expand-all copy)
+  // 3-locale completeness & 0 CJK in en for all DIFF_FALLBACK keys (including expand-all copy)
   const clientSrc = fs.readFileSync(path.join(ROOT, 'vendor/inline-diff/inline-diff-client.js'), 'utf8');
   const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
-  const LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
-  const NON_CJK = ['en', 'ko', 'es', 'fr', 'de', 'tr'];
+  const LOCALES = ['zh-CN', 'zh-TW', 'en'];
+  const NON_CJK = ['en'];
   for (const key of [
     'inlineDiffOpenSidebar', 'inlineDiffCollapse', 'inlineDiffLoading', 'inlineDiffBinary',
     'inlineDiffNoPreview', 'inlineDiffSensitive', 'inlineDiffSnapshotNotice', 'inlineDiffLongLinesTag',

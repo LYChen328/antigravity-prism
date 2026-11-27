@@ -1098,7 +1098,7 @@ test('PrismDaemon & install-plugin.cjs: obsidian-prism target, legacy antigravit
         name: '__agPrismSetting',
         payload: JSON.stringify({
           action: 'patch-batch',
-          entries: { palette: 'warm', motionLevel: 'subtle', targetFps: '120', homeRipple: false, language: 'ja' },
+          entries: { palette: 'warm', motionLevel: 'subtle', targetFps: '120', homeRipple: false, language: 'zh-TW' },
         }),
       },
     });
@@ -1106,7 +1106,7 @@ test('PrismDaemon & install-plugin.cjs: obsidian-prism target, legacy antigravit
     const savedCfgAfterBatch = await waitUntil(() => {
       try {
         const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-        return parsed && parsed.palette === 'warm' && parsed.language === 'ja' ? parsed : null;
+        return parsed && parsed.palette === 'warm' && parsed.language === 'zh-TW' ? parsed : null;
       } catch {
         return null;
       }
@@ -1117,8 +1117,8 @@ test('PrismDaemon & install-plugin.cjs: obsidian-prism target, legacy antigravit
     assert.equal(savedCfgAfterBatch.targetFps, '120');
     assert.equal(savedCfgAfterBatch.homeRipple, false);
     assert.equal(savedCfgAfterBatch.ripple, 'off', 'Expected legacy twin key ripple synced on disk');
-    assert.equal(savedCfgAfterBatch.language, 'ja');
-    assert.equal(savedCfgAfterBatch.lang, 'ja', 'Expected legacy twin key lang synced on disk');
+    assert.equal(savedCfgAfterBatch.language, 'zh-TW');
+    assert.equal(savedCfgAfterBatch.lang, 'zh-TW', 'Expected legacy twin key lang synced on disk');
     assert.equal(touchedForeignPreview, false, 'PrismDaemon must never connect or expose RPC bindings to non-host preview pages');
 
     // Trigger on-demand metrics request as well (reset metricsResolveExpr so only the real RPC resolve matches)
@@ -2568,7 +2568,7 @@ test('host-i18n runtime skips ag-pp- class prefix and #ag-prism-periodic-picker-
   }
 });
 
-test('Battle 5: usage-core.js full 8-locale coverage (ko/es/fr/de zero zh-CN fallback, yue->zh-CN, unknown->en)', () => {
+test('Battle 5: usage-core.js 3-locale coverage (yue->zh-CN, zh-HK->zh-TW, removed/unknown->en, 0 Han CJK in en)', () => {
   const usageCore = require(path.join(ROOT_DIR, 'usage-core.js'));
   assert.equal(usageCore.resolveLang(true), 'zh-CN');
   assert.equal(usageCore.resolveLang(false), 'en');
@@ -2578,10 +2578,9 @@ test('Battle 5: usage-core.js full 8-locale coverage (ko/es/fr/de zero zh-CN fal
   assert.equal(usageCore.resolveLang('yue'), 'zh-CN');
   assert.equal(usageCore.resolveLang('yue-HK'), 'zh-CN');
   assert.equal(usageCore.resolveLang('zh-HK'), 'zh-TW');
-  assert.equal(usageCore.resolveLang('ko-KR'), 'ko');
-  assert.equal(usageCore.resolveLang('es-ES'), 'es');
-  assert.equal(usageCore.resolveLang('fr-FR'), 'fr');
-  assert.equal(usageCore.resolveLang('de-DE'), 'de');
+  for (const removed of ['ko-KR', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP', 'tr-TR']) {
+    assert.equal(usageCore.resolveLang(removed), 'en', `${removed} must resolve to en`);
+  }
 
   const HAN_RE = /[\u4e00-\u9fff]/;
   const now = new Date(2026, 10, 14, 12, 0, 0);
@@ -2594,7 +2593,7 @@ test('Battle 5: usage-core.js full 8-locale coverage (ko/es/fr/de zero zh-CN fal
   const nowMs = Date.UTC(2026, 10, 14, 12, 0, 0);
   const grp = { id: 'custom-pool', windows: { '5h': { available: true, remaining: 0.45, resetAt: new Date(nowMs + 2 * 3600 * 1000).toISOString() } } };
 
-  for (const lang of ['en', 'ko', 'es', 'fr', 'de']) {
+  for (const lang of ['en', 'ja', 'ko', 'es', 'fr', 'de']) {
     const rAll = usageCore.homeRangeLabel('all', lang);
     const r30 = usageCore.homeRangeLabel('30d', lang);
     const hr = usageCore.formatHomeHour(14, lang);
@@ -2610,11 +2609,9 @@ test('Battle 5: usage-core.js full 8-locale coverage (ko/es/fr/de zero zh-CN fal
       assert.equal(HAN_RE.test(piece), false, `${lang} leaked Han CJK char in "${piece}"`);
     }
   }
-  assert.equal(usageCore.homeRangeLabel('all', 'ko'), '전체');
-  assert.equal(usageCore.homeRangeLabel('30d', 'fr'), '30j');
-  assert.equal(usageCore.homeRangeLabel('7d', 'de'), '7T');
-  assert.equal(usageCore.homeRangeLabel('all', 'es'), 'Todo');
-  assert.match(usageCore.aggregateUsageRollup(recs, 'all', 0, 'ko', now).funBook, /토큰/);
+  assert.equal(usageCore.homeRangeLabel('all', 'en'), 'All');
+  assert.equal(usageCore.homeRangeLabel('30d', 'zh-TW'), '30 天');
+  assert.equal(usageCore.homeRangeLabel('7d', 'zh-CN'), '7 天');
 });
 
 test('Battle 5: pulse-dashboard metrics.mjs BigInt/cadence drift guards & store.mjs GetUserStatus quotaInfo fallback', async () => {

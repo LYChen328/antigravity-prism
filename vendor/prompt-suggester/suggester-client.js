@@ -68,17 +68,11 @@
     ['data-ag-no-i18n', ''],
   ];
 
-  // 完整 8 语无障碍标签（去 yue，en/es/fr/de 严格 0 CJK）
+  // 3 语无障碍标签（去 yue，en 严格 0 CJK）
   const ARIA_LABELS = {
     'zh-CN': { accept: '使用建议的提示词' },
     'zh-TW': { accept: '使用建議的提示詞' },
     en: { accept: 'Use suggested prompt' },
-    ja: { accept: '提案されたプロンプトを使用' },
-    ko: { accept: '추천 프롬프트 사용' },
-    es: { accept: 'Usar sugerencia de prompt' },
-    fr: { accept: 'Utiliser la suggestion de prompt' },
-    de: { accept: 'Vorgeschlagenen Prompt verwenden' },
-    tr: { accept: 'Önerilen istemi kullan' },
   };
 
   // 运行时高频幽灵建议样式：严格纯 ASCII、0 :has()、行高对齐主输入框 22px，仅在 enabled === true 时注入
@@ -102,20 +96,15 @@
     return el;
   }
 
-  // 对齐全仓 8 语规范（yue -> zh-CN，zh-HK/MO -> zh-TW，未知返回空字符串交由调用方兜底 en）
+  // 对齐 3 语规范（yue -> zh-CN，zh-HK/MO -> zh-TW，未知返回空字符串交由调用方兜底 en）
   function normalizeLang(raw) {
     const s = String(raw || '').trim().toLowerCase().replace(/_/g, '-');
     if (!s || s === 'auto') return '';
     if (s === 'yue' || s.startsWith('yue-') || s === 'zh-yue' || s.includes('cantonese')) return 'zh-CN';
     if (/^zh-(tw|hk|mo|hant)/.test(s) || s === 'tw' || s === 'hant') return 'zh-TW';
     if (/^zh(?:\b|-)/.test(s)) return 'zh-CN';
-    if (/^(ja|jp)(?:\b|-)/.test(s) || s === 'japanese') return 'ja';
-    if (/^(ko|kr)(?:\b|-)/.test(s) || s === 'korean') return 'ko';
-    if (/^es(?:\b|-)/.test(s) || s === 'spanish') return 'es';
-    if (/^fr(?:\b|-)/.test(s) || s === 'french') return 'fr';
-    if (/^de(?:\b|-)/.test(s) || s === 'german') return 'de';
-    if (/^tr(?:\b|-)/.test(s) || s === 'turkish' || s === 'türkçe' || s === 'turkce') return 'tr';
     if (/^en(?:\b|-)/.test(s) || s === 'english') return 'en';
+    if (/^(?:ja|jp|ko|kr|es|fr|de|tr)(?:\b|-)/.test(s) || /^(?:japanese|korean|spanish|french|german|turkish|türkçe|turkce)$/.test(s)) return 'en';
     return '';
   }
 

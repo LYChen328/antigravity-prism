@@ -323,12 +323,6 @@
       'zh-CN': { nonPlanner: ORCH_NON_PLANNER_LABEL_ZH, standbyAux: 'STANDBY · 未开放副盘槽位', synced: SYNC_BADGE_DEFAULT_ZH },
       'zh-TW': { nonPlanner: 'NON-PLANNER · 編排態不可選', standbyAux: 'STANDBY · 未開放副盤槽位', synced: '已同步工作階段' },
       en: { nonPlanner: ORCH_NON_PLANNER_LABEL_EN, standbyAux: 'STANDBY · RESERVED MACRO SLOT', synced: SYNC_BADGE_DEFAULT_EN },
-      ja: { nonPlanner: 'NON-PLANNER · オーケストラ固定', standbyAux: 'STANDBY · 予約済みマクロ枠', synced: '同期済' },
-      ko: { nonPlanner: 'NON-PLANNER · 오케스트레이션 잠금', standbyAux: 'STANDBY · 예약된 매크로 슬롯', synced: '동기화됨' },
-      es: { nonPlanner: 'NON-PLANNER · BLOQUEADO EN ORCH', standbyAux: 'STANDBY · RANURA RESERVADA', synced: 'SINCRONIZADO' },
-      fr: { nonPlanner: 'NON-PLANNER · VERROUILLÉ ORCH', standbyAux: 'STANDBY · EMPLACEMENT RÉSERVÉ', synced: 'SYNCHRONISÉ' },
-      de:{nonPlanner:'NON-PLANNER · IN ORCH GESPERRT',standbyAux:'STANDBY · RESERVIERTER SLOT',synced:'SYNCHRONISIERT'},
-      tr:{nonPlanner:'NON-PLANNER · ORCH KİLİTLİ',standbyAux:'STANDBY · AYRILMIŞ YUVA',synced:'EŞİTLENDİ'},
     };
     function normalizeOledLang(raw) {
       var s = String(raw || '').trim().toLowerCase().replace(/_/g, '-');
@@ -336,13 +330,8 @@
       if (s === 'yue' || s.indexOf('yue-') === 0 || s === 'zh-yue' || s.indexOf('cantonese') !== -1) return 'zh-CN';
       if (/^zh-(tw|hant|hk|mo)/.test(s) || s === 'tw' || s === 'hant') return 'zh-TW';
       if (/^zh(?:$|-)/.test(s)) return 'zh-CN';
-      if (/^(ja|jp)(?:$|-)/.test(s) || s === 'japanese') return 'ja';
-      if (/^(ko|kr)(?:$|-)/.test(s) || s === 'korean') return 'ko';
-      if (/^es(?:$|-)/.test(s) || s === 'spanish') return 'es';
-      if (/^fr(?:$|-)/.test(s) || s === 'french') return 'fr';
-      if (/^de(?:$|-)/.test(s) || s === 'german') return 'de';
-      if (/^tr(?:$|-)/.test(s) || s === 'turkish' || s === 'türkçe') return 'tr';
       if (/^en(?:$|-)/.test(s) || s === 'english') return 'en';
+      if (/^(?:ja|jp|ko|kr|es|fr|de|tr)(?:$|-)/.test(s) || /^(?:japanese|korean|spanish|french|german|turkish|türkçe)$/.test(s)) return 'en';
       return '';
     }
 

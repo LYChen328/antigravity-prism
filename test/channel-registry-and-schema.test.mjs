@@ -389,7 +389,7 @@ test('Phase 4D: settings-panel schema aligns with schema.cjs, cdp.js prunes 8 zo
   // 1) settings-panel.js language & mascot enums/defaults aligned with src/config/schema.cjs
   assert.deepEqual([...settingsPanel.PRISM_SETTINGS_SCHEMA.language.allowed], [...cdp.CONFIG_SCHEMA.language.values]);
   assert.equal(settingsPanel.PRISM_SETTINGS_SCHEMA.language.default, cdp.CONFIG_SCHEMA.language.default);
-  assert.equal(settingsPanel.getDefaultSettingsPatch().language, 'auto');
+  assert.equal(settingsPanel.getDefaultSettingsPatch().language, cdp.CONFIG_SCHEMA.language.default);
   assert.ok(settingsPanel.PRISM_SETTINGS_SCHEMA.mascot.allowed.includes('minis'), 'mascot enum must include minis');
   assert.equal(settingsPanel.PRISM_SETTINGS_SCHEMA.mascot.default, cdp.CONFIG_SCHEMA.mascot.default);
 
@@ -503,10 +503,10 @@ test('Phase 4D: settings-panel schema aligns with schema.cjs, cdp.js prunes 8 zo
   assert.equal(rootAttrs.get('data-theme'), 'dark', 'REMOVE_EXPRESSION must NEVER delete host documentElement[data-theme]');
 });
 
-test('Native CdpClient.cs & CdpClient.swift align 100% bidirectionally with all 54 keys in src/config/schema.cjs', () => {
+test('Native CdpClient.cs & CdpClient.swift align 100% bidirectionally with all 56 keys in src/config/schema.cjs', () => {
   const schema = cdp.CONFIG_SCHEMA;
   const allSchemaKeys = Object.keys(schema).sort();
-  assert.equal(allSchemaKeys.length, 54, 'CONFIG_SCHEMA expected 54 keys');
+  assert.equal(allSchemaKeys.length, 56, 'CONFIG_SCHEMA expected 56 keys');
 
   const canonicalLangs = [...schema.language.values];
   const autoOnOff = ['auto', 'on', 'off'];

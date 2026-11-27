@@ -38,30 +38,30 @@
   const HL_PATH_NAME = 'ag-omni-path';
   const GUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-  // Compact 9-locale fallback table [zh-CN, zh-TW, en, ja, ko, es, fr, de, tr]; primary source is `window.__agCsLocales`
-  const LANG_INDEX = { 'zh-CN': 0, 'zh-TW': 1, en: 2, ja: 3, ko: 4, es: 5, fr: 6, de: 7, tr: 8 };
+  // Compact 3-locale fallback table [zh-CN, zh-TW, en]; primary source is `window.__agCsLocales`
+  const LANG_INDEX = { 'zh-CN': 0, 'zh-TW': 1, en: 2 };
   const FALLBACK_ROWS = {
-    omniOpenBuiltin: ['在右侧面板打开', '在右側面板開啟', 'Open in Side Pane', '右パネルで開く', '오른쪽 패널에서 열기', 'Abrir en panel lateral', 'Ouvrir dans le panneau latéral', 'Im Seitenbereich öffnen', 'Yan panelde aç'],
-    omniOpenPreview: ['在右侧检视台预览', '在右側檢視台預覽', 'Preview in Workbench', 'ワークベンチでプレビュー', '워크벤치에서 미리보기', 'Previsualizar en Workbench', 'Aperçu dans Workbench', 'In Workbench vorschauen', 'Çalışma alanında önizle'],
-    omniOpenExternal: ['使用系统默认程序打开', '使用系統預設程式開啟', 'Open in Default App', '既定のアプリで開く', '기본 앱으로 열기', 'Abrir en app predeterminada', 'Ouvrir avec l’app par défaut', 'In Standard-App öffnen', 'Varsayılan uygulamada aç'],
-    omniOpenBrowser: ['在系统浏览器中打开', '在系統瀏覽器中開啟', 'Open in System Browser', '標準ブラウザで開く', '시스템 브라우저에서 열기', 'Abrir en el navegador', 'Ouvrir dans le navigateur', 'Im Systembrowser öffnen', 'Sistem tarayıcısında aç'],
-    omniRevealFolder: ['在文件夹中显示', '在資料夾中顯示', 'Reveal in Folder', 'フォルダに表示', '폴더에서 보기', 'Mostrar en carpeta', 'Afficher dans le dossier', 'Im Ordner anzeigen', 'Klasörde göster'],
-    omniInsertMention: ['作为 @引用 填入输入框', '作為 @引用 填入輸入框', 'Insert as @Mention', '@参照として入力欄へ挿入', '@멘션으로 입력창에 삽입', 'Insertar como @mención', 'Insérer comme @mention', 'Als @Erwähnung einfügen', '@Bahsetme olarak ekle'],
-    omniCopyLink: ['复制链接地址', '複製連結位址', 'Copy Link URL', 'リンクURLをコピー', '링크 URL 복사', 'Copiar enlace', 'Copier le lien', 'Link-URL kopieren', 'Bağlantı adresini kopyala'],
-    omniCopyAbsPath: ['复制绝对路径', '複製絕對路徑', 'Copy Absolute Path', '絶対パスをコピー', '절대 경로 복사', 'Copiar ruta absoluta', 'Copier le chemin absolu', 'Absoluten Pfad kopieren', 'Mutlak yolu kopyala'],
-    omniCopyRelPath: ['复制相对路径', '複製相對路徑', 'Copy Relative Path', '相対パスをコピー', '상대 경로 복사', 'Copiar ruta relativa', 'Copier le chemin relatif', 'Relativen Pfad kopieren', 'Göreli yolu kopyala'],
-    omniCopyText: ['复制文本', '複製文字', 'Copy Text', 'テキストをコピー', '텍스트 복사', 'Copiar texto', 'Copier le texte', 'Text kopieren', 'Metni kopyala'],
-    omniZoomDiagram: ['放大查看图表', '放大檢視圖表', 'Zoom Diagram', '図を拡大表示', '다이어그램 확대', 'Ampliar diagrama', 'Agrandir le diagramme', 'Diagramm vergrößern', 'Diyagramı yakınlaştır'],
-    omniViewWorkbench: ['检视台视图', '檢視台檢視', 'Workbench View', 'プレビュー表示', '워크벤치 보기', 'Vista Workbench', 'Vue Workbench', 'Workbench-Ansicht', 'Çalışma alanı görünümü'],
-    omniViewRaw: ['原始视图', '原始檢視', 'Raw View', 'ソース表示', '원본 보기', 'Vista sin formato', 'Vue brute', 'Rohansicht', 'Ham görünüm'],
-    omniViewPreview: ['预览', '預覽', 'Preview', 'プレビュー', '미리보기', 'Vista previa', 'Aperçu', 'Vorschau', 'Önizleme'],
-    omniViewSource: ['源码', '原始碼', 'Source', 'ソース', '소스', 'Código fuente', 'Code source', 'Quelltext', 'Kaynak'],
-    omniSandboxIsolated: ['沙盒隔离', '沙盒隔離', 'Sandbox Isolated', 'サンドボックス隔離', '샌드박스 격리', 'Aislado en sandbox', 'Isolé en sandbox', 'Sandbox-isoliert', 'Yalıtılmış sandbox'],
-    omniCopied: ['已复制', '已複製', 'Copied', 'コピー済', '복사됨', 'Copiado', 'Copié', 'Kopiert', 'Kopyalandı'],
-    omniMermaidDiagram: ['Mermaid 图表', 'Mermaid 圖表', 'Mermaid Diagram', 'Mermaid 図', 'Mermaid 다이어그램', 'Diagrama Mermaid', 'Diagramme Mermaid', 'Mermaid-Diagramm', 'Mermaid Diyagramı'],
-    omniMermaidSvg: ['Mermaid SVG 图表', 'Mermaid SVG 圖表', 'Mermaid SVG', 'Mermaid SVG', 'Mermaid SVG', 'Mermaid SVG', 'Mermaid SVG', 'Mermaid SVG', 'Mermaid SVG'],
-    omniHintClick: ['单击', '單擊', 'Click', 'クリック', '클릭', 'Clic', 'Clic', 'Klick', 'Tıkla'],
-    omniHintCtrlClick: ['Ctrl+单击', 'Ctrl+單擊', 'Ctrl+Click', 'Ctrl+クリック', 'Ctrl+클릭', 'Ctrl+Clic', 'Ctrl+Clic', 'Strg+Klick', 'Ctrl+Tıkla'],
+    omniOpenBuiltin: ["在右侧面板打开","在右側面板開啟","Open in Side Pane"],
+    omniOpenPreview: ["在右侧检视台预览","在右側檢視台預覽","Preview in Workbench"],
+    omniOpenExternal: ["使用系统默认程序打开","使用系統預設程式開啟","Open in Default App"],
+    omniOpenBrowser: ["在系统浏览器中打开","在系統瀏覽器中開啟","Open in System Browser"],
+    omniRevealFolder: ["在文件夹中显示","在資料夾中顯示","Reveal in Folder"],
+    omniInsertMention: ["作为 @引用 填入输入框","作為 @引用 填入輸入框","Insert as @Mention"],
+    omniCopyLink: ["复制链接地址","複製連結位址","Copy Link URL"],
+    omniCopyAbsPath: ["复制绝对路径","複製絕對路徑","Copy Absolute Path"],
+    omniCopyRelPath: ["复制相对路径","複製相對路徑","Copy Relative Path"],
+    omniCopyText: ["复制文本","複製文字","Copy Text"],
+    omniZoomDiagram: ["放大查看图表","放大檢視圖表","Zoom Diagram"],
+    omniViewWorkbench: ["检视台视图","檢視台檢視","Workbench View"],
+    omniViewRaw: ["原始视图","原始檢視","Raw View"],
+    omniViewPreview: ["预览","預覽","Preview"],
+    omniViewSource: ["源码","原始碼","Source"],
+    omniSandboxIsolated: ["沙盒隔离","沙盒隔離","Sandbox Isolated"],
+    omniCopied: ["已复制","已複製","Copied"],
+    omniMermaidDiagram: ["Mermaid 图表","Mermaid 圖表","Mermaid Diagram"],
+    omniMermaidSvg: ["Mermaid SVG 图表","Mermaid SVG 圖表","Mermaid SVG"],
+    omniHintClick: ["单击","單擊","Click"],
+    omniHintCtrlClick: ["Ctrl+单击","Ctrl+單擊","Ctrl+Click"],
   };
 
   const PREVIEW_KIND_BY_EXT = {
@@ -174,13 +174,8 @@
     if (s === 'yue' || s.startsWith('yue-') || s === 'zh-yue' || s.includes('cantonese')) return 'zh-CN';
     if (/^zh-(tw|hk|mo|hant)/.test(s) || s === 'tw' || s === 'hant') return 'zh-TW';
     if (/^zh\b/.test(s)) return 'zh-CN';
-    if (/^(ja|jp)\b/.test(s) || s === 'japanese') return 'ja';
-    if (/^(ko|kr)\b/.test(s) || s === 'korean') return 'ko';
-    if (/^es\b/.test(s) || s === 'spanish') return 'es';
-    if (/^fr\b/.test(s) || s === 'french') return 'fr';
-    if (/^de\b/.test(s) || s === 'german') return 'de';
-    if (/^tr\b/.test(s) || s === 'turkish' || s === 'türkçe' || s === 'turkce') return 'tr';
     if (/^en\b/.test(s) || s === 'english') return 'en';
+    if (/^(?:ja|jp|ko|kr|es|fr|de|tr)\b/.test(s) || /^(?:japanese|korean|spanish|french|german|turkish|türkçe|turkce)$/.test(s)) return 'en';
     return '';
   }
 

@@ -12,7 +12,7 @@ const cdp = require(path.join(ROOT, 'cdp.js'));
 const CH1_HARD_LIMIT = 390000;
 const BRIDGE_HARD_LIMIT = 31000;
 const CONFIG_REFRESH_HARD_LIMIT = 4096;
-const TARGET_LOCALES = ['auto', 'zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
+const TARGET_LOCALES = ['auto', 'zh-CN', 'zh-TW', 'en'];
 
 function listTrackedFiles() {
   try {
@@ -46,7 +46,7 @@ function listTrackedFiles() {
   }
 }
 
-test('Law 4: Channel 1 (auto + 9 locales) < 390,000 B, pulse-vial-bridge.js < 31,000 B, incremental configRefresh < 4,096 B', () => {
+test('Law 4: Channel 1 (auto + 3 locales) < 390,000 B, pulse-vial-bridge.js < 31,000 B, incremental configRefresh < 4,096 B', () => {
   const summary = [];
   for (const locale of TARGET_LOCALES) {
     const expr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: locale });
@@ -143,15 +143,15 @@ test('Law 4+: Declarative CHANNEL_REGISTRY multi-channel payloads stay within pe
     assert.equal(row.enabled, false);
     assert.equal(row.bytes, 0);
   }
-  const trI18nCfg = { ...allEnabledCfg, language: 'tr', hostLocalization: 'on' };
+  const zhI18nCfg = { ...allEnabledCfg, language: 'zh-CN', hostLocalization: 'on' };
   for (const id of ['hostI18n', 'swarmI18n']) {
     const ch = cdp.findChannel(id);
     assert.ok(ch, `Channel ${id} must be registered`);
-    assert.equal(ch.shouldEnable(trI18nCfg), true, `${id} shouldEnable must be true for tr`);
-    const expr = ch.build(trI18nCfg, { noDiskCache: true });
+    assert.equal(ch.shouldEnable(zhI18nCfg), true, `${id} shouldEnable must be true for zh-CN`);
+    const expr = ch.build(zhI18nCfg, { noDiskCache: true });
     const bytes = Buffer.byteLength(expr, 'utf8');
-    assert.ok(bytes > 0 && bytes <= ch.budgetBytes, `Channel ${id}[tr] payload ${bytes} B exceeds budgetBytes ${ch.budgetBytes} B`);
-    lines.push(`${id}[tr]=${bytes}B/${ch.budgetBytes}B`);
+    assert.ok(bytes > 0 && bytes <= ch.budgetBytes, `Channel ${id}[zh-CN] payload ${bytes} B exceeds budgetBytes ${ch.budgetBytes} B`);
+    lines.push(`${id}[zh-CN]=${bytes}B/${ch.budgetBytes}B`);
   }
 
   console.log(`[bundle-budget] Channels (${report.channels.length}): ${lines.join(', ')}`);

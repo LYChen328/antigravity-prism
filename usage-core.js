@@ -6,7 +6,7 @@
 
   const numOr = (v) => (typeof v === 'bigint' ? Number(v) : v);
   function toNum(v) { const n = typeof v === 'number' || typeof v === 'bigint' || typeof v === 'string' ? Number(v) : 0; return Number.isFinite(n) ? n : 0; }
-  const L8 = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
+  const L8 = ['zh-CN', 'zh-TW', 'en'];
   function resolveLang(langOrZh) {
     if (langOrZh === true) return 'zh-CN';
     if (!langOrZh) return 'en';
@@ -14,15 +14,14 @@
     if (!lo) return 'en';
     if (/^yue(?:$|[-_])/.test(lo)) return 'zh-CN';
     if (/^zh(?:$|[-_])/.test(lo)) return /tw|hk|mo|hant/.test(lo) ? 'zh-TW' : 'zh-CN';
-    const m = lo.match(/^(en|ja|ko|es|fr|de|tr)(?:$|[-_])/);
-    return m ? m[1] : 'en';
+    return 'en';
   }
   function pick8(arr, langOrZh) { const i = L8.indexOf(resolveLang(langOrZh)); return arr[i >= 0 ? i : 2] ?? arr[2]; }
   const mkLbls = (a) => Object.fromEntries(L8.map((k, i) => [k, a[i]]));
   const HOME_RANGES = [
-    ['all', 0, ['全部', '全部', 'All', '全期間', '전체', 'Todo', 'Tout', 'Alle', 'Tümü']],
-    ['30d', 30, ['30 天', '30 天', '30d', '30日間', '30일', '30d', '30j', '30T', '30 gün']],
-    ['7d', 7, ['7 天', '7 天', '7d', '7日間', '7일', '7d', '7j', '7T', '7 gün']],
+    ['all', 0, ['全部', '全部', 'All']],
+    ['30d', 30, ['30 天', '30 天', '30d']],
+    ['7d', 7, ['7 天', '7 天', '7d']],
   ].map(([id, days, a]) => ({ id, days, labelZh: a[0], labelEn: a[2], labels: mkLbls(a) }));
 
   const wrapTitle = (s, l, r) => (s[0] === l ? s : l + s + r);
@@ -91,9 +90,9 @@ watermargin|958242|水浒传|水滸傳|水滸伝|Water Margin
 ordinary|998000|平凡的世界||平凡な世界|Ordinary World
 harrypotter|1409000|《哈利·波特》全集|《哈利波特》全集|『ハリー・ポッター』全巻|the entire Harry Potter series
 losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求めて|In Search of Lost Time`.split('\n').map((row) => {
-    const [key, tk, z0, t0, j0, en] = row.split('|');
+    const [key, tk, z0, t0, , en] = row.split('|');
     const zh = wrapTitle(z0, '《', '》');
-    return { key, tokens: +tk, zh, zhTW: t0 ? wrapTitle(t0, '《', '》') : zh, ja: wrapTitle(j0, '『', '』'), en };
+    return { key, tokens: +tk, zh, zhTW: t0 ? wrapTitle(t0, '《', '》') : zh, en };
   });
 
   function homeBookTitle(book, langOrZh) {
@@ -101,7 +100,6 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
     const l = resolveLang(langOrZh);
     if (l === 'zh-CN') return book.zh;
     if (l === 'zh-TW') return book.zhTW || book.zh;
-    if (l === 'ja') return book.ja || book.en;
     return book.en;
   }
 
@@ -149,15 +147,12 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
     const h12 = h % 12 || 12;
     const pm = h >= 12 ? 1 : 0;
     const l = resolveLang(langOrZh);
-    if (l === 'fr') return h + 'h';
-    if (l === 'de') return h + ' Uhr';
-    if (l === 'es' || l === 'tr') return h + ':00';
     if (l === 'en') return h12 + (pm ? ' PM' : ' AM');
-    const [a, b, s] = pick8(['上午 |下午 | 点', '上午 |下午 | 點', '', '午前 |午後 | 時', '오전 |오후 |시'], l).split('|');
+    const [a, b, s] = pick8(['上午 |下午 | 点', '上午 |下午 | 點', ''], l).split('|');
     return (pm ? b : a) + h12 + s;
   }
   function homeShortDateFormat(langOrZh) {
-    return new Intl.DateTimeFormat(pick8('zh-CN,zh-TW,en-US,ja-JP,ko-KR,es-ES,fr-FR,de-DE,tr-TR'.split(','), langOrZh), { month: 'short', day: 'numeric' });
+    return new Intl.DateTimeFormat(pick8(['zh-CN', 'zh-TW', 'en-US'], langOrZh), { month: 'short', day: 'numeric' });
   }
 
   function homeShortDate(format, day) {
@@ -495,11 +490,6 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
           `你的 Token 用量相当于 ${cntStr} 本${title}。`,
           `您的 Token 用量相當於 ${cntStr} 本${title}。`,
           `You've used ~${cntStr}× the tokens in ${title}.`,
-          `消費トークン数は${title} ${cntStr} 冊分に相当します。`,
-          `사용한 토큰은 ${title} 약 ${cntStr}권 분량입니다.`,
-          `Has usado ~${cntStr}× los tokens de ${title}.`,
-          `Vous avez utilisé ~${cntStr}× les tokens de ${title}.`,
-          `Verbraucht: ~${cntStr}× die Token von ${title}.`,
         ], l);
       }
     }
@@ -549,7 +539,7 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
   }
 
   const Q_KIND_LBL = { 'gemini-argon': 'Gemini (Argon)', claude: 'Claude / GPT', gemini: 'Gemini' };
-  const Q_POOL_FB = '模型配额|模型配額|Quota Pool|クォータ|할당량 풀|Cuota|Quota|Kontingent'.split('|');
+  const Q_POOL_FB = '模型配额|模型配額|Quota Pool'.split('|');
   function quotaGroupLabel(group, langOrZh) {
     return Q_KIND_LBL[quotaGroupKind(group)] || String(group?.name || group?.id || '').trim() || pick8(Q_POOL_FB, langOrZh);
   }
@@ -586,9 +576,9 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
     return pick || list.find((g) => quotaWindows(g).length > 0) || list[0];
   }
 
-  const REFRESHING_L = '即将刷新|即將重設|Refreshing|間もなく更新|곧 초기화|Actualizando|Actualisation|Aktualisiert'.split('|');
+  const REFRESHING_L = '即将刷新|即將重設|Refreshing'.split('|');
 
-  const ETA_U = ['天|小时|分|分钟|', '天|小時|分|分鐘|', 'd|h|m|m| ', '日|時間|分|分|', '일|시간|분|분| ', 'd|h|m|m| ', 'j|h|m|m| ', 'T|Std|m|m| '];
+  const ETA_U = ['天|小时|分|分钟|', '天|小時|分|分鐘|', 'd|h|m|m| '];
   function fmtEtaSec(totalSec, l) {
     const d = Math.floor(totalSec / 86400);
     const h = Math.floor((totalSec % 86400) / 3600);
@@ -649,10 +639,10 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
   }
 
   const Q_LBL = {
-    exhaust: '提前耗尽|提前耗盡|Depleting early|早期枯渇予測|조기 소진 예상|Se agota pronto|Épuisement rapide|Bald erschöpft'.split('|'),
-    tight: '配速偏紧|配速偏緊|Burning fast|消費やや速め|소모 빠름|Consumo rápido|Conso rapide|Hoher Verbrauch'.split('|'),
-    ok: '配额充裕|配額充裕|On track|ペース良好|정상 페이스|En rango|Dans les temps|Im Plan'.split('|'),
-    idle: '待命充裕|待命充裕|Standby|待機中|대기 중|En espera|En veille|Bereit'.split('|'),
+    exhaust: '提前耗尽|提前耗盡|Depleting early'.split('|'),
+    tight: '配速偏紧|配速偏緊|Burning fast'.split('|'),
+    ok: '配额充裕|配額充裕|On track'.split('|'),
+    idle: '待命充裕|待命充裕|Standby'.split('|'),
   };
   function groupQuotaPace(group, langOrZh, nowMs = Date.now()) {
     const l = resolveLang(langOrZh);
@@ -668,11 +658,11 @@ losttime|1647000|追忆似水年华|追憶似水年華|失われた時を求め�
     if (primary) {
       if (primary.willExhaust && primary.exhaustInMs !== null) {
         const eta = shortEta(primary.exhaustInMs, l);
-        detail = pick8([`预计 ${eta}后耗尽`, `預計 ${eta}後耗盡`, `Est. empty in ${eta}`, `約${eta}で枯渇予測`, `약 ${eta} 후 소진`, `Se agota en ~${eta}`, `Vide dans ~${eta}`, `Leer in ~${eta}`], l);
+        detail = pick8([`预计 ${eta}后耗尽`, `預計 ${eta}後耗盡`, `Est. empty in ${eta}`], l);
       } else if (primary.resetInMs > 0) {
         const eta = shortEta(primary.resetInMs, l);
         const endPct = Math.round(primary.endRemaining * 100);
-        detail = pick8([`${eta}后重置 · 预计结余 ${endPct}%`, `${eta}後重設 · 預計結餘 ${endPct}%`, `Resets in ${eta} · Est. ${endPct}% left`, `${eta}後に更新 · 予測残 ${endPct}%`, `${eta} 후 초기화 · 예상 잔여 ${endPct}%`, `Reinicio en ${eta} · Est. ${endPct}%`, `Reset dans ${eta} · Est. ${endPct}%`, `Reset in ${eta} · Ca. ${endPct}%`], l);
+        detail = pick8([`${eta}后重置 · 预计结余 ${endPct}%`, `${eta}後重設 · 預計結餘 ${endPct}%`, `Resets in ${eta} · Est. ${endPct}% left`], l);
       }
     }
     return { status, label, detail, primary, forecasts };

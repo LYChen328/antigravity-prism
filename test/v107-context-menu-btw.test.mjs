@@ -725,11 +725,12 @@ test('8. 8-language live sync (zh-CN, zh-TW, en, ja, ko, es, fr, de) + yue->zh-C
     ['zh-HK', 'zh-TW', '複製', '開啟側邊會話'],
     ['yue', 'zh-CN', '复制', '打开侧边会话'],
     ['en', 'en', 'Copy', 'Open side chat'],
-    ['ja', 'ja', 'コピー', 'サイド会話を開く'],
-    ['ko', 'ko', '복사', '사이드 채팅 열기'],
-    ['es', 'es', 'Copiar', 'Abrir chat lateral'],
-    ['fr', 'fr', 'Copier', 'Ouvrir le chat latéral'],
-    ['de', 'de', 'Kopieren', 'Seitenchat öffnen'],
+    ['ja', 'en', 'Copy', 'Open side chat'],
+    ['ko', 'en', 'Copy', 'Open side chat'],
+    ['es', 'en', 'Copy', 'Open side chat'],
+    ['fr', 'en', 'Copy', 'Open side chat'],
+    ['de', 'en', 'Copy', 'Open side chat'],
+    ['tr', 'en', 'Copy', 'Open side chat'],
   ];
 
   ctl.openAt(100, 100, { selectedText: 'hello' });

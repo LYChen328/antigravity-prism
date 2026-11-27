@@ -147,7 +147,7 @@ test('1. Issue #107: style.css strips dark/light sharp box border/outline/box-sh
     '#antigravity.agentSidePanelInputBox focus states must clear border/outline/box-shadow'
   );
   // Inner .surface-composer-card retains rounded prism border & :focus-within glow
-  assert.ok(rawCss.includes('& .surface-composer-card{') && rawCss.includes('&:focus-within{border-color:var(--ag-prism-b38) !important;'));
+  assert.ok(rawCss.includes('& .surface-composer-card{') && rawCss.includes('&:focus-within{border-color:var(--card-border,var(--ag-cs-border-2))!important;'));
   // Redundant >body:is(.theme-light,.light-theme,.light) aliases purged from style.css
   assert.equal(rawCss.includes('>body:is(.theme-light,.light-theme,.light)'), false, 'style.css must drop redundant >body:is(.theme-light,...) aliases');
 });

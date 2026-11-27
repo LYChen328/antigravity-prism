@@ -18,7 +18,7 @@ const hostI18nRuntime = require(path.join(ROOT, 'vendor/host-i18n/host-i18n-runt
 const reversePatterns = require(path.join(ROOT, 'vendor/host-i18n/reverse-patterns.js'));
 const zhDict = JSON.parse(fs.readFileSync(path.join(ROOT, 'vendor/host-i18n/zh-CN.json'), 'utf8'));
 
-const SUPPORTED_8 = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'];
+const SUPPORTED_3 = ['zh-CN', 'zh-TW', 'en'];
 const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
 
 function createMiniDom(htmlLang = 'en') {
@@ -306,22 +306,22 @@ function createMiniDom(htmlLang = 'en') {
   return { doc, win, rootEl, body, observers, MiniNode };
 }
 
-test('Battle 2: 8-language contract, zero yue in UI/VALIDATORS, and smooth legacy yue -> zh-CN migration', () => {
-  assert.deepEqual(i18nCore.SUPPORTED_LANG_IDS, SUPPORTED_8);
+test('Battle 2: 3-language contract, zero yue/removed langs in UI/VALIDATORS, and smooth yue->zh-CN & removed->en migration', () => {
+  assert.deepEqual(i18nCore.SUPPORTED_LANG_IDS, SUPPORTED_3);
   assert.deepEqual(
     i18nCore.LANG_OPTIONS.map((o) => o.id),
-    SUPPORTED_8
+    SUPPORTED_3
   );
   assert.equal(i18nCore.LANG_OPTIONS.some((o) => o.id === 'yue'), false);
-  assert.deepEqual(cdp.VALIDATORS.language, ['auto', ...SUPPORTED_8]);
-  assert.deepEqual(cdp.VALIDATORS.lang, ['auto', ...SUPPORTED_8]);
+  assert.deepEqual(cdp.VALIDATORS.language, ['auto', ...SUPPORTED_3]);
+  assert.deepEqual(cdp.VALIDATORS.lang, ['auto', ...SUPPORTED_3]);
   assert.equal(cdp.validateConfigEntry('language', 'yue'), false);
   assert.equal(cdp.validateConfigEntry('lang', 'yue'), false);
-  for (const l of SUPPORTED_8) {
+  for (const l of SUPPORTED_3) {
     assert.equal(cdp.validateConfigEntry('language', l), true, `VALIDATORS must accept ${l}`);
   }
 
-  // Smooth legacy yue migration
+  // Smooth legacy yue -> zh-CN & removed locales -> en migration
   for (const legacy of ['yue', 'yue-HK', 'zh-yue', 'cantonese']) {
     const rec = cdp.reconcileConfigAliases({ language: legacy });
     assert.equal(rec.language, 'zh-CN', `reconcileConfigAliases(${legacy}) -> zh-CN`);
@@ -332,60 +332,58 @@ test('Battle 2: 8-language contract, zero yue in UI/VALIDATORS, and smooth legac
   assert.equal(recLangOnly.language, 'zh-CN');
   assert.equal(recLangOnly.lang, 'zh-CN');
 
-  // New locales & zh-HK/zh-MO normalization
+  for (const removed of ['ja', 'ko-KR', 'es-MX', 'fr-CA', 'de-AT', 'tr-TR']) {
+    assert.equal(i18nCore.normalizeLanguage(removed), 'en', `Removed locale ${removed} -> en`);
+    const recRemoved = cdp.reconcileConfigAliases({ language: removed });
+    assert.equal(recRemoved.language, 'en');
+    assert.equal(recRemoved.lang, 'en');
+  }
+
+  // zh-HK/zh-MO normalization & unknown fallback
   assert.equal(i18nCore.normalizeLanguage('zh-HK'), 'zh-TW');
   assert.equal(i18nCore.normalizeLanguage('zh-MO'), 'zh-TW');
-  assert.equal(i18nCore.normalizeLanguage('ko-KR'), 'ko');
-  assert.equal(i18nCore.normalizeLanguage('es-MX'), 'es');
-  assert.equal(i18nCore.normalizeLanguage('fr-CA'), 'fr');
-  assert.equal(i18nCore.normalizeLanguage('de-AT'), 'de');
   assert.equal(i18nCore.normalizeLanguage('pt-BR', 'en'), 'en');
 
-  // isCjkLanguage strictly true only for zh-CN / zh-TW / ja / ko
-  for (const cjk of ['zh-CN', 'zh-TW', 'ja', 'ko']) {
+  // isCjkLanguage strictly true only for zh-CN / zh-TW
+  for (const cjk of ['zh-CN', 'zh-TW']) {
     assert.equal(i18nCore.isCjkLanguage(cjk), true, `${cjk} should be CJK`);
   }
-  for (const latin of ['en', 'es', 'fr', 'de']) {
-    assert.equal(i18nCore.isCjkLanguage(latin), false, `${latin} must NOT be CJK`);
+  for (const nonCjk of ['en', 'ja', 'ko', 'es', 'fr', 'de', 'tr']) {
+    assert.equal(i18nCore.isCjkLanguage(nonCjk), false, `${nonCjk} must NOT be CJK`);
   }
 });
 
-test('Battle 2 CI Guard: 100% 9-locale parity in i18n-locales.js and 0 CJK leakage in Latin locales', () => {
-  assert.deepEqual(i18nLocales.LANG_IDS, SUPPORTED_8);
+test('Battle 2 CI Guard: 100% 3-locale parity in i18n-locales.js and 0 CJK leakage in en', () => {
+  assert.deepEqual(i18nLocales.LANG_IDS, SUPPORTED_3);
   const keys = Object.keys(i18nLocales.UI_TABLE);
   assert.ok(keys.length >= 270, `Expected >=270 UI_TABLE keys, got ${keys.length}`);
 
   for (const key of keys) {
     const row = i18nLocales.UI_TABLE[key];
-    assert.ok(Array.isArray(row) && row.length === 9, `UI_TABLE.${key} must have exactly 9 locales`);
-    for (let i = 0; i < 9; i++) {
+    assert.ok(Array.isArray(row) && row.length === 3, `UI_TABLE.${key} must have exactly 3 locales`);
+    for (let i = 0; i < 3; i++) {
       assert.equal(typeof row[i], 'string', `UI_TABLE.${key}[${i}] must be string`);
       assert.ok(row[i].trim().length > 0, `UI_TABLE.${key}[${i}] must be non-empty`);
     }
-    // Pure EN / ES / FR / DE / TR must never leak CJK characters
-    for (const [idx, code] of [[2, 'en'], [5, 'es'], [6, 'fr'], [7, 'de'], [8, 'tr']]) {
-      assert.equal(
-        CJK_RE.test(row[idx]),
-        false,
-        `CJK leakage detected in UI_TABLE.${key} (${code}): ${JSON.stringify(row[idx])}`
-      );
-    }
+    // Pure EN must never leak CJK characters
+    assert.equal(
+      CJK_RE.test(row[2]),
+      false,
+      `CJK leakage detected in UI_TABLE.${key} (en): ${JSON.stringify(row[2])}`
+    );
   }
 
-  for (const lang of ['en', 'es', 'fr', 'de', 'tr']) {
-    const ui = i18nLocales.getUiStrings(lang);
-    assert.equal(CJK_RE.test(ui.swarmSplitSub(68, 32)), false, `swarmSplitSub leaked CJK in ${lang}`);
-    assert.equal(CJK_RE.test(ui.showMoreN(4)), false, `showMoreN leaked CJK in ${lang}`);
-  }
+  const enUi = i18nLocales.getUiStrings('en');
+  assert.equal(CJK_RE.test(enUi.swarmSplitSub(68, 32)), false, 'swarmSplitSub leaked CJK in en');
+  assert.equal(CJK_RE.test(enUi.showMoreN(4)), false, 'showMoreN leaked CJK in en');
 
   // Unknown language falls back to EN, never zh-CN
   const unknownUi = i18nLocales.getUiStrings('pt-BR');
-  const enUi = i18nLocales.getUiStrings('en');
   assert.equal(unknownUi.sectionTitle, enUi.sectionTitle);
   assert.equal(CJK_RE.test(unknownUi.foldExpandHint), false);
 
   // Runtime slice budget < 4 KB per language
-  for (const lang of SUPPORTED_8) {
+  for (const lang of SUPPORTED_3) {
     const slice = i18nLocales.getRuntimeUiSlice(lang);
     assert.equal(slice.lang, lang);
     const bytes = Buffer.byteLength(JSON.stringify(slice), 'utf8');
@@ -410,8 +408,8 @@ test('Battle 2 Channel 1 Slimming (< 550 KB across all 9 language modes), SYNC_R
     assert.equal(cdp.SYNC_ROOT_FILES.includes(mod), true, `${mod} MUST remain in SYNC_ROOT_FILES for installer/updater`);
   }
 
-  // Channel 1 strict < 550,000 B across all 9 language settings
-  for (const lang of ['auto', ...SUPPORTED_8]) {
+  // Channel 1 strict < 550,000 B across auto + 3 language settings
+  for (const lang of ['auto', ...SUPPORTED_3]) {
     const expr = cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: lang });
     const bytes = Buffer.byteLength(expr, 'utf8');
     assert.ok(bytes < 550_000, `Channel 1 (${lang}) exceeded 550,000 B budget: ${bytes} B`);
@@ -614,7 +612,7 @@ test('Battle 2 Settings Panel: displays off-enforced chip and off-blocked amber 
       `EN settings panel leaked CJK: ${stripAllowedProperNouns(secEnforced.textContent)}`
     );
     const langBtns = secEnforced.querySelectorAll('button[data-ag-cs-key="language"]');
-    assert.equal(langBtns.length, 9, 'Must render exactly 9 language buttons (no yue)');
+    assert.equal(langBtns.length, 3, 'Must render exactly 3 language buttons (no yue or removed locales)');
     assert.ok(
       secEnforced.textContent.includes(i18nLocales.getUiStrings('en').hostLocStatusEnforced),
       'Must show off-enforced status text'

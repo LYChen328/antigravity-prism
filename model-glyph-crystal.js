@@ -223,7 +223,7 @@
     };
 
     const buildPanelRowGlyphSvg = (b, t, s, m = false) =>
-      b === 'antigravity'
+      b === 'antigravity' || b === 'gemini'
         ? renderSparkSvg(15, s ? t || 'auto' : 'low', !s || m, 'ag-cs-model-glyph-svg')
         : svgW('ag-cs-model-glyph-svg', 15, '0 0 24 24', `<path d="${BRAND_PATHS[b] || BRAND_PATHS.gemini}" ${s && !m ? 'style="fill:var(--glyph-color-hi);fill-opacity:1"' : `fill="currentColor" fill-opacity="${s ? '0.95' : '0.72'}"`} fill-rule="evenodd"/>`);
 

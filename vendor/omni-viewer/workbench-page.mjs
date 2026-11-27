@@ -1,5 +1,4 @@
 // Obsidian Prism — Omni Streaming Workbench Frontend (workbench-page.mjs)
-import { WORKBENCH_I18N_TR } from './workbench-i18n-tr.mjs';
 
 const EXT_KIND_MAP = Object.freeze({
   mp4: 'video', webm: 'video', mov: 'video', m4v: 'video', mkv: 'video', ogv: 'video', avi: 'video',
@@ -179,56 +178,55 @@ export function formatTimecodeMs(seconds) {
   return `${pad2(min)}:${pad2(sec)}.${pad3(ms)}`;
 }
 
-// 9-language table: [zh-CN, zh-TW, en, ja, ko, es, fr, de, tr]
+// 3-language table: [zh-CN, zh-TW, en]
 export const WORKBENCH_I18N = {
-  viewCanvas: ['画布', '畫布', 'Canvas', 'キャンバス', '캔버스', 'Lienzo', 'Canevas', 'Leinwand'],
-  viewSource: ['源码', '原始碼', 'Source', 'ソース', '소스', 'Código', 'Source', 'Quelltext'],
-  viewPreview: ['预览', '預覽', 'Preview', 'プレビュー', '미리보기', 'Vista previa', 'Aperçu', 'Vorschau'],
-  viewSplit: ['对照', '對照', 'Split', '分割', '분할', 'Dividido', 'Scindé', 'Geteilt'],
-  viewTable: ['表格', '表格', 'Table', 'テーブル', '표', 'Tabla', 'Tableau', 'Tabelle'],
-  viewRaw: ['纯文本', '純文字', 'Raw Text', 'テキスト', '원문', 'Texto sin formato', 'Texte brut', 'Rohtext'],
-  bgChecker: ['棋盘格', '棋盤格', 'Checker', 'チェッカー', '체커', 'Damero', 'Damier', 'Raster'],
-  bgCheckerLight: ['浅棋盘格', '淺棋盤格', 'Light Checker', '明チェッカー', '밝은 체커', 'Damero claro', 'Damier clair', 'Helles Raster'],
-  bgCheckerDark: ['深棋盘格', '深棋盤格', 'Dark Checker', '暗チェッカー', '어두운 체커', 'Damero oscuro', 'Damier sombre', 'Dunkles Raster'],
-  bgDark: ['深色底', '深色底', 'Dark', 'ダーク', '어둡게', 'Oscuro', 'Sombre', 'Dunkel'],
-  bgLight: ['浅色底', '淺色底', 'Light', 'ライト', '밝게', 'Claro', 'Clair', 'Hell'],
-  fitWin: ['适应窗口', '適應視窗', 'Fit', '全体表示', '맞춤', 'Ajustar', 'Ajuster', 'Anpassen'],
-  zoom100: ['1:1', '1:1', '1:1', '1:1', '1:1', '1:1', '1:1', '1:1'],
-  copySvg: ['复制 SVG', '複製 SVG', 'Copy SVG', 'SVG コピー', 'SVG 복사', 'Copiar SVG', 'Copier SVG', 'SVG kopieren'],
-  copyText: ['复制内容', '複製內容', 'Copy', 'コピー', '복사', 'Copiar', 'Copier', 'Kopieren'],
-  prevFrame: ['< 1帧', '< 1幀', '-1F', '< 1F', '-1F', '-1F', '-1F', '-1F'],
-  nextFrame: ['1帧 >', '1幀 >', '+1F', '1F >', '+1F', '+1F', '+1F', '+1F'],
-  playPause: ['播放 / 暂停', '播放 / 暫停', 'Play / Pause', '再生 / 一時停止', '재생 / 일시정지', 'Reproducir / Pausa', 'Lire / Pause', 'Wiedergabe / Pause'],
-  loopOne: ['循环', '循環', 'Loop', 'ループ', '반복', 'Bucle', 'Boucle', 'Schleife'],
-  setPointA: ['设 A 点', '設 A 點', 'Set A', 'A点', 'A 지정', 'Fijar A', 'Définir A', 'A setzen'],
-  setPointB: ['设 B 点', '設 B 點', 'Set B', 'B点', 'B 지정', 'Fijar B', 'Définir B', 'B setzen'],
-  clearAB: ['清除 A-B', '清除 A-B', 'Clear A-B', 'A-B解除', 'A-B 해제', 'Borrar A-B', 'Effacer A-B', 'A-B löschen'],
-  saveFrame: ['下载帧 PNG', '下載幀 PNG', 'Save Frame', 'フレーム保存', '프레임 저장', 'Guardar fotograma', 'Enregistrer l’image', 'Frame speichern'],
-  copyFrame: ['复制帧', '複製幀', 'Copy Frame', 'フレームコピー', '프레임 복사', 'Copiar fotograma', 'Copier l’image', 'Frame kopieren'],
-  addMarker: ['+ 打点', '+ 打點', '+ Marker', '+ マーカー', '+ 마커', '+ Marcador', '+ Marqueur', '+ Marker'],
-  copyMarkers: ['复制时间点', '複製時間點', 'Copy Timecodes', 'タイムコードコピー', '타임코드 복사', 'Copiar códigos', 'Copier les codes', 'Timecodes kopieren'],
-  vpDesktop: ['桌面 100%', '桌面 100%', 'Desktop 100%', 'デスクトップ', '데스크톱 100%', 'Escritorio 100%', 'Bureau 100%', 'Desktop 100%'],
-  vpTablet: ['平板 768px', '平板 768px', 'Tablet 768px', 'タブレット 768', '태블릿 768px', 'Tableta 768px', 'Tablette 768px', 'Tablet 768px'],
-  vpMobile: ['手机 390px', '手機 390px', 'Mobile 390px', 'モバイル 390', '모바일 390px', 'Móvil 390px', 'Mobile 390px', 'Mobil 390px'],
-  reloadBtn: ['刷新', '重新整理', 'Reload', '再読込', '새로고침', 'Recargar', 'Recharger', 'Neu laden'],
-  filterPh: ['搜索过滤数据行…', '搜尋過濾資料列…', 'Filter rows…', '行を絞り込む…', '행 필터링…', 'Filtrar filas…', 'Filtrer les lignes…', 'Zeilen filtern…'],
-  loadMore: ['加载更多切片', '載入更多切片', 'Load More', 'さらに読み込む', '더 불러오기', 'Cargar más', 'Charger plus', 'Mehr laden'],
-  prevPage: ['上一页', '上一頁', 'Prev', '前へ', '이전', 'Anterior', 'Préc.', 'Zurück'],
-  nextPage: ['下一页', '下一頁', 'Next', '次へ', '다음', 'Siguiente', 'Suiv.', 'Weiter'],
-  rowsUnit: ['行', '列', 'rows', '行', '행', 'filas', 'lignes', 'Zeilen'],
-  colsUnit: ['列', '欄', 'cols', '列', '열', 'cols', 'cols', 'Spalten'],
-  fontPh: ['输入样张测试文本…', '輸入樣張測試文字…', 'Type sample text…', 'テスト文字列を入力…', '샘플 텍스트 입력…', 'Escribe texto de prueba…', 'Saisir un texte d’essai…', 'Beispieltext eingeben…'],
-  fontLiga: ['编程连字', '程式連字', 'Ligatures', '合字', '합자', 'Ligaduras', 'Ligatures', 'Ligaturen'],
-  wrapLines: ['自动换行', '自動換行', 'Wrap', '折り返し', '줄 바꿈', 'Ajuste de línea', 'Retour à la ligne', 'Zeilenumbruch'],
-  copiedOk: ['已复制到剪贴板', '已複製到剪貼簿', 'Copied to clipboard', 'コピーしました', '클립보드에 복사됨', 'Copiado al portapapeles', 'Copié dans le presse-papiers', 'In Zwischenablage kopiert'],
-  savedPng: ['已导出 PNG', '已匯出 PNG', 'PNG exported', 'PNGを書き出しました', 'PNG 내보내기 완료', 'PNG exportado', 'PNG exporté', 'PNG exportiert'],
-  loading: ['正在加载…', '正在載入…', 'Loading…', '読み込み中…', '불러오는 중…', 'Cargando…', 'Chargement…', 'Wird geladen…'],
-  emptyData: ['暂无可展示内容', '暫無可顯示內容', 'No content to display', '表示するデータがありません', '표시할 내용이 없습니다', 'Sin contenido para mostrar', 'Aucun contenu à afficher', 'Keine Inhalte anzuzeigen'],
-  loadError: ['加载失败', '載入失敗', 'Failed to load file', '読み込みに失敗しました', '파일을 불러오지 못했습니다', 'Error al cargar el archivo', 'Échec du chargement', 'Datei konnte nicht geladen werden'],
-  waitingMermaid: ['等待传入图表数据…', '等待傳入圖表資料…', 'Waiting for diagram payload…', '図表データを待機中…', '다이어그램 데이터 대기 중…', 'Esperando datos del diagrama…', 'En attente du diagramme…', 'Warte auf Diagrammdaten…'],
-  sandboxIsolated: ['沙盒隔离', '沙盒隔離', 'Sandbox Isolated', 'サンドボックス隔離', '샌드박스 격리', 'Aislado en sandbox', 'Isolé en sandbox', 'Sandbox-isoliert'],
+  viewCanvas: ["画布","畫布","Canvas"],
+  viewSource: ["源码","原始碼","Source"],
+  viewPreview: ["预览","預覽","Preview"],
+  viewSplit: ["对照","對照","Split"],
+  viewTable: ["表格","表格","Table"],
+  viewRaw: ["纯文本","純文字","Raw Text"],
+  bgChecker: ["棋盘格","棋盤格","Checker"],
+  bgCheckerLight: ["浅棋盘格","淺棋盤格","Light Checker"],
+  bgCheckerDark: ["深棋盘格","深棋盤格","Dark Checker"],
+  bgDark: ["深色底","深色底","Dark"],
+  bgLight: ["浅色底","淺色底","Light"],
+  fitWin: ["适应窗口","適應視窗","Fit"],
+  zoom100: ["1:1","1:1","1:1"],
+  copySvg: ["复制 SVG","複製 SVG","Copy SVG"],
+  copyText: ["复制内容","複製內容","Copy"],
+  prevFrame: ["< 1帧","< 1幀","-1F"],
+  nextFrame: ["1帧 >","1幀 >","+1F"],
+  playPause: ["播放 / 暂停","播放 / 暫停","Play / Pause"],
+  loopOne: ["循环","循環","Loop"],
+  setPointA: ["设 A 点","設 A 點","Set A"],
+  setPointB: ["设 B 点","設 B 點","Set B"],
+  clearAB: ["清除 A-B","清除 A-B","Clear A-B"],
+  saveFrame: ["下载帧 PNG","下載幀 PNG","Save Frame"],
+  copyFrame: ["复制帧","複製幀","Copy Frame"],
+  addMarker: ["+ 打点","+ 打點","+ Marker"],
+  copyMarkers: ["复制时间点","複製時間點","Copy Timecodes"],
+  vpDesktop: ["桌面 100%","桌面 100%","Desktop 100%"],
+  vpTablet: ["平板 768px","平板 768px","Tablet 768px"],
+  vpMobile: ["手机 390px","手機 390px","Mobile 390px"],
+  reloadBtn: ["刷新","重新整理","Reload"],
+  filterPh: ["搜索过滤数据行…","搜尋過濾資料列…","Filter rows…"],
+  loadMore: ["加载更多切片","載入更多切片","Load More"],
+  prevPage: ["上一页","上一頁","Prev"],
+  nextPage: ["下一页","下一頁","Next"],
+  rowsUnit: ["行","列","rows"],
+  colsUnit: ["列","欄","cols"],
+  fontPh: ["输入样张测试文本…","輸入樣張測試文字…","Type sample text…"],
+  fontLiga: ["编程连字","程式連字","Ligatures"],
+  wrapLines: ["自动换行","自動換行","Wrap"],
+  copiedOk: ["已复制到剪贴板","已複製到剪貼簿","Copied to clipboard"],
+  savedPng: ["已导出 PNG","已匯出 PNG","PNG exported"],
+  loading: ["正在加载…","正在載入…","Loading…"],
+  emptyData: ["暂无可展示内容","暫無可顯示內容","No content to display"],
+  loadError: ["加载失败","載入失敗","Failed to load file"],
+  waitingMermaid: ["等待传入图表数据…","等待傳入圖表資料…","Waiting for diagram payload…"],
+  sandboxIsolated: ["沙盒隔离","沙盒隔離","Sandbox Isolated"],
 };
-for (const [k, v] of Object.entries(WORKBENCH_I18N_TR)) { if (WORKBENCH_I18N[k]) WORKBENCH_I18N[k].push(v); }
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -513,13 +511,14 @@ html, body {
 `;
 
 function bootPrismWorkbench(INIT_STATE, I18N_TABLE) {
-  const LANG_IDX = { 'zh-CN': 0, 'zh-TW': 1, en: 2, ja: 3, ko: 4, es: 5, fr: 6, de: 7, tr: 8 };
+  const LANG_IDX = { 'zh-CN': 0, 'zh-TW': 1, en: 2 };
   const normalizeLang = (raw) => {
     const s = String(raw || '').trim();
     const lo = s.toLowerCase();
     if (lo === 'yue' || lo.startsWith('yue-') || lo === 'zh-yue' || lo.includes('cantonese')) return 'zh-CN';
     if (lo === 'zh-hk' || lo === 'zh-mo' || lo === 'zh-tw' || lo.startsWith('zh-hant')) return 'zh-TW';
-    if (lo === 'tr' || lo.startsWith('tr-') || lo === 'turkish' || lo === 'türkçe') return 'tr';
+    if (lo === 'en' || lo.startsWith('en-')) return 'en';
+    if (/^(?:ja|jp|ko|kr|es|fr|de|tr)(?:$|[-_])|^(?:japanese|korean|spanish|french|german|turkish|türkçe)$/.test(lo)) return 'en';
     return Object.prototype.hasOwnProperty.call(LANG_IDX, s) ? s : 'zh-CN';
   };
   const urlQs = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
@@ -2784,9 +2783,11 @@ export function renderWorkbenchHtml(ctx = {}) {
       ? 'zh-CN'
       : rawLangLow === 'zh-hk' || rawLangLow === 'zh-mo' || rawLangLow === 'zh-tw' || rawLangLow.startsWith('zh-hant')
       ? 'zh-TW'
-      : rawLangLow === 'tr' || rawLangLow.startsWith('tr-') || rawLangLow === 'turkish' || rawLangLow === 'türkçe'
-      ? 'tr'
-      : ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'tr'].includes(rawLang)
+      : rawLangLow === 'en' || rawLangLow.startsWith('en-')
+      ? 'en'
+      : /^(?:ja|jp|ko|kr|es|fr|de|tr)(?:$|[-_])|^(?:japanese|korean|spanish|french|german|turkish|türkçe)$/.test(rawLangLow)
+      ? 'en'
+      : ['zh-CN', 'zh-TW', 'en'].includes(rawLang)
       ? rawLang
       : 'zh-CN';
   const fileName = String(ctx.name ?? ctx.fileName ?? (extractFileName(filePath) || (resolvedKind === 'mermaid' ? 'Mermaid Diagram' : 'Workbench')));

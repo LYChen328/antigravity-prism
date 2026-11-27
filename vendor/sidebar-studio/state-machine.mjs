@@ -1,5 +1,4 @@
 // Obsidian Prism 双极工作台共享纯状态机（零 DOM/IO 纯函数）
-import { TR_GREETING_POOL, TR_HERO_GREETING_POOL } from './greetings-tr.mjs';
 
 export const SCHEMA_VERSION = 2;
 
@@ -131,85 +130,14 @@ export const GREETING_POOLS = Object.freeze({
       "What's on your mind?",
     ]),
   }),
-  ja: Object.freeze({
-    withUser: Object.freeze([
-      '{user}さん、おかえり！',
-      'こんにちは、{user}さん。',
-      '今日は何を話しましょうか、{user}さん？',
-      'いつでも始められます、{user}さん。',
-    ]),
-    anonymous: Object.freeze([
-      'おかえりなさい！',
-      '今日は何を話しましょうか？',
-      'いつでも始められます。',
-    ]),
-  }),
-  ko: Object.freeze({
-    withUser: Object.freeze([
-      '안녕하세요, {user}님!',
-      '{user}님, 어서 오세요!',
-      '오늘은 무엇을 이야기해 볼까요, {user}님?',
-      '언제든 시작하세요, {user}님.',
-    ]),
-    anonymous: Object.freeze([
-      '어서 오세요!',
-      '오늘은 무엇을 이야기해 볼까요?',
-      '언제든 시작하세요.',
-    ]),
-  }),
-  es: Object.freeze({
-    withUser: Object.freeze([
-      '¡Hola, {user}!',
-      '¡Qué bueno verte, {user}!',
-      '¿Qué tienes en mente hoy, {user}?',
-      'Listo cuando quieras, {user}.',
-    ]),
-    anonymous: Object.freeze([
-      '¡Hola!',
-      '¿Qué tienes en mente hoy?',
-      'Listo cuando quieras.',
-    ]),
-  }),
-  fr: Object.freeze({
-    withUser: Object.freeze([
-      'Bonjour, {user} !',
-      'Ravi de vous revoir, {user} !',
-      'De quoi souhaitez-vous discuter, {user} ?',
-      'Prêt quand vous voulez, {user}.',
-    ]),
-    anonymous: Object.freeze([
-      'Bonjour !',
-      'De quoi souhaitez-vous discuter ?',
-      'Prêt quand vous voulez.',
-    ]),
-  }),
-  de: Object.freeze({
-    withUser: Object.freeze([
-      'Hallo, {user}!',
-      'Schön, dass du da bist, {user}!',
-      'Worüber möchtest du heute sprechen, {user}?',
-      'Bereit, wann immer du willst, {user}.',
-    ]),
-    anonymous: Object.freeze([
-      'Hallo!',
-      'Worüber möchtest du heute sprechen?',
-      'Bereit, wann immer du willst.',
-    ]),
-  }),
-  tr: TR_GREETING_POOL,
 });
 
 export function normalizeGreetingLang(rawLang) {
   const s = String(rawLang || 'zh-CN').trim().toLowerCase();
   if (s === 'zh-tw' || s === 'zh-hk' || s === 'zh-mo' || s === 'zh-hant' || s.startsWith('zh-hant')) return 'zh-TW';
   if (s === 'yue' || s.startsWith('yue-') || s === 'zh-yue' || s.includes('cantonese')) return 'zh-CN';
-  if (s.startsWith('ja')) return 'ja';
-  if (s.startsWith('ko')) return 'ko';
-  if (s.startsWith('es')) return 'es';
-  if (s.startsWith('fr')) return 'fr';
-  if (s.startsWith('de')) return 'de';
-  if (s.startsWith('tr') || s === 'turkish' || s === 'türkçe') return 'tr';
   if (s.startsWith('en')) return 'en';
+  if (s.startsWith('ja') || s.startsWith('ko') || s.startsWith('es') || s.startsWith('fr') || s.startsWith('de') || s.startsWith('tr') || s === 'turkish' || s === 'türkçe') return 'en';
   return 'zh-CN';
 }
 
@@ -282,88 +210,6 @@ export const HERO_GREETING_POOLS = Object.freeze({
       'What would you like to explore?',
     ]),
   }),
-  ja: Object.freeze({
-    eyebrowWithUser: Object.freeze([
-      'こんにちは、{user}さん',
-      'おかえりなさい、{user}さん',
-      '{user}さん、準備はいいですか',
-    ]),
-    eyebrowAnonymous: Object.freeze([
-      'こんにちは',
-      'おかえりなさい',
-      'いつでも始められます',
-    ]),
-    headlines: Object.freeze([
-      '今日は何をお手伝いしましょうか？',
-      'どこから始めましょうか？',
-      'どんなアイデアでも気軽にどうぞ。',
-    ]),
-  }),
-  ko: Object.freeze({
-    eyebrowWithUser: Object.freeze([
-      '안녕하세요, {user}님',
-      '다시 오셨군요, {user}님',
-    ]),
-    eyebrowAnonymous: Object.freeze([
-      '안녕하세요',
-      '다시 오셨군요',
-      '언제든 시작할 수 있어요',
-    ]),
-    headlines: Object.freeze([
-      '오늘은 무엇을 도와드릴까요?',
-      '어디서부터 시작해 볼까요?',
-      '새로운 아이디어를 편하게 들려주세요.',
-    ]),
-  }),
-  es: Object.freeze({
-    eyebrowWithUser: Object.freeze([
-      'Hola, {user}',
-      'Bienvenido de nuevo, {user}',
-    ]),
-    eyebrowAnonymous: Object.freeze([
-      'Hola',
-      'Bienvenido de nuevo',
-      'Listo cuando quieras',
-    ]),
-    headlines: Object.freeze([
-      '¿Por dónde empezamos?',
-      '¿En qué puedo ayudarte hoy?',
-      '¿Qué te gustaría explorar?',
-    ]),
-  }),
-  fr: Object.freeze({
-    eyebrowWithUser: Object.freeze([
-      'Bonjour, {user}',
-      'Bon retour, {user}',
-    ]),
-    eyebrowAnonymous: Object.freeze([
-      'Bonjour',
-      'Bon retour',
-      'Prêt quand vous l’êtes',
-    ]),
-    headlines: Object.freeze([
-      'Par où commençons-nous ?',
-      'Comment puis-je vous aider aujourd’hui ?',
-      'Que souhaitez-vous explorer ?',
-    ]),
-  }),
-  de: Object.freeze({
-    eyebrowWithUser: Object.freeze([
-      'Hallo, {user}',
-      'Willkommen zurück, {user}',
-    ]),
-    eyebrowAnonymous: Object.freeze([
-      'Hallo',
-      'Willkommen zurück',
-      'Bereit, wann immer du bist',
-    ]),
-    headlines: Object.freeze([
-      'Womit sollen wir anfangen?',
-      'Wie kann ich dir heute helfen?',
-      'Was möchtest du erkunden?',
-    ]),
-  }),
-  tr: TR_HERO_GREETING_POOL,
 });
 
 export function formatHeroGreeting(lang = 'zh-CN', userName = '', seedIndex = 0) {

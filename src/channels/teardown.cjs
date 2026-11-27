@@ -288,6 +288,8 @@ const REMOVE_EXPRESSION = `(() => {
       'data-ag-prism-thought-owner',
       'data-ag-cs-home',
       'data-ag-cs-composer',
+      'data-ag-cs-rim',
+      'data-ag-cs-rim-style',
       'data-ag-cs-logo-ink',
       'data-ag-cs-sidebar',
       'data-ag-cs-sidebar-compact',

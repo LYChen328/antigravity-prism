@@ -47,7 +47,7 @@
       : Math.max(0, Math.min(1, +r > 1 ? +r / 100 : Number.isFinite(+r) ? +r : 1));
 
   function createPrismRimCanvasController({
-    isDestroyed, isDarkTheme, motionReduced, getMinFrameGapMs, getAmbientIntensity, getAccentTone,
+    isDestroyed, isDarkTheme, motionReduced, isPrismRimEnabled, getMinFrameGapMs, getAmbientIntensity, getAccentTone,
     canMountRealCanvas, setAttrIfChanged, runGuardedMut, getActiveCrystalTrack, setCrystalPointerClient,
     onPointerActivity, onComposerRimUpdate,
   }) {
@@ -80,15 +80,18 @@
       return p === 'warm' || p === 'claude' || (!dark && p === 'obsidian' && ga(h, 'data-ag-cs-light-preset') === 'alabaster') ? 'warm' : 'default';
     };
 
-    const rimOff = () => {
+    const rimMotionOff = () => {
       if (motionReduced?.()) return true;
       const m = ga(getHtml(), 'data-ag-cs-motion') || '';
       return m === 'off' || m === 'subtle';
     };
+    const boxOff = () => isPrismRimEnabled?.() === false || ga(getHtml(), 'data-ag-cs-rim') === 'off';
+    const rimOff = () => rimMotionOff();
 
     const isH = () => !!(getDoc()?.hidden);
     const isWB = () => isH() || ga(getHtml(), 'data-ag-cs-win-blur') === '1';
-    const isRimOn = () => !rimOff() && readAmb() > 0.001;
+    const isRimOn = () => !rimOff() && readAmb() > 0.001 && (!boxOff() || !!getActiveCrystalTrack?.());
+    const isBoxRimOn = () => !rimOff() && !boxOff() && readAmb() > 0.001;
     const ptrIn = () => ptr.x >= -1000;
     const hasLitRim = () => pBoxes.some((e) => !e.cl) || !!(orchE && !orchE.cl);
     const dragOff = () => { const h = getHtml(); return ga(h, 'data-ag-cs-resizing') === '1' || ga(h, 'data-ag-cs-mascot-drag') === '1'; };
@@ -144,8 +147,8 @@
       if (host?.hasAttribute?.(CV_A)) ra(host, CV_A);
     };
 
-    const pruneDet = (trk) => {
-      const keepBox = (b) => !dis(b) && ga(b, PB) === '1';
+    const pruneDet = (trk, bd = boxOff()) => {
+      const keepBox = (b) => !bd && !dis(b) && ga(b, PB) === '1';
       if (pBoxes.length) {
         let kept = null;
         for (let i = 0; i < pBoxes.length; i++) {
@@ -164,15 +167,15 @@
         if (orchE.box) unobs(boxRo, obsSet, orchE.box);
         orchE = null;
       }
-      for (const box of Array.from(obsSet)) if (dis(box) || (ga(box, PB) !== '1' && box !== trk)) unobs(boxRo, obsSet, box);
+      for (const box of Array.from(obsSet)) if (dis(box) || ((bd || ga(box, PB) !== '1') && box !== trk)) unobs(boxRo, obsSet, box);
     };
 
     const prOrp = (fullScan = true) => {
-      const trk = getActiveCrystalTrack?.() || null;
-      pruneDet(trk);
+      const bd = boxOff(), trk = getActiveCrystalTrack?.() || null;
+      pruneDet(trk, bd);
       const d = getDoc();
       if (!d || !isFn(d.querySelectorAll)) return;
-      const keepHost = (h) => !dis(h) && (ga(h, PB) === '1' || (trk && h === trk));
+      const keepHost = (h) => !dis(h) && ((!bd && ga(h, PB) === '1') || (trk && h === trk));
       if (!fullScan) {
         for (const cv of Array.from(trkCvs)) if (dis(cv) || !keepHost(cv.parentElement)) rmCv(cv);
         return;
@@ -218,6 +221,30 @@
       ctx.closePath();
     };
 
+    const reflSprs = new Map();
+    const getReflSpr = (dpr, dark) => {
+      const k = (dark ? '1|' : '0|') + Math.round(dpr * 100);
+      if (reflSprs.has(k)) return reflSprs.get(k);
+      const d = getDoc(), s = Math.ceil(56 * dpr), scv = d?.createElement?.('canvas');
+      if (!scv) { reflSprs.set(k, null); return null; }
+      scv.width = scv.height = s;
+      const c = scv.getContext?.('2d');
+      if (!isFn(c?.fill) || !isFn(c.translate) || !isFn(c.createLinearGradient)) { reflSprs.set(k, null); return null; }
+      const ox = 25 * dpr, oy = 24 * dpr;
+      fillRad(c, ox + 2 * dpr, oy + 3 * dpr, 26 * dpr, s, s, dark ? [0, 'rgba(248,252,255,.135)', .45, 'rgba(216,232,252,.05)', 1, 'rgba(200,220,250,0)'] : [0, 'rgba(37,99,235,.065)', 1, 'rgba(37,99,235,0)']);
+      for (const [dx, dy, sc, x1, y1, st] of [
+        [-.55, -.55, 1.18 * dpr, 8, 16, dark ? [0, 'rgba(232,242,255,.055)', .55, 'rgba(204,224,248,.024)', 1, 'rgba(180,205,238,0)'] : [0, 'rgba(15,23,42,.032)', 1, 'rgba(15,23,42,0)']],
+        [0, 0, 1.04 * dpr, 7, 15, dark ? [0, 'rgba(252,254,255,.115)', .45, 'rgba(222,235,252,.048)', 1, 'rgba(190,210,240,.006)'] : [0, 'rgba(15,23,42,.06)', 1, 'rgba(15,23,42,.004)']],
+      ]) {
+        c.save(); c.translate(ox + dx * dpr, oy + dy * dpr); traceGhost(c, sc);
+        c.fillStyle = addS(c.createLinearGradient(0, 0, x1 * sc, y1 * sc), st); c.fill(); c.restore();
+      }
+      const spr = { cv: scv, ox, oy, s };
+      if (reflSprs.size > 16) reflSprs.clear();
+      reflSprs.set(k, spr);
+      return spr;
+    };
+
     const traceGhost = (ctx, s) => {
       ctx.beginPath();
       const pts = [0, 0, 0, 13.8, 3.6, 10.5, 6.1, 15.6, 8, 14.7, 5.5, 9.6, 10.1, 9.6];
@@ -227,19 +254,21 @@
     };
 
     const drawRefl = (ctx, gx, gy, w, h, dpr, dark, effA, rW, rH, lx, ly) => {
-      if ((rW || 0) * (rH || 0) > 120000) return;
+      if ((rW || 0) * (rH || 0) > 120000 || lx < -42 || lx > rW + 42 || ly < -42 || ly > rH + 42) return;
       const dO = Math.hypot(lx < 0 ? -lx : lx > rW ? lx - rW : 0, ly < 0 ? -ly : ly > rH ? ly - rH : 0);
       if (dO > 42) return;
-      const a = effA * Math.max(0, 1 - dO / 42) * (dark ? 1 : 0.65);
-      if (a <= 0.01) return;
+      const a = effA * (1 - dO / 42) * (dark ? 1 : .65);
+      if (a <= .01) return;
       const rx = gx + 3.2 * dpr, ry = gy + 4.2 * dpr;
-      fillRad(ctx, rx + 2 * dpr, ry + 3 * dpr, 26 * dpr, w, h, dark ? [0, rg('248,252,255', 0.135 * a), 0.45, rg('216,232,252', 0.05 * a), 1, 'rgba(200,220,250,0)'] : [0, rg('37,99,235', 0.065 * a), 1, 'rgba(37,99,235,0)']);
-      const drawL = (ox, oy, s, x1, y1, st) => {
-        ctx.save(); ctx.translate(rx + ox * dpr, ry + oy * dpr); traceGhost(ctx, s);
-        ctx.fillStyle = addS(ctx.createLinearGradient(0, 0, x1 * s, y1 * s), st); ctx.fill(); ctx.restore();
-      };
-      drawL(-0.55, -0.55, 1.18 * dpr, 8, 16, dark ? [0, rg('232,242,255', 0.055 * a), 0.55, rg('204,224,248', 0.024 * a), 1, 'rgba(180,205,238,0)'] : [0, rg('15,23,42', 0.032 * a), 1, 'rgba(15,23,42,0)']);
-      drawL(0, 0, 1.04 * dpr, 7, 15, dark ? [0, rg('252,254,255', 0.115 * a), 0.45, rg('222,235,252', 0.048 * a), 1, rg('190,210,240', 0.006 * a)] : [0, rg('15,23,42', 0.06 * a), 1, 'rgba(15,23,42,0.004)']);
+      const spr = isFn(ctx.drawImage) ? getReflSpr(dpr, dark) : null;
+      if (spr) {
+        const pa = ctx.globalAlpha;
+        ctx.globalAlpha = (pa !== undefined ? pa : 1) * a;
+        ctx.drawImage(spr.cv, rx - spr.ox, ry - spr.oy, spr.s, spr.s);
+        ctx.globalAlpha = pa !== undefined ? pa : 1;
+        return;
+      }
+      fillRad(ctx, rx + 2 * dpr, ry + 3 * dpr, 26 * dpr, w, h, dark ? [0, rg('248,252,255', .135 * a), .45, rg('216,232,252', .05 * a), 1, 'rgba(200,220,250,0)'] : [0, rg('37,99,235', .065 * a), 1, 'rgba(37,99,235,0)']);
     };
 
     const paintRim = (e, active, lx, ly, radius, dark, toneKey = 'default', amb = 1) => {
@@ -260,25 +289,30 @@
       ctx.clearRect(0, 0, w, h);
       const padOff = ip * 0.5, gx = (lx + padOff) * dpr, gy = (ly + padOff) * dpr, gr = radius * dpr;
       const inset = (ip ? 1 : 0.75) * dpr, rw = Math.max(2, w - inset * 2), rh = Math.max(2, h - inset * 2), rr = Math.min(rw * 0.5, rh * 0.5, cssR * dpr);
-      const prevA = ctx.globalAlpha;
+      const prevA = ctx.globalAlpha, canTr = isFn(ctx.translate) && isFn(ctx.save) && isFn(ctx.restore);
+      const rad0 = (cx, cy, r, st) => addS(ctx.createRadialGradient(cx, cy, 0, cx, cy, r), st);
 
       if (isM) {
+        if (e._gCtx !== ctx) { e._gCtx = ctx; e._msk = ''; }
         if (isFn(ctx.save) && isFn(ctx.clip) && isFn(ctx.fillRect)) {
-          ctx.save();
-          strokeRR(ctx, 0, 0, w, h, Math.min(w * 0.5, h * 0.5, cssR * dpr));
-          ctx.clip();
-          fillRad(ctx, gx, gy, 210 * dpr, w, h, dark ? [0, rg('238,245,255', 0.068 * effA), 0.42, rg('206,224,250', 0.026 * effA), 0.8, rg('180,202,238', 0.006 * effA), 1, 'rgba(180,202,238,0)'] : [0, rg('37,99,235', 0.042 * effA), 0.5, rg('37,99,235', 0.014 * effA), 1, 'rgba(37,99,235,0)']);
+          ctx.save(); strokeRR(ctx, 0, 0, w, h, Math.min(w * .5, h * .5, cssR * dpr)); ctx.clip();
+          fillRad(ctx, gx, gy, 210 * dpr, w, h, dark ? [0, rg('238,245,255', .068 * effA), .42, rg('206,224,250', .026 * effA), .8, rg('180,202,238', .006 * effA), 1, 'rgba(180,202,238,0)'] : [0, rg('37,99,235', .042 * effA), .5, rg('37,99,235', .014 * effA), 1, 'rgba(37,99,235,0)']);
           if (isFn(ctx.translate) && isFn(ctx.createLinearGradient)) drawRefl(ctx, gx, gy, w, h, dpr, dark, effA, e.rect.width, e.rect.height, lx, ly);
           ctx.restore();
         }
-        ctx.globalAlpha = effA;
-        strokeRR(ctx, inset, inset, rw, rh, rr);
-        ctx.lineWidth = 1.35 * dpr;
-        ctx.strokeStyle = addS(
-          ctx.createRadialGradient(gx, gy, 0, gx, gy, gr),
-          dark ? [0, 'rgba(255,255,255,.95)', .24, 'rgba(232,240,252,0.56)', .54, 'rgba(186,202,228,.18)', .85, 'rgba(148,168,198,.03)', 1, 'rgba(148,168,198,0)'] : [0, 'rgba(30,64,175,.52)', .42, 'rgba(59,130,246,.2)', 1, 'rgba(59,130,246,0)']
-        );
-        ctx.stroke();
+        ctx.globalAlpha = effA; ctx.lineWidth = 1.35 * dpr;
+        if (canTr) {
+          const sk = (dark ? '1|' : '0|') + Math.round(gr);
+          if (e._msk !== sk) {
+            e._ms = rad0(0, 0, gr, dark ? [0, 'rgba(255,255,255,.95)', .24, 'rgba(232,240,252,0.56)', .54, 'rgba(186,202,228,.18)', .85, 'rgba(148,168,198,.03)', 1, 'rgba(148,168,198,0)'] : [0, 'rgba(30,64,175,.52)', .42, 'rgba(59,130,246,.2)', 1, 'rgba(59,130,246,0)']);
+            e._msk = sk;
+          }
+          ctx.save(); ctx.translate(gx, gy); strokeRR(ctx, inset - gx, inset - gy, rw, rh, rr); ctx.strokeStyle = e._ms; ctx.stroke(); ctx.restore();
+        } else {
+          strokeRR(ctx, inset, inset, rw, rh, rr);
+          ctx.strokeStyle = rad0(gx, gy, gr, dark ? [0, 'rgba(255,255,255,.95)', .24, 'rgba(232,240,252,0.56)', .54, 'rgba(186,202,228,.18)', .85, 'rgba(148,168,198,.03)', 1, 'rgba(148,168,198,0)'] : [0, 'rgba(30,64,175,.52)', .42, 'rgba(59,130,246,.2)', 1, 'rgba(59,130,246,0)']);
+          ctx.stroke();
+        }
         ctx.globalAlpha = prevA !== undefined ? prevA : 1;
         return true;
       }
@@ -310,7 +344,7 @@
         return true;
       }
 
-      if (isFn(ctx.save) && isFn(ctx.translate) && isFn(ctx.restore)) {
+      if (canTr) {
         const gKey = `${gr}|${dark ? 1 : 0}|${toneKey}`;
         let grad = e._gk === gKey ? e._g : null;
         if (!grad) { grad = palS(ctx.createRadialGradient(0, 0, 0, 0, 0, gr), toneKey, dark); e._g = grad; e._gk = gKey; }
@@ -367,7 +401,7 @@
     const scanSp = (rd) => {
       const ps = Array.from(getDoc()?.querySelectorAll?.('[data-testid="step-plan"]') || []), des = new Set(), rcs = new Map();
       const bus = busOf();
-      if (isRimOn() && !isWB()) {
+      if (isBoxRimOn() && !isWB()) {
         for (let i = ps.length - 1; i >= 0 && des.size < 2; i--) {
           const e = ps[i];
           if (!spOk(e) || (spVis.has(e) && !spVis.get(e))) continue;
@@ -420,15 +454,17 @@
     };
 
     const rfBox = (now, allowRd) => {
-      const bus = busOf();
+      const bd = boxOff(), bus = busOf();
       const sp = scanSp(allowRd), ro = ensureRo(), prevM = new Map(), nextObs = new Set(), next = [], bSet = new Set(), bList = [];
       for (const e of pBoxes) prevM.set(e.box, e);
-      for (const b of document.querySelectorAll(`[${PB}="1"]`) || []) if ((!spOn.has(b) || sp.des.has(b)) && !bSet.has(b)) { bSet.add(b); bList.push(b); }
-      for (const s of sp.des) if (!bSet.has(s)) { bSet.add(s); bList.push(s); }
+      if (!bd) {
+        for (const b of document.querySelectorAll(`[${PB}="1"]`) || []) if ((!spOn.has(b) || sp.des.has(b)) && !bSet.has(b)) { bSet.add(b); bList.push(b); }
+        for (const s of sp.des) if (!bSet.has(s)) { bSet.add(s); bList.push(s); }
+      }
       const trk = getActiveCrystalTrack ? getActiveCrystalTrack() : null;
       let nextO = null;
       const pre = bList.map((box) => {
-        const prev = prevM.get(box), sk = Boolean(bus?.isSkipped?.(box));
+        const prev = prevM.get(box), sk = !!(bus?.isSkipped?.(box));
         return [box, prev, prev && prev.br >= 0 ? prev.br : readRad(box, 10), sk ? null : (sp.rcs.get(box) || (allowRd && box.getBoundingClientRect ? box.getBoundingClientRect() : null))];
       });
       const oRect = trk && allowRd && !bus?.isSkipped?.(trk) && trk.getBoundingClientRect ? trk.getBoundingClientRect() : null;
@@ -450,7 +486,8 @@
           const isHp = !!(box.classList?.contains?.('ag-cs-home-panel'));
           if (isHp && ga(box, PM) !== '1') setAttrIfChanged(box, PM, '1');
           const mM = ga(box, PM) === '1' || isHp, rB = !mM && ga(box, 'data-ag-cs-prism-reflect') === 'bottom';
-          const pad = mM || isHp || ga(box, 'data-testid') === 'step-plan' ? 0 : 2;
+          const isComp = !!(box.classList?.contains?.('surface-composer-card'));
+          const pad = isComp ? 2 : (mM || isHp || ga(box, 'data-testid') === 'step-plan' ? 0 : 2);
           next.push(mkEntry(box, rect, prev, pad, br, mM, rB));
         }
         if (trk) nextO = mkEntry(trk, oRect, orchE?.box === trk ? orchE : null, 0, 999, false, false);
@@ -459,6 +496,7 @@
         prOrp();
       });
       pBoxes = next; orchE = nextO; pDirty = false; cacheAt = now;
+      if (!next.length) emitComp(null);
     };
 
     const rdRec = (t) => {
@@ -474,9 +512,12 @@
       if (isH()) return shrinkRims(1);
       if (isWB()) return;
       if (dragOff()) { pDirty = true; return; }
-      const amb = readAmb();
-      if (rimOff() || amb <= 0.001) {
-        runGuardedMut(() => { prOrp(); clrAll(true); });
+      const amb = readAmb(), bd = boxOff(), trk = getActiveCrystalTrack ? getActiveCrystalTrack() : null;
+      if (rimOff() || amb <= 0.001 || (bd && !trk)) {
+        runGuardedMut(() => {
+          if (spOn.size || spObs.size) applySp([], new Set());
+          prOrp(); clrAll(true);
+        });
         return;
       }
       const now = typeof rafNow === 'number' && rafNow > 0 ? rafNow : performance.now();
@@ -484,10 +525,9 @@
       if (minGap > 0 && drawAt > 0 && now - drawAt < minGap) { schedRaf(); return; }
       drawAt = now;
       const { x, y } = ptr, allowRd = ptrIn(), bus = busOf();
-      const hasRo = Boolean(boxRo || szOffs.size > 0);
-      const trk = getActiveCrystalTrack ? getActiveCrystalTrack() : null;
+      const hasRo = !!(boxRo || szOffs.size > 0);
       if (
-        pDirty || !pBoxes.length || (!hasRo && now - cacheAt > 2500) || now - cacheAt > 8000 ||
+        pDirty || (bd ? pBoxes.length > 0 : !pBoxes.length) || (!hasRo && now - cacheAt > 2500) || now - cacheAt > 8000 ||
         trk !== (orchE ? orchE.box : null) ||
         pBoxes.some((e) => dis(e.box) || (e.cv && e.cv.isConnected === false) || e.br < 0 || (allowRd && !e.rect && !bus?.isSkipped?.(e.box)))
       ) {
@@ -507,7 +547,7 @@
             : x >= r.left - maxR && x <= r.right + maxR && y >= r.top - maxR && y <= r.bottom + maxR;
           if (hit) { inR = true; lx = x - r.left; ly = y - r.top; }
         }
-        if (!e.mm && !e.rb && e.box?.classList?.contains?.('surface-composer-card')) {
+        if (!e.mm && !e.rb && e.box?.classList?.contains?.('surface-composer-card') && !e.box.closest?.('[data-side-panel-body],[data-testid="side-question-tab-composer"],[data-testid="subagent-tab-conversation"]')) {
           const st = inR && Math.abs(ly) < 220 ? Math.min(1, amb * (tk === 'mono' ? 0.62 : 1)) * (1 - Math.abs(ly) / 220) : 0;
           if (!compRim || st > compRim.strength) compRim = { localX: lx, strength: st, toneKey: tk, dark };
         }
@@ -549,8 +589,9 @@
         return;
       }
       if (rimOn && !prismRaf) {
+        const bd = boxOff(), bx = bd ? 0 : pBoxes.length;
         const far = (e, d) => { const r = e.rect; return e.cl && r && (r.width < 4 || r.height < 4 || x < r.left - d || x > r.right + d || y < r.top - d || y > r.bottom + d); };
-        const farIdle = !pDirty && pBoxes.length > 0 && now - cacheAt <= 6000 && rectAt > 0 && now - rectAt < 1500 && pBoxes.every((e) => far(e, 360)) && (!orchE || far(orchE, 200));
+        const farIdle = !pDirty && (bd || bx > 0) && (bx > 0 || orchE) && now - cacheAt <= 6000 && rectAt > 0 && now - rectAt < 1500 && pBoxes.every((e) => far(e, 360)) && (!orchE || far(orchE, 200));
         if (!farIdle) schedRaf();
       }
       onPointerActivity?.(now);
@@ -564,8 +605,15 @@
     };
     const onWinBlur = () => { if (!isDestroyed()) { clrRaf(); clrAll(); } };
     const syncBusRects = () => { if (!isDestroyed() && canDraw() && !rectAt) rdRec(); };
-    const onScroll = () => {
+    const onScroll = (ev) => {
       if (isDestroyed()) return;
+      const t = ev?.target, d = getDoc();
+      if (t && t !== d && t !== d?.body && t !== d?.documentElement && isFn(t.contains)) {
+        let hit = false;
+        for (let i = 0; i < pBoxes.length; i++) if (t.contains(pBoxes[i].box)) { hit = true; break; }
+        if (!hit && orchE?.box && t.contains(orchE.box)) hit = true;
+        if (!hit) return;
+      }
       rectAt = 0;
       if (canDraw()) {
         const bus = busOf();
@@ -637,11 +685,12 @@
       runGuardedMut(() => {
         prOrp(false);
         if (!isRimOn()) { clrRaf(); clrAll(true); }
+        else if (boxOff()) emitComp(null);
       });
     };
 
     const teardown = () => {
-      clrRaf(); emitComp(null); bindEv('removeEventListener'); shrinkRims(1); trkCvs.clear();
+      clrRaf(); emitComp(null); bindEv('removeEventListener'); shrinkRims(1); trkCvs.clear(); reflSprs.clear();
       sbT = null; sbAt = 0; rectAt = 0;
       clrOffs(szOffs);
       if (boxRo) { try { boxRo.disconnect(); } catch {} boxRo = null; }

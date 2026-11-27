@@ -323,21 +323,21 @@ return { uri, fileName: fileName || 'Diff Preview', additions, deletions, lines,
 }
 
 const DIFF_FALLBACK = {
-inlineDiffOpenSidebar:{'zh-CN':'在侧栏打开完整对比','zh-TW':'在側欄開啟完整對比',en:'Open full diff in Sidebar',ja:'サイドバーで完全な差分を開く',ko:'사이드바에서 전체 차이 열기',es:'Abrir diff completo en la barra lateral',fr:'Ouvrir le diff complet dans la barre latérale',de:'Vollständigen Diff in Seitenleiste öffnen',tr:'Tam diff’i kenar çubuğunda aç'},
-inlineDiffCollapse:{'zh-CN':'收起','zh-TW':'收合',en:'Collapse',ja:'閉じる',ko:'접기',es:'Contraer',fr:'Réduire',de:'Einklappen',tr:'Daralt'},
-inlineDiffLoading:{'zh-CN':'正在读取差异...','zh-TW':'正在讀取差異...',en:'Loading diff...',ja:'差分を読み込み中...',ko:'차이점 불러오는 중...',es:'Cargando diff...',fr:'Chargement du diff...',de:'Diff wird geladen...',tr:'Diff yükleniyor...'},
-inlineDiffBinary:{'zh-CN':'二进制文件暂不支持行内预览，请右键在侧栏打开。','zh-TW':'二進位檔案暫不支援行內預覽，請右鍵在側欄開啟。',en:'Binary file cannot be previewed inline. Right-click to open in Sidebar.',ja:'バイナリファイルはインライン表示できません。右クリックでサイドバーから開けます。',ko:'바이너리 파일은 인라인으로 미리 볼 수 없습니다. 우클릭하여 사이드바에서 여세요.',es:'Los archivos binarios no tienen vista previa en línea. Haz clic derecho para abrir en la barra lateral.',fr:'Les fichiers binaires ne peuvent pas être prévisualisés en ligne. Clic droit pour ouvrir dans la barre latérale.',de:'Binärdateien können nicht inline angezeigt werden. Rechtsklick zum Öffnen in der Seitenleiste.',tr:'İkili dosya satır içi önizlenemez. Kenar çubuğunda açmak için sağ tıklayın.'},
-inlineDiffNoPreview:{'zh-CN':'当前步骤暂无行内差异，请右键在侧栏打开。','zh-TW':'目前步驟暫無行內差異，請右鍵在側欄開啟。',en:'Inline diff is unavailable for this step. Right-click to open in Sidebar.',ja:'このステップには差分テキストがありません。右クリックでサイドバーから開けます。',ko:'이 단계에는 인라인 차이가 없습니다. 우클릭하여 사이드바에서 여세요.',es:'El diff en línea no está disponible para este paso. Haz clic derecho para abrir en la barra lateral.',fr:'Le diff en ligne est indisponible pour cette étape. Clic droit pour ouvrir dans la barre latérale.',de:'Inline-Diff ist für diesen Schritt nicht verfügbar. Rechtsklick zum Öffnen in der Seitenleiste.',tr:'Bu adım için satır içi diff kullanılamıyor. Kenar çubuğunda açmak için sağ tıklayın.'},
-inlineDiffSensitive:{'zh-CN':'该文件受隐私安全规则保护，已跳过行内预览（可右键在侧栏查看）','zh-TW':'該檔案受隱私安全規則保護，已略過行內預覽（可右鍵在側欄檢視）',en:'Protected by privacy rules; inline preview skipped (right-click to view in Sidebar).',ja:'プライバシー保護ルールによりインライン表示をスキップしました（右クリックでサイドバー表示）',ko:'개인정보 보호 규칙으로 인라인 미리보기를 건너뛰었습니다(우클릭하여 사이드바에서 보기).',es:'Protegido por reglas de privacidad; vista previa en línea omitida (clic derecho para ver en la barra lateral).',fr:'Protégé par les règles de confidentialité ; aperçu en ligne ignoré (clic droit pour voir dans la barre latérale).',de:'Durch Datenschutzregeln geschützt; Inline-Vorschau übersprungen (Rechtsklick für Seitenleiste).',tr:'Gizlilik kurallarıyla korunuyor; satır içi önizleme atlandı (kenar çubuğunda açmak için sağ tıklayın).'},
-inlineDiffSnapshotNotice:{'zh-CN':'未受 Git 追踪 · 预览当前文件内容（右键可在侧栏打开完整对比）','zh-TW':'未受 Git 追蹤 · 預覽目前檔案內容（右鍵可在側欄開啟完整對比）',en:'Not tracked by Git · previewing current file (right-click to open full diff in Sidebar)',ja:'Git 未追跡 · 現在のファイルを表示中（右クリックでサイドバーで完全な差分を開く）',ko:'Git 추적 안 됨 · 현재 파일 미리보기(우클릭하여 사이드바에서 전체 차이 열기)',es:'No rastreado por Git · vista previa del archivo actual (clic derecho para abrir diff completo)',fr:'Non suivi par Git · aperçu du fichier actuel (clic droit pour ouvrir le diff complet)',de:'Nicht von Git verfolgt · Vorschau der aktuellen Datei (Rechtsklick für vollständigen Diff)',tr:'Git tarafından izlenmiyor · geçerli dosya önizleniyor (tam diff’i kenar çubuğunda açmak için sağ tıklayın)'},
-inlineDiffLongLinesTag:{'zh-CN':'单行长改','zh-TW':'單行長改',en:'long line',ja:'長行',ko:'긴 줄',es:'línea larga',fr:'ligne longue',de:'lange Zeile',tr:'uzun satır'},
-inlineDiffMenuExpand:{'zh-CN':'展开行内对比','zh-TW':'展開行內對比',en:'Expand inline diff',ja:'インライン差分を展開',ko:'인라인 차이 펼치기',es:'Expandir diff en línea',fr:'Déplier le diff en ligne',de:'Inline-Diff ausklappen',tr:'Satır içi diff’i genişlet'},
-inlineDiffMenuCollapse:{'zh-CN':'收起行内对比','zh-TW':'收合行內對比',en:'Collapse inline diff',ja:'インライン差分を閉じる',ko:'인라인 차이 접기',es:'Contraer diff en línea',fr:'Replier le diff en ligne',de:'Inline-Diff einklappen',tr:'Satır içi diff’i daralt'},
-inlineDiffMenuCopyPath:{'zh-CN':'复制文件路径','zh-TW':'複製檔案路徑',en:'Copy file path',ja:'ファイルパスをコピー',ko:'파일 경로 복사',es:'Copiar ruta del archivo',fr:'Copier le chemin du fichier',de:'Dateipfad kopieren',tr:'Dosya yolunu kopyala'},
-inlineDiffLargeExpandBtn:{'zh-CN':'⋯ 大文件仅节选关键片段 · 点击在右侧栏查看完整对比','zh-TW':'⋯ 大檔案僅節選關鍵片段 · 點擊在右側欄檢視完整對比',en:'⋯ Showing key hunks · Click to open full diff in Sidebar',ja:'⋯ 大きなファイルのため一部のみ表示 · クリックしてサイドバーで全体を見る',ko:'⋯ 대용량 파일 주요 변경만 표시 · 클릭하여 사이드바에서 전체 보기',es:'⋯ Mostrando fragmentos clave · Haz clic para abrir el diff completo',fr:'⋯ Extraits clés affichés · Cliquer pour ouvrir le diff complet',de:'⋯ Wichtige Bereiche angezeigt · Klicken für vollständigen Diff',tr:'⋯ Önemli bölümler gösteriliyor · Tam diff’i kenar çubuğunda açmak için tıklayın'},
-inlineDiffExpandAll:{'zh-CN':'展开全部（剩余 {n} 行）','zh-TW':'展開全部（剩餘 {n} 行）',en:'Expand all ({n} more lines)',ja:'すべて展開（残り {n} 行）',ko:'전체 펼치기 ({n}줄 더 있음)',es:'Expandir todo ({n} líneas más)',fr:'Tout déplier ({n} lignes de plus)',de:'Alle ausklappen ({n} weitere Zeilen)',tr:'Tümünü genişlet ({n} satır daha)'},
-inlineDiffExpandAllPlain:{'zh-CN':'展开全部','zh-TW':'展開全部',en:'Expand all',ja:'すべて展開',ko:'전체 펼치기',es:'Expandir todo',fr:'Tout déplier',de:'Alle ausklappen',tr:'Tümünü genişlet'},
-inlineDiffCumulativeNotice:{'zh-CN':'工作区累计改动 (+{a} -{d}) · 单步精确对比请点右上角在侧栏打开','zh-TW':'工作區累計改動 (+{a} -{d}) · 單步精確對比請點右上角在側欄開啟',en:'Working-tree cumulative diff (+{a} -{d}) · click top-right to view exact step diff in Sidebar',ja:'作業ツリーの累積差分 (+{a} -{d}) · 単一ステップの正確な差分は右上からサイドバーで開けます',ko:'작업 트리 누적 변경 (+{a} -{d}) · 단계별 정확한 차이는 우측 상단에서 사이드바로 여세요',es:'Diff acumulado del árbol (+{a} -{d}) · haz clic arriba a la derecha para ver el paso exacto',fr:'Diff cumulé de l’espace (+{a} -{d}) · cliquez en haut à droite pour le diff exact',de:'Kumulierter Arbeitsbaum-Diff (+{a} -{d}) · oben rechts für exakten Schritt-Diff öffnen',tr:'Çalışma ağacı toplam diff’i (+{a} -{d}) · tam adım farkı için sağ üstten kenar çubuğunda açın'},
+inlineDiffOpenSidebar:{'zh-CN':'在侧栏打开完整对比','zh-TW':'在側欄開啟完整對比',en:'Open full diff in Sidebar'},
+inlineDiffCollapse:{'zh-CN':'收起','zh-TW':'收合',en:'Collapse'},
+inlineDiffLoading:{'zh-CN':'正在读取差异...','zh-TW':'正在讀取差異...',en:'Loading diff...'},
+inlineDiffBinary:{'zh-CN':'二进制文件暂不支持行内预览，请右键在侧栏打开。','zh-TW':'二進位檔案暫不支援行內預覽，請右鍵在側欄開啟。',en:'Binary file cannot be previewed inline. Right-click to open in Sidebar.'},
+inlineDiffNoPreview:{'zh-CN':'当前步骤暂无行内差异，请右键在侧栏打开。','zh-TW':'目前步驟暫無行內差異，請右鍵在側欄開啟。',en:'Inline diff is unavailable for this step. Right-click to open in Sidebar.'},
+inlineDiffSensitive:{'zh-CN':'该文件受隐私安全规则保护，已跳过行内预览（可右键在侧栏查看）','zh-TW':'該檔案受隱私安全規則保護，已略過行內預覽（可右鍵在側欄檢視）',en:'Protected by privacy rules; inline preview skipped (right-click to view in Sidebar).'},
+inlineDiffSnapshotNotice:{'zh-CN':'未受 Git 追踪 · 预览当前文件内容（右键可在侧栏打开完整对比）','zh-TW':'未受 Git 追蹤 · 預覽目前檔案內容（右鍵可在側欄開啟完整對比）',en:'Not tracked by Git · previewing current file (right-click to open full diff in Sidebar)'},
+inlineDiffLongLinesTag:{'zh-CN':'单行长改','zh-TW':'單行長改',en:'long line'},
+inlineDiffMenuExpand:{'zh-CN':'展开行内对比','zh-TW':'展開行內對比',en:'Expand inline diff'},
+inlineDiffMenuCollapse:{'zh-CN':'收起行内对比','zh-TW':'收合行內對比',en:'Collapse inline diff'},
+inlineDiffMenuCopyPath:{'zh-CN':'复制文件路径','zh-TW':'複製檔案路徑',en:'Copy file path'},
+inlineDiffLargeExpandBtn:{'zh-CN':'⋯ 大文件仅节选关键片段 · 点击在右侧栏查看完整对比','zh-TW':'⋯ 大檔案僅節選關鍵片段 · 點擊在右側欄檢視完整對比',en:'⋯ Showing key hunks · Click to open full diff in Sidebar'},
+inlineDiffExpandAll:{'zh-CN':'展开全部（剩余 {n} 行）','zh-TW':'展開全部（剩餘 {n} 行）',en:'Expand all ({n} more lines)'},
+inlineDiffExpandAllPlain:{'zh-CN':'展开全部','zh-TW':'展開全部',en:'Expand all'},
+inlineDiffCumulativeNotice:{'zh-CN':'工作区累计改动 (+{a} -{d}) · 单步精确对比请点右上角在侧栏打开','zh-TW':'工作區累計改動 (+{a} -{d}) · 單步精確對比請點右上角在側欄開啟',en:'Working-tree cumulative diff (+{a} -{d}) · click top-right to view exact step diff in Sidebar'},
 };
 
 function createInlineDiffClient(options = {}) {
@@ -361,12 +361,6 @@ if (!s || s === 'auto') return 'en';
 if (s === 'yue' || s.startsWith('yue-') || s === 'zh-yue' || s.includes('cantonese')) return 'zh-CN';
 if (/^zh-(tw|hant|hk|mo)/.test(s) || s === 'tw' || s === 'hant') return 'zh-TW';
 if (/^zh/.test(s)) return 'zh-CN';
-if (/^(ja|jp)/.test(s) || s === 'japanese') return 'ja';
-if (/^(ko|kr)/.test(s) || s === 'korean') return 'ko';
-if (/^es/.test(s) || s === 'spanish') return 'es';
-if (/^fr/.test(s) || s === 'french') return 'fr';
-if (/^de/.test(s) || s === 'german') return 'de';
-if (/^tr/.test(s) || s === 'turkish' || s === 'türkçe' || s === 'turkce') return 'tr';
 return 'en';
 };
 const getLang = () => {

@@ -552,14 +552,14 @@
     const runMut = typeof ctx.runGuardedMut === 'function' ? ctx.runGuardedMut : (fn) => fn();
 
     const perfMode = normPerfMode(readLiveCfg(ctx, 'performanceMode', 'balanced'));
-    const ignoreRm = Boolean(readLiveCfg(ctx, 'ignoreReducedMotion', false));
+    const ignoreRm = Boolean(readLiveCfg(ctx, 'ignoreReducedMotion', true));
     const motionOff = readLiveCfg(ctx, 'motionLevel', 'ultra') === 'off';
     const chatFont = String(readLiveCfg(ctx, 'chatFont', 'default') || 'default');
     const chatFontCustom = String(readLiveCfg(ctx, 'chatFontCustom', '') || '');
     const codeFont = String(readLiveCfg(ctx, 'codeFont', 'default') || 'default');
     const codeFontCustom = String(readLiveCfg(ctx, 'codeFontCustom', '') || '');
     const telOff = readLiveCfg(ctx, 'telemetryModule', 'auto') === 'off';
-    const telQuotaMode = readLiveCfg(ctx, 'telemetryQuotaMode', 'compact') === 'both' ? 'both' : 'compact';
+    const telQuotaMode = readLiveCfg(ctx, 'telemetryQuotaMode', 'both') === 'compact' ? 'compact' : 'both';
 
     const extSig = `${lang}|${perfMode}|${ignoreRm ? 1 : 0}|${motionOff ? 1 : 0}|${chatFont}|${chatFontCustom}|${codeFont}|${codeFontCustom}|${telOff ? 1 : 0}|${telQuotaMode}`;
     if (

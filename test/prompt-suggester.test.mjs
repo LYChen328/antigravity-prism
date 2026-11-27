@@ -1299,10 +1299,10 @@ test('8-language alignment (no yue, 0 CJK leak in en/es/fr/de) and .bundle-cache
   fakeDoc.documentElement.setAttribute('data-ag-cs-lang', 'xx-ZZ');
   assert.equal(uiApi.resolveLang(fakeDoc, {}), 'en', 'Unknown language must fall back to en');
 
-  // 逐一验证全部 8 语渲染，其中 en/es/fr/de 严格 0 CJK 泄漏
-  const ALL_8_LANGS = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de'];
-  const ZERO_CJK_LANGS = new Set(['en', 'es', 'fr', 'de']);
-  for (const lang of ALL_8_LANGS) {
+  // 逐一验证全部 3 语渲染，其中 en 严格 0 CJK 泄漏
+  const ALL_3_LANGS = ['zh-CN', 'zh-TW', 'en'];
+  const ZERO_CJK_LANGS = new Set(['en']);
+  for (const lang of ALL_3_LANGS) {
     sgSlot.__agPrismSgUiHandle.updateLang(lang);
     const cardText = sgSlot.textContent;
     assert.ok(cardText.length > 20, `Rendered card for ${lang} must be non-empty`);
@@ -1315,14 +1315,14 @@ test('8-language alignment (no yue, 0 CJK leak in en/es/fr/de) and .bundle-cache
     }
   }
 
-  // 静态验证两份前端源码词典不含 yue 键，且 ARIA_LABELS 覆盖完整 8 语
+  // 静态验证两份前端源码词典不含 yue 键，且 ARIA_LABELS 覆盖完整 3 语
   const uiSrc = fs.readFileSync(path.join(ROOT_DIR, 'vendor', 'prompt-suggester', 'suggester-settings-ui.js'), 'utf8');
   const clientSrc = fs.readFileSync(path.join(ROOT_DIR, 'vendor', 'prompt-suggester', 'suggester-client.js'), 'utf8');
   assert.equal(/^\s*['"]?yue['"]?\s*:/m.test(uiSrc), false, 'suggester-settings-ui.js must not declare yue locale key');
   assert.equal(/^\s*['"]?yue['"]?\s*:/m.test(clientSrc), false, 'suggester-client.js must not declare yue locale key');
   const ariaMatch = clientSrc.match(/const ARIA_LABELS = \{([\s\S]*?)\};/);
   assert.ok(ariaMatch, 'Expected ARIA_LABELS in suggester-client.js');
-  for (const l of ALL_8_LANGS) {
+  for (const l of ALL_3_LANGS) {
     assert.ok(ariaMatch[1].includes(l), `ARIA_LABELS must cover ${l}`);
   }
   for (const l of ZERO_CJK_LANGS) {

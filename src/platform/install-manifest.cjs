@@ -42,6 +42,15 @@ const DEFAULT_OBSOLETE_PATHS = Object.freeze([
   'vendor/wallpaper/wallpaper-procedural.js',
   // 已彻底退役的旧版 app.asar 补丁脚本
   'tools/patch-asar.cjs',
+  // 已收口三语种支持而退役的多语/Turkish 独立资产
+  'src/runtime/i18n-tr-locale.js',
+  'vendor/omni-viewer/workbench-i18n-tr.mjs',
+  'vendor/sidebar-studio/greetings-tr.mjs',
+  'vendor/host-i18n/tr.json',
+  'vendor/host-i18n/swarm-tr.json',
+  'scripts/i18n/apply-tr.mjs',
+  'scripts/i18n/extract-tr.mjs',
+  'scripts/i18n/tr-extra.json',
 ]);
 const ATOMIC_UPGRADE_RETRY_BACKOFFS_MS = Object.freeze([100, 250, 500]);
 

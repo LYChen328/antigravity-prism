@@ -1624,6 +1624,7 @@ uniform vec3 uChimeLead;
 uniform vec3 uHotAnchor;
 uniform vec3 uSemA;
 uniform vec3 uSemB;
+uniform float uDots;
 out vec4 outColor;
 
 float hash(highp vec2 p) {
@@ -1781,7 +1782,7 @@ field *= topFeather;
 dotBoost *= topFeather;
 float band = smoothstep(0.3, 0.55, field) * (1.0 - smoothstep(0.7, 0.98, field));
 float dotMsk = clamp(band * 0.8 * smoothstep(0.12, 0.32, -jut) + dotBoost, 0.0, 1.0);
-float dA = dotMsk > 0.001 ? halftone(px, res, uv.y, t, 7.0, dotMsk) : 0.0;
+float dA = uDots <= 0.01 ? 0.0 : (dotMsk > 0.001 ? halftone(px, res, uv.y, t, 7.0, dotMsk) : 0.0) * uDots;
 float grain=hash(px+fract(t*7.)*91.)-.5;
 vec3 c,dc;float a,da;
 if(uDark>.5){
@@ -1894,7 +1895,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
     const free = () => { if (prog) gl.deleteProgram(prog); prog = null; };
     function build() {
       free();
-      const built = linkGlProgram(gl, GLOW_VERT_SHADER, HORIZON_FRAGMENT_SHADER, 'uRes,uDpr,uTime,uDark,uReach,uIntensity,uPresence,uPrism,uSurge,uSpeed,uSpectrum,uSemantic,uPre0,uPre1,uSpecModes,uBaseA,uBaseB,uPrismA,uPrismB,uLightA,uLightB,uSurgeLead,uChimeLead,uHotAnchor,uSemA,uSemB'.split(','));
+      const built = linkGlProgram(gl, GLOW_VERT_SHADER, HORIZON_FRAGMENT_SHADER, 'uRes,uDpr,uTime,uDark,uReach,uIntensity,uPresence,uPrism,uSurge,uSpeed,uSpectrum,uSemantic,uPre0,uPre1,uSpecModes,uBaseA,uBaseB,uPrismA,uPrismB,uLightA,uLightB,uSurgeLead,uChimeLead,uHotAnchor,uSemA,uSemB,uDots'.split(','));
       prog = built.prog; u = built.u;
     }
     try { build(); } catch { try { free(); } catch {} return null; }
@@ -1902,9 +1903,9 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
     const u3 = (loc, v) => { if (loc && typeof gl.uniform3f === 'function') gl.uniform3f(loc, v[0], v[1], v[2]); };
     const u4 = (loc, v) => { if (loc && typeof gl.uniform4f === 'function') gl.uniform4f(loc, v[0], v[1], v[2], v[3]); };
     return {
-      mode: 'webgl2', build, isContextLost: () => Boolean(gl.isContextLost?.()),
+      mode: 'webgl2', build, isContextLost: () => !!(gl.isContextLost?.()),
       clear() { if (!prog || gl.isContextLost?.()) return; gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); },
-      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0) {
+      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0, meta = null) {
         if (!prog || gl.isContextLost?.()) return;
         const hu = computeHorizonUniforms(dark, presence, prism, surge, speed, spectrumCode, semanticCode);
         gl.viewport(0, 0, w, h); gl.useProgram(prog);
@@ -1912,6 +1913,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
         u1(u.uDark, dark ? 1 : 0); u1(u.uReach, reach); u1(u.uIntensity, intensity);
         u1(u.uPresence, presence); u1(u.uPrism, prism); u1(u.uSurge, surge);
         u1(u.uSpeed, speed); u1(u.uSpectrum, spectrumCode); u1(u.uSemantic, semanticCode);
+        u1(u.uDots, resolveDotMix(meta?.dots));
         u4(u.uPre0, hu.pre0); u4(u.uPre1, hu.pre1); u4(u.uSpecModes, hu.modes);
         for (const [uk, hk] of [['uBaseA','baseA'],['uBaseB','baseB'],['uPrismA','prismA'],['uPrismB','prismB'],['uLightA','lightA'],['uLightB','lightB'],['uSurgeLead','surgeLead'],['uChimeLead','chimeLead'],['uHotAnchor','hotAnchor'],['uSemA','semA'],['uSemB','semB']]) u3(u[uk], hu[hk]);
         gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -1945,8 +1947,9 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
         if (typeof ctx.clearRect === 'function') ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
         else if (canvas.width > 0 && canvas.height > 0) { ensureImage(canvas.width, canvas.height); pixels.fill(0); ctx.putImageData(image, 0, 0); }
       },
-      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0) {
+      draw(w, h, dpr, timeSec, dark, intensity, presence, reach = DEFAULT_HORIZON_AURA.reach, prism = 0, surge = 0, speed = 1, spectrumCode = 0, semanticCode = 0, meta = null) {
         if (!w || !h) return;
+        const dotMix = resolveDotMix(meta?.dots);
         ensureImage(w, h); pixels.fill(0);
         const { max, min, sin, exp, pow, round, abs, floor, sqrt, log } = M;
         const cl01 = (v) => max(0, min(1, v)), cl255 = (v) => round(min(255, max(0, v))) & 255;
@@ -2014,17 +2017,20 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
               }
             }
             if (dark ? field < 0.008 : field * effPresL < 0.008) continue;
-            const gx = (cssX - cssW * 0.5) * persp, gy = gyBase + 10 * sin(gx * 0.007 + timeSec * 0.42) - timeSec * 1.4;
-            const cX = gx / 7 - floor(gx / 7) - 0.5, cY = gy / 7 - floor(gy / 7) - 0.5, dist = sqrt(cX * cX + cY * cY);
-            const band = min(1, smooth((field - 0.25) / 0.25) * (1 - smooth((field - 0.72) / 0.26)) + dotBoost);
-            let fillA, dotA, R, G, B;
+            let fillA, dotA = 0, R, G, B;
+            if (dotMix > 0.01) {
+              const gx = (cssX - cssW * 0.5) * persp, gy = gyBase + 10 * sin(gx * 0.007 + timeSec * 0.42) - timeSec * 1.4;
+              const cX = gx / 7 - floor(gx / 7) - 0.5, cY = gy / 7 - floor(gy / 7) - 0.5, dist = sqrt(cX * cX + cY * cY);
+              const band = min(1, smooth((field - 0.25) / 0.25) * (1 - smooth((field - 0.72) / 0.26)) + dotBoost);
+              if (dark) dotA = (dist < 0.26 ? (1 - smooth((dist - 0.12) / 0.14)) * band * 0.65 : 0) * dotMix;
+              else { const tmpF = min(0.84, field * 0.66 * washGainL * effPresL); dotA = (dist < 0.24 ? min(0.88, (1 - smooth((dist - 0.14) / 0.1)) * band * (0.52 + 0.44 * sqrt(tmpF)) * effPresL) : 0) * dotMix; }
+            }
             if (dark) {
-              dotA = dist < 0.26 ? (1 - smooth((dist - 0.12) / 0.14)) * band * 0.65 : 0; fillA = field * 0.48;
+              fillA = field * 0.48;
               const dL = spectrumCode === 5 ? 36 : 56;
               R = cl255(baseR + dotA * (spectrumCode === 5 ? 36 : 72)); G = cl255(baseG + dotA * dL); B = cl255(baseB + dotA * (spectrumCode === 5 ? 38 : 24));
             } else {
               fillA = min(0.84, field * 0.66 * washGainL * effPresL);
-              dotA = dist < 0.24 ? min(0.88, (1 - smooth((dist - 0.14) / 0.1)) * band * (0.52 + 0.44 * sqrt(fillA)) * effPresL) : 0;
               const hL = 0.24 * smooth((field - 0.65) / 0.35), compA = fillA + dotA * (1 - fillA);
               if (compA <= 0.002) continue;
               const wF = (fillA * (1 - dotA)) / compA, wD = dotA / compA;
@@ -2050,6 +2056,7 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
     return !Number.isFinite(n) ? 1 : n <= 0 ? 0 : M.max(0, M.min(1, n > 1 ? n / 100 : n));
   }
 
+  const resolveDotMix = (v) => (v === false ? 0 : typeof v === 'number' && Number.isFinite(v) ? M.max(0, M.min(1, v)) : 1);
   function mountBrandHorizonGlow(canvas, opts = {}) {
     if (!canvas) {
       return {
@@ -2060,7 +2067,8 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
       };
     }
     const extRen = opts.externalRenderer || null;
-    const force2D = Boolean(opts.prefer2D || opts.force2D) || (typeof globalThis !== 'undefined' && globalThis.__agRippleForce2D === true);
+    const force2D = !!(opts.prefer2D || opts.force2D) || (typeof globalThis !== 'undefined' && globalThis.__agRippleForce2D === true);
+    const dotMix = resolveDotMix(opts.halftone);
     const ren = extRen || (force2D ? null : createBrandHorizonGLRenderer(canvas)) || createBrandHorizon2DRenderer(canvas);
     let cssW = M.max(0, Number(opts.width ?? canvas.clientWidth ?? 0)), cssH = M.max(0, Number(opts.height ?? canvas.clientHeight ?? 0));
     const maxDpr = extRen ? 2 : 1.75;
@@ -2072,10 +2080,10 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
       speed: clampFinite(opts.speed, DEFAULT_HORIZON_AURA.speed, 0, 3),
     };
     const aAura = { ...bAura };
-    let bSpec = opts.spectrum !== undefined ? String(opts.spectrum) : (opts.accent !== undefined ? String(opts.accent) : null);
-    let bSem = opts.semantic !== undefined ? String(opts.semantic) : 'none', bAmb = clampFinite(opts.ambientIntensity, 1, 0, 1);
+    let bSpec = opts.spectrum !== void 0 ? String(opts.spectrum) : (opts.accent !== void 0 ? String(opts.accent) : null);
+    let bSem = opts.semantic !== void 0 ? String(opts.semantic) : 'none', bAmb = clampFinite(opts.ambientIntensity, 1, 0, 1);
     let aSpec = bSpec || 'default', aSem = bSem, aAmb = bAmb;
-    let hasCust = Boolean(extRen) || opts.reach !== undefined || opts.prism !== undefined || opts.surge !== undefined || opts.speed !== undefined;
+    let hasCust = !!(extRen) || opts.reach !== void 0 || opts.prism !== void 0 || opts.surge !== void 0 || opts.speed !== void 0;
     let startMs = null, lastClk = null, lastRaw = null, flowSec = 0, lastDraw = -Infinity;
     let lDark = null, lStr = -1, lReach = -1, lPrism = -1, lSurge = -9, lSpeed = -1;
     let lSpec = -1, lSem = -1, semMix = 0, holdSem = 0, clrZ = false, stale = true, slp = false;
@@ -2100,15 +2108,15 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
     function setAuraParams(ex) {
       if (!ex || typeof ex !== 'object') {
         Object.assign(bAura, DEFAULT_HORIZON_AURA);
-        bSpec = null; bSem = aSem = 'none'; bAmb = aAmb = 1; aSpec = 'default'; hasCust = Boolean(extRen);
+        bSpec = null; bSem = aSem = 'none'; bAmb = aAmb = 1; aSpec = 'default'; hasCust = !!(extRen);
       } else {
-        if (ex.reach !== undefined) bAura.reach = clampFinite(ex.reach, bAura.reach, 0.05, 1);
-        if (ex.prism !== undefined) bAura.prism = clampFinite(ex.prism, bAura.prism, 0, 1);
-        if (ex.surge !== undefined) bAura.surge = clampFinite(ex.surge, bAura.surge, -1, 1);
-        if (ex.speed !== undefined) bAura.speed = clampFinite(ex.speed, bAura.speed, 0, 3);
-        if (ex.spectrum !== undefined || ex.accent !== undefined) bSpec = aSpec = String(ex.spectrum ?? ex.accent);
-        if (ex.semantic !== undefined) bSem = aSem = String(ex.semantic);
-        if (ex.ambientIntensity !== undefined) bAmb = aAmb = clampFinite(ex.ambientIntensity, bAmb, 0, 1);
+        if (ex.reach !== void 0) bAura.reach = clampFinite(ex.reach, bAura.reach, 0.05, 1);
+        if (ex.prism !== void 0) bAura.prism = clampFinite(ex.prism, bAura.prism, 0, 1);
+        if (ex.surge !== void 0) bAura.surge = clampFinite(ex.surge, bAura.surge, -1, 1);
+        if (ex.speed !== void 0) bAura.speed = clampFinite(ex.speed, bAura.speed, 0, 3);
+        if (ex.spectrum !== void 0 || ex.accent !== void 0) bSpec = aSpec = String(ex.spectrum ?? ex.accent);
+        if (ex.semantic !== void 0) bSem = aSem = String(ex.semantic);
+        if (ex.ambientIntensity !== void 0) bAmb = aAmb = clampFinite(ex.ambientIntensity, bAmb, 0, 1);
         hasCust = true;
       }
       Object.assign(aAura, bAura); stale = true;
@@ -2123,36 +2131,36 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
       const isObj = typeof arg1 === 'object' && arg1 !== null;
       let still = fStatic, dark = true, rawS = 1, ex = null;
       if (isObj) {
-        still = fStatic || Boolean(arg1.still || arg1.staticSnapshot);
+        still = fStatic || !!(arg1.still || arg1.staticSnapshot);
         dark = arg1.dark !== false; rawS = arg1.strength ?? arg1.prismStrength ?? 1;
         const nest = sArg && typeof sArg === 'object' ? sArg : (arg1.extra && typeof arg1.extra === 'object' ? arg1.extra : null);
-        if (nest || arg1.reach !== undefined || arg1.prism !== undefined || arg1.surge !== undefined || arg1.speed !== undefined || arg1.spectrum !== undefined || arg1.accent !== undefined || arg1.semantic !== undefined || arg1.ambientIntensity !== undefined || arg1.continuous !== undefined) {
+        if (nest || arg1.reach !== void 0 || arg1.prism !== void 0 || arg1.surge !== void 0 || arg1.speed !== void 0 || arg1.spectrum !== void 0 || arg1.accent !== void 0 || arg1.semantic !== void 0 || arg1.ambientIntensity !== void 0 || arg1.continuous !== void 0) {
           ex = nest ? { ...arg1, ...nest } : arg1;
         }
       } else {
         dark = arg1 !== false; rawS = sArg ?? 1; ex = exArg && typeof exArg === 'object' ? exArg : null;
-        still = fStatic || Boolean(ex && (ex.still || ex.staticSnapshot));
+        still = fStatic || !!(ex && (ex.still || ex.staticSnapshot));
       }
-      const amb = ex && ex.ambientIntensity !== undefined ? clampFinite(ex.ambientIntensity, bAmb, 0, 1) : bAmb;
+      const amb = ex && ex.ambientIntensity !== void 0 ? clampFinite(ex.ambientIntensity, bAmb, 0, 1) : bAmb;
       aAmb = amb;
       const str = clampFinite(rawS, 1, 0, 1) * amb;
       if (amb <= 0 || (fStatic && str <= 0)) { if (!clrZ) clearCv(); else slp = true; return false; }
-      const reach = ex?.reach !== undefined ? clampFinite(ex.reach, bAura.reach, 0.05, 1) : bAura.reach;
-      const prism = ex?.prism !== undefined ? clampFinite(ex.prism, bAura.prism, 0, 1) : bAura.prism;
-      const surge = ex?.surge !== undefined ? clampFinite(ex.surge, bAura.surge, -1, 1) : bAura.surge;
-      const speed = ex?.speed !== undefined ? clampFinite(ex.speed, bAura.speed, 0, 3) : bAura.speed;
-      const rawSp = ex && (ex.spectrum !== undefined || ex.accent !== undefined) ? (ex.spectrum ?? ex.accent) : bSpec;
+      const reach = ex?.reach !== void 0 ? clampFinite(ex.reach, bAura.reach, 0.05, 1) : bAura.reach;
+      const prism = ex?.prism !== void 0 ? clampFinite(ex.prism, bAura.prism, 0, 1) : bAura.prism;
+      const surge = ex?.surge !== void 0 ? clampFinite(ex.surge, bAura.surge, -1, 1) : bAura.surge;
+      const speed = ex?.speed !== void 0 ? clampFinite(ex.speed, bAura.speed, 0, 3) : bAura.speed;
+      const rawSp = ex && (ex.spectrum !== void 0 || ex.accent !== void 0) ? (ex.spectrum ?? ex.accent) : bSpec;
       const specC = rawSp != null ? resolveHorizonSpectrumCode(rawSp) : detectHostSpectrumCode(canvas, dark);
-      const rawSem = ex?.semantic !== undefined ? ex.semantic : bSem, semC = resolveHorizonSemanticCode(rawSem);
+      const rawSem = ex?.semantic !== void 0 ? ex.semantic : bSem, semC = resolveHorizonSemanticCode(rawSem);
       aAura.reach = reach; aAura.prism = prism; aAura.surge = surge; aAura.speed = speed;
       aSpec = rawSp || (specC === 1 ? 'warm' : 'default'); aSem = String(rawSem || 'none');
 
       const rawNow = Number(nowIn || 0);
-      const inSec = !extRen && (Boolean(ex?.timeUnit === 'sec') || (!isObj && lastRaw !== null && rawNow > 0 && rawNow < 1e4 && M.abs(rawNow - lastRaw) > 0 && M.abs(rawNow - lastRaw) < 0.5));
+      const inSec = !extRen && (ex?.timeUnit === 'sec' || (!isObj && lastRaw !== null && rawNow > 0 && rawNow < 1e4 && M.abs(rawNow - lastRaw) > 0 && M.abs(rawNow - lastRaw) < 0.5));
       lastRaw = rawNow;
       const nowMs = inSec ? rawNow * 1000 : rawNow;
       if (startMs === null) startMs = nowMs;
-      const ext = Boolean(ex) || hasCust, realSec = still ? 0 : M.max(0, (nowMs - startMs) / 1000);
+      const ext = !!(ex) || hasCust, realSec = still ? 0 : M.max(0, (nowMs - startMs) / 1000);
       const ramp = still || fStatic || ext ? 1 : -(M.cos(M.PI * M.min(1, M.max(0, realSec / 1.4))) - 1) * 0.5;
       const baseP = M.max(0.22, ramp);
       const dirty = fStatic || dark !== lDark || specC !== lSpec || semC !== lSem || M.abs((semC > 0 ? 1 : 0) - semMix) > 0.005 || M.abs(str - lStr) >= 0.005 || M.abs(reach - lReach) >= 0.002 || M.abs(prism - lPrism) >= 0.002 || M.abs(surge - lSurge) >= 0.001 || M.abs(speed - lSpeed) >= 0.005;
@@ -2173,19 +2181,19 @@ outColor = clamp(vec4(premulRgb, outAlpha), 0.0, 1.0);
       const breath = fStatic ? 0.64 : still ? 0.58 : 0.46 + 0.24 * M.sin(flowSec * 1.15) + 0.06 * M.sin(flowSec * 2.05 + 0.9);
       const inten = !ext && str >= 0.999 ? breath * (0.2 + 0.8 * str) : breath * (0.55 + 0.45 * str);
       const pres = baseP * (str <= 0 ? 0 : str >= 0.999 ? 1 : M.pow(str, 0.78));
-      ren.draw(canvas.width || 0, canvas.height || 0, dpr, 12 + flowSec, dark, inten, pres, reach, prism, surge, speed, specC, effSem, { still: Boolean(still), continuous: Boolean(ex?.continuous) });
+      ren.draw(canvas.width || 0, canvas.height || 0, dpr, 12 + flowSec, dark, inten, pres, reach, prism, surge, speed, specC, effSem, { still: !!(still), continuous: !!(ex?.continuous), dots: dotMix });
       clrZ = stale = false;
       lastDraw = nowMs; lDark = dark; lStr = str; lReach = reach; lPrism = prism; lSurge = surge; lSpeed = speed; lSpec = specC; lSem = semC;
       return true;
     }
     return {
-      mode: ren ? ren.mode : 'none', isContextLost: () => Boolean(ren?.isContextLost?.()),
+      mode: ren ? ren.mode : 'none', isContextLost: () => !!(ren?.isContextLost?.()),
       getBufferSize: () => (ren?.getBufferSize ? ren.getBufferSize() : { width: canvas.width || 0, height: canvas.height || 0, dpr }),
       releaseBackingStore() { stale = true; slp = true; ren?.releaseBackingStore?.(); },
       resize: syncSize, invalidate() { stale = true; }, clear: clearCv, setAuraParams,
       getAuraParams: () => ({ ...aAura }),
-      getExtendedState: () => ({ ...aAura, spectrum: aSpec, semantic: aSem, ambientIntensity: aAmb, sleeping: slp || Boolean(ren?.isSleeping?.()) }),
-      isSleeping: () => slp || Boolean(ren?.isSleeping?.()),
+      getExtendedState: () => ({ ...aAura, spectrum: aSpec, semantic: aSem, ambientIntensity: aAmb, sleeping: slp || !!(ren?.isSleeping?.()) }),
+      isSleeping: () => slp || !!(ren?.isSleeping?.()),
       draw: (n, a = {}, s, e) => renderIn(n, a, s, e, false),
       drawStaticSnapshot: (n, a = {}, s, e) => { stale = true; return renderIn(n, a, s, e, true); },
       dispose(keep) {

@@ -29,6 +29,7 @@
   const S_PANE_SCOPE = `${S_CV},${S_SUB_SC},[data-side-panel-body]`;
   const S_NT = '[data-testid="conversation-navigator-turn"]';
   const S_NG = '[data-testid="conversation-navigator-group"]';
+  const S_RESP = '[data-testid="planner-response-text"], [data-testid="agent-response"]';
   const S_TRIG = '.ag-cs-nav-outline-trigger';
   const A_OVC = 'data-ag-ov-sec-closing';
 
@@ -36,12 +37,6 @@
     'zh-CN': '折叠|展开|行|提问导航| 轮|收起步骤|已收起 | 项|已是最简|过滤本会话提问...|无匹配提问|章节|',
     'zh-TW': '摺疊|展開|行|提問導覽| 輪|收起步驟|已收起 | 項|已是最簡|過濾本會話提問...|無匹配提問|章節|',
     en: 'Fold|Expand|L|Outline| turns|Fold Steps|Folded ||All clean|Filter prompts...|No matching prompts|Chapter|Prompts',
-    ja: '折りたたむ|展開|行|プロンプト目次||手順を畳む||件畳みました|完了|質問を絞り込む...|一致なし|章|',
-    ko: '접기|펼치기|줄|질문 목차| 턴|단계 접기||개 접힘|완료|질문 검색...|일치 항목 없음|챕터|',
-    es: 'Contraer|Expandir|L|Esquema| turnos|Contraer pasos|Contraído ||Todo limpio|Filtrar preguntas...|Sin coincidencias|Capítulo|Preguntas',
-    fr: 'Replier|Déplier|L|Plan| tours|Replier étapes|Replié ||Tout est clair|Filtrer les requêtes...|Aucun résultat|Chapitre|Requêtes',
-    de: 'Einklappen|Ausklappen|Z|Gliederung| Runden|Schritte einklappen|Eingeklappt ||Bereinigt|Prompts filtern...|Keine Treffer|Kapitel|Prompts',
-    tr: 'Katla|Genişlet| satır|Anahat| tur|Adımları katla|Katlanan | adım|Katlanacak yok|İstemleri filtrele...|Eşleşen istem yok|Bölüm|İstemler',
   };
   const UI_STRINGS = {};
   for (const k in UI_RAW) {
@@ -70,12 +65,6 @@
     if (l === 'yue' || l.startsWith('yue-') || l === 'zh-yue' || l.includes('cantonese')) return 'zh-CN';
     if (/^zh-(tw|hant|hk|mo)/.test(l) || l === 'tw' || l === 'hant') return 'zh-TW';
     if (/^zh/.test(l)) return 'zh-CN';
-    if (/^(ja|jp)/.test(l) || l === 'japanese') return 'ja';
-    if (/^(ko|kr)/.test(l) || l === 'korean') return 'ko';
-    if (/^es/.test(l) || l === 'spanish') return 'es';
-    if (/^fr/.test(l) || l === 'french') return 'fr';
-    if (/^de/.test(l) || l === 'german') return 'de';
-    if (/^tr/.test(l) || l === 'turkish' || l === 'türkçe' || l === 'turkce') return 'tr';
     return 'en';
   }
 
@@ -175,84 +164,43 @@
           }
         }
 
-        let navCol = null,
-          navBtns = [],
-          rBranch = panel;
+        let navCol = null, navBtns = [], rBranch = panel;
         const tryNav = (c) => {
           if (!c || c === dlg || c === panel || (panel && isDescOf(c, panel)) || tagU(c) === 'BUTTON') return false;
           if (c.classList?.contains?.('p-6') && qs(c, 'div.space-y-2')) return false;
           const bs = navBtnsOf(c);
           if (bs.length < 2) return false;
           if (!/^(?:NAV|ASIDE)$/.test(tagU(c)) && bs.length < 3 && !bs.some((b) => S_NAV_KW.test(b.textContent || ''))) return false;
-          navCol = c;
-          navBtns = bs;
-          return true;
+          navCol = c; navBtns = bs; return true;
         };
         for (let cur = panel; cur && cur !== dlg && !navCol; cur = cur.parentElement) {
           const ks = cur.parentElement?.children || [];
           for (let k = 0; k < ks.length && ks[k] !== cur; k++) {
-            if (tryNav(ks[k])) {
-              rBranch = cur;
-              break;
-            }
+            if (tryNav(ks[k])) { rBranch = cur; break; }
           }
         }
         if (!navCol) for (const c of qa(dlg, 'nav, aside')) if (tryNav(c)) break;
-
-        const hs = Array.from(qa(rBranch || panel || dlg, 'h2')).filter(
-          (h) => !h.hidden && !cl(h, '#ag-cs-settings-sec') && (!navCol || !isDescOf(navCol, h))
-        );
+        const hs = Array.from(qa(rBranch || panel || dlg, 'h2')).filter((h) => !h.hidden && !cl(h, '#ag-cs-settings-sec') && (!navCol || !isDescOf(navCol, h)));
         const hTxt = normLbl(hs[0]?.textContent);
-        const isSet = Boolean(
-          (panel && navCol) ||
-            pSec ||
-            cards.length ||
-            (panel && hs.some((h) => S_NAV_KW.test(h.textContent || '')) && qs(panel, 'div.space-y-2'))
-        );
+        const isSet = Boolean((panel && navCol) || pSec || cards.length || (panel && hs.some((h) => S_NAV_KW.test(h.textContent || '')) && qs(panel, 'div.space-y-2')));
         if (!isSet) {
           if (ha(dlg, A_DLG)) ra(dlg, A_DLG);
-          clr(dlg, A_NAV, null);
-          clr(dlg, A_ACT, null);
-          continue;
+          clr(dlg, A_NAV, null); clr(dlg, A_ACT, null); continue;
         }
-        put(dlg, A_DLG, '1');
-        if (navCol) put(navCol, A_NAV, '1');
-        clr(dlg, A_NAV, navCol);
-
+        put(dlg, A_DLG, '1'); if (navCol) put(navCol, A_NAV, '1'); clr(dlg, A_NAV, navCol);
         let act = null;
         if (navBtns.length) {
           const ah = navBtns.filter((b) => {
-            const ac = ga(b, 'aria-current'),
-              ds = ga(b, 'data-state'),
-              da = ga(b, 'data-active');
-            return (
-              (ac && ac !== 'false') ||
-              ga(b, 'aria-selected') === 'true' ||
-              ga(b, 'aria-pressed') === 'true' ||
-              ds === 'active' ||
-              ds === 'selected' ||
-              (da != null && da !== 'false' && da !== '0') ||
-              ga(b, 'data-selected') === 'true'
-            );
+            const ac = ga(b, 'aria-current'), ds = ga(b, 'data-state'), da = ga(b, 'data-active');
+            return ((ac && ac !== 'false') || ga(b, 'aria-selected') === 'true' || ga(b, 'aria-pressed') === 'true' || ds === 'active' || ds === 'selected' || (da != null && da !== 'false' && da !== '0') || ga(b, 'data-selected') === 'true');
           });
           if (ah.length) act = (ah.length > 1 && hTxt && ah.find((b) => normLbl(b.textContent) === hTxt)) || ah[0];
           if (!act && hTxt) act = navBtns.find((b) => normLbl(b.textContent) === hTxt) || null;
           if (!act) {
             const ch = navBtns.filter((b) => String(b.className || '').split(/\s+/).some((t) => S_ACT_BG.test(t)));
-            if (ch.length) {
-              act =
-                ch.length === 1
-                  ? ch[0]
-                  : ch.find((b) => String(b.className || '').split(/\s+/).some((t) => S_ACT_BG2.test(t))) || ch[0];
-            }
+            if (ch.length) act = ch.length === 1 ? ch[0] : ch.find((b) => String(b.className || '').split(/\s+/).some((t) => S_ACT_BG2.test(t))) || ch[0];
           }
-          if (!act && hTxt.length >= 2) {
-            act =
-              navBtns.find((b) => {
-                const bt = normLbl(b.textContent);
-                return bt.length >= 2 && (hTxt.includes(bt) || bt.includes(hTxt));
-              }) || null;
-          }
+          if (!act && hTxt.length >= 2) act = navBtns.find((b) => { const bt = normLbl(b.textContent); return bt.length >= 2 && (hTxt.includes(bt) || bt.includes(hTxt)); }) || null;
         }
         if (act) put(act, A_ACT, '1');
         clr(dlg, A_ACT, act);
@@ -318,6 +266,7 @@
 
     const codeLineCache = new WeakMap();
     const preSyncCache = new WeakMap();
+    const sealedRespLang = new WeakMap();
     let cachedConvView = null;
     let lastOutlineStreamSyncAt = 0;
 
@@ -343,7 +292,7 @@
     // Dedicated timer/rAF sets for non-Diff animations (strictly decoupled from Channel 6 Inline Diff)
     const nonDiffAnimTimers = new Set();
     const ovSecAnimRafs = new Set();
-    let scrollGlideRaf = 0, scrollGlideCleanup = null, scrollBlurTimer = 0, scrollBlurCv = null, scrollBlurTarget = null, lastAmbientSyncAt = 0, ambientThrottleTimer = 0;
+    let scrollGlideRaf = 0, scrollGlideCleanup = null, scrollBlurTimer = 0, scrollBlurCv = null, scrollBlurTarget = null, scrollNegTarget = null, scrollNegAt = 0, lastAmbientSyncAt = 0, ambientThrottleTimer = 0;
     let sidebarMoreExpanded = false, sidebarMoreBtn = null;
 
     const stats = {
@@ -360,8 +309,8 @@
     }
 
     const SIDEBAR_MORE_FB = {
-      sidebarMoreLabel: { 'zh-CN': '更多', 'zh-TW': '更多', en: 'More', ja: 'その他', ko: '더보기', es: 'Más', fr: 'Plus', de: 'Mehr', tr: 'Daha fazla' },
-      sidebarLessLabel: { 'zh-CN': '收起', 'zh-TW': '收起', en: 'Less', ja: '折りたたむ', ko: '접기', es: 'Menos', fr: 'Moins', de: 'Weniger', tr: 'Daha az' },
+      sidebarMoreLabel: { 'zh-CN': '更多', 'zh-TW': '更多', en: 'More' },
+      sidebarLessLabel: { 'zh-CN': '收起', 'zh-TW': '收起', en: 'Less' },
     };
     function getUiText(key, fallback) {
       if (tFn) {
@@ -436,109 +385,53 @@
     function findAllConvViews() {
       if (!doc || typeof doc.querySelectorAll !== 'function') return [];
       const views = doc.querySelectorAll(S_CV), out = [];
-      for (let i = 0; i < views.length; i++) {
-        if (isFormalConv(views[i])) out.push(views[i]);
-      }
+      for (let i = 0; i < views.length; i++) if (isFormalConv(views[i])) out.push(views[i]);
       return out;
     }
 
     function findPrimaryConvView(hintEl = null) {
       const hCv = hintEl?.matches?.(S_CV) ? hintEl : cl(hintEl, S_CV);
-      if (isFormalConv(hCv)) {
-        cachedConvView = hCv;
-        return hCv;
-      }
+      if (isFormalConv(hCv)) return (cachedConvView = hCv);
       const actCv = cl(doc?.activeElement, S_CV);
-      if (isFormalConv(actCv)) {
-        cachedConvView = actCv;
-        return actCv;
-      }
+      if (isFormalConv(actCv)) return (cachedConvView = actCv);
       if (isFormalConv(cachedConvView)) return cachedConvView;
       const formal = findAllConvViews();
-      if (formal.length > 0) {
-        cachedConvView = formal[0];
-        return formal[0];
-      }
+      if (formal.length > 0) return (cachedConvView = formal[0]);
       const views = qa(doc, S_CV);
-      cachedConvView = views.length > 0 ? views[0] : null;
-      return cachedConvView;
+      return (cachedConvView = views.length > 0 ? views[0] : null);
     }
 
     function findScrollViewport(startEl) {
-      if (startEl?.closest) {
-        const vp = startEl.closest(S_VP);
-        if (vp) return vp;
-        const ownCv = startEl.closest(S_CV);
-        if (ownCv?.querySelector) {
-          const ownVp = ownCv.querySelector(S_VP);
-          if (ownVp) return ownVp;
-        }
-      }
-      const cv = findPrimaryConvView(startEl);
-      if (cv?.querySelector) {
-        const vp = cv.querySelector(S_VP);
-        if (vp) return vp;
-      }
-      return doc?.querySelector?.(S_VP) || null;
+      const ownVp = startEl?.closest?.(S_VP) || startEl?.closest?.(S_CV)?.querySelector?.(S_VP);
+      return ownVp || findPrimaryConvView(startEl)?.querySelector?.(S_VP) || doc?.querySelector?.(S_VP) || null;
     }
 
     // ── 1. Sidecar (`plugin://*`) 4-Theme PostMessage Bridge ───────────────
     function readRootAttrKey() {
       const html = doc?.documentElement;
       if (!html) return '';
-      const cfg = getConfig() || {};
-      return [
-        ...'style|theme|palette|light-preset|accent|corners|code-font'.split('|').map((s) => ga(html, 'data-ag-cs-' + s) || ''),
-        String(ga(html, 'style') || '').slice(0, 180),
-        String(doc?.body?.className || ''),
-        cfg.palette || '',
-        cfg.lightPreset || '',
-        cfg.accentTone || '',
-      ].join('|');
+      const c = getConfig() || {};
+      return ['style|theme|palette|light-preset|accent|corners|code-font'.split('|').map((s) => ga(html, 'data-ag-cs-' + s) || '').join('|'), String(ga(html, 'style') || '').slice(0, 180), String(doc?.body?.className || ''), c.palette || '', c.lightPreset || '', c.accentTone || ''].join('|');
     }
 
     function sampleRootTheme(force = false) {
       const html = doc?.documentElement;
       if (!html || !win || typeof win.getComputedStyle !== 'function') return null;
       const nextAttrKey = readRootAttrKey();
-      if (!force && cachedThemeSample && cachedAttrKey === nextAttrKey) {
-        return cachedThemeSample;
-      }
-
+      if (!force && cachedThemeSample && cachedAttrKey === nextAttrKey) return cachedThemeSample;
       stats.themeSampleCount += 1;
-      const cs = win.getComputedStyle(html);
-      const vars = {};
-      const sigParts = [];
+      const cs = win.getComputedStyle(html), vars = {}, sigParts = [];
       for (let i = 0; i < SIDECAR_THEME_VARS.length; i++) {
-        const key = SIDECAR_THEME_VARS[i];
-        const val = String(cs.getPropertyValue(key) || '').trim();
-        if (val) {
-          vars[key] = val;
-          sigParts.push(`${key}:${val}`);
-        }
+        const key = SIDECAR_THEME_VARS[i], val = String(cs.getPropertyValue(key) || '').trim();
+        if (val) { vars[key] = val; sigParts.push(`${key}:${val}`); }
       }
-      if (!vars['--accent'] && vars['--primary']) {
-        vars['--accent'] = vars['--primary'];
-        sigParts.push(`--accent:${vars['--accent']}`);
-      }
-
-      const explicitTheme = ga(html, 'data-ag-cs-theme');
-      const bodyCls = String(doc?.body?.className || '');
-      const scheme = String(cs.getPropertyValue('color-scheme') || '').toLowerCase();
-      const isLight =
-        explicitTheme === 'light' ||
-        /\b(?:theme-light|light-theme|light)\b/.test(bodyCls) ||
-        (explicitTheme !== 'dark' && scheme.includes('light') && !scheme.includes('dark'));
-      const themeType = isLight ? 'light' : 'dark';
-      const pal = ga(html, 'data-ag-cs-palette') || 'obsidian';
-      const lp = ga(html, 'data-ag-cs-light-preset') || 'crystal';
-      const effectiveLp = pal === 'warm' || pal === 'claude' ? 'alabaster' : lp;
-      const themeLabel = isLight ? (pal === 'host' ? 'prism-host-light' : `prism-${effectiveLp}`) : `prism-${pal}`;
-      const sig = `${themeType}|${themeLabel}|${sigParts.join(';')}`;
-
+      if (!vars['--accent'] && vars['--primary']) { vars['--accent'] = vars['--primary']; sigParts.push(`--accent:${vars['--accent']}`); }
+      const explicitTheme = ga(html, 'data-ag-cs-theme'), bodyCls = String(doc?.body?.className || ''), scheme = String(cs.getPropertyValue('color-scheme') || '').toLowerCase();
+      const isLight = explicitTheme === 'light' || /\b(?:theme-light|light-theme|light)\b/.test(bodyCls) || (explicitTheme !== 'dark' && scheme.includes('light') && !scheme.includes('dark'));
+      const themeType = isLight ? 'light' : 'dark', pal = ga(html, 'data-ag-cs-palette') || 'obsidian', lp = ga(html, 'data-ag-cs-light-preset') || 'crystal';
+      const themeLabel = isLight ? (pal === 'host' ? 'prism-host-light' : `prism-${pal === 'warm' || pal === 'claude' ? 'alabaster' : lp}`) : `prism-${pal}`;
       cachedAttrKey = nextAttrKey;
-      cachedThemeSample = { themeType, themeLabel, vars, sig };
-      return cachedThemeSample;
+      return (cachedThemeSample = { themeType, themeLabel, vars, sig: `${themeType}|${themeLabel}|${sigParts.join(';')}` });
     }
 
     function resolveIframeTargetOrigin(iframe) {
@@ -820,13 +713,16 @@ if (!pre || !resp) return false;
 for (let cur = pre; cur && cur !== resp; cur = cur.parentElement) if (cur.nextElementSibling) return true;
 return false;
 }
-function syncCodeBlocks() {
+function syncCodeBlocks(allowSealedSkip = false) {
 if (isDead() || !doc?.querySelectorAll) return;
 const views = findAllConvViews(), convScopes = views.length > 0 ? views : [findPrimaryConvView()].filter(Boolean);
 const streamingPres = new Set(), lastRespByConv = new Map();
 let defaultLastResp = null, anyConvRunning = false;
+const curLang = lastSyncedLang || String(getLang() || '');
+const canSkip = Boolean(allowSealedSkip && convScopes.length > 0);
+const targetedPres = canSkip ? [] : null, pendingSealResps = canSkip ? [] : null;
 for (let v = 0; v < convScopes.length; v++) {
-const cv = convScopes[v], responses = qa(cv, '[data-testid="planner-response-text"], [data-testid="agent-response"]'), lr = responses.length > 0 ? responses[responses.length - 1] : null;
+const cv = convScopes[v], responses = qa(cv, S_RESP), lr = responses.length > 0 ? responses[responses.length - 1] : null;
 if (lr) {
 lastRespByConv.set(cv, lr);
 if (!defaultLastResp) defaultLastResp = lr;
@@ -836,10 +732,20 @@ const rPres = qa(lr, 'pre'), tailPre = rPres.length > 0 ? rPres[rPres.length - 1
 if (tailPre && !hasFollowingSiblingInResp(tailPre, lr)) streamingPres.add(tailPre);
 }
 }
+if (canSkip) {
+for (let r = 0; r < responses.length; r++) {
+const resp = responses[r];
+if (resp !== lr && sealedRespLang.get(resp) === curLang) continue;
+const rPres = qa(resp, 'pre');
+for (let p = 0; p < rPres.length; p++) targetedPres.push(rPres[p]);
+if (resp !== lr) pendingSealResps.push(resp);
 }
-const pres = qa(doc, '[data-testid="planner-response-text"] pre, [data-testid="agent-response"] pre, [data-testid="artifact-view"] pre');
-if (!pres.length) return;
-const curLang = lastSyncedLang || String(getLang() || ''), isHot = anyConvRunning || Boolean(scrollBlurCv);
+}
+}
+if (canSkip) { const art = qa(doc, '[data-testid="artifact-view"] pre'); for (let p = 0; p < art.length; p++) targetedPres.push(art[p]); }
+const pres = canSkip ? targetedPres : qa(doc, `${S_RESP.replace(/,/g, ' pre,')} pre, [data-testid="artifact-view"] pre`);
+if (!pres.length) { if (pendingSealResps?.length) for (const resp of pendingSealResps) sealedRespLang.set(resp, curLang); return; }
+const isHot = anyConvRunning || Boolean(scrollBlurCv);
 const AF = 'data-ag-cs-code-folded', AS = 'data-ag-cs-code-sticky', AR = 'data-ag-cs-rich-pre';
 mut(() => {
 for (let i = 0; i < pres.length; i++) {
@@ -884,6 +790,7 @@ if (lc && lc !== header.firstElementChild && tagU(lc) === 'DIV') lc.insertBefore
 preSyncCache.set(pre, { header, body, btn, lineCount, lang: curLang, cn: body.childNodes?.length || 0, stamp: getPreBodyStamp(body), sealed: canSeal });
 }
 });
+if (pendingSealResps?.length) for (const resp of pendingSealResps) sealedRespLang.set(resp, curLang);
 }
 function refreshCodeFoldLabels() {
 const btns = qa(doc, '.ag-cs-code-fold-btn');
@@ -954,12 +861,9 @@ return true;
       if (!conv?.querySelectorAll) return 0;
       const uSteps = getMountedUserTurns(conv),
         lastU = uSteps[uSteps.length - 1] || null;
-      const aResps = Array.from(qa(conv, '[data-testid="agent-response"]')),
-        lastA = aResps[aResps.length - 1] || null;
+      const aResps = Array.from(qa(conv, '[data-testid="agent-response"]')), lastA = aResps[aResps.length - 1] || null;
       const multi = aResps.length >= 2 || uSteps.length >= 2;
-      const cols = Array.from(
-        qa(conv, '[data-testid="worked-for-collapsible"][aria-expanded="true"], [data-testid="thinking-collapsible-trigger"][aria-expanded="true"]')
-      );
+      const cols = Array.from(qa(conv, '[data-testid="worked-for-collapsible"][aria-expanded="true"], [data-testid="thinking-collapsible-trigger"][aria-expanded="true"]'));
       const tgts = [];
       for (let i = 0; i < cols.length; i++) {
         const b = cols[i];
@@ -970,19 +874,12 @@ return true;
       const clickPair = (s) => {
         for (let k = s; k < Math.min(tgts.length, s + 2); k++) {
           const b = tgts[k];
-          if (b && b.isConnected !== false && ga(b, 'aria-expanded') === 'true') {
-            try {
-              b.click();
-            } catch {}
-          }
+          if (b && b.isConnected !== false && ga(b, 'aria-expanded') === 'true') try { b.click(); } catch {}
         }
       };
       const total = tgts.length;
       stats.foldedStepsLastRun = total;
-      if (total <= 4 || typeof requestAnimationFrame !== 'function') {
-        for (let i = 0; i < total; i += 2) clickPair(i);
-        return total;
-      }
+      if (total <= 4 || typeof requestAnimationFrame !== 'function') { for (let i = 0; i < total; i += 2) clickPair(i); return total; }
       clickPair(0);
       let cur = 2;
       const step = () => {
@@ -998,69 +895,42 @@ return true;
 
     function extractPromptSnippet(stepEl) {
       if (!stepEl) return '';
-      const contentEl =
-        qs(stepEl, '[data-testid="user-message-content"]') ||
-        qs(stepEl, '[data-testid="user-message-bubble"]') ||
-        stepEl;
-      const raw = String(contentEl.textContent || '')
-        .replace(/\s+/g, ' ')
-        .trim();
+      const contentEl = qs(stepEl, '[data-testid="user-message-content"]') || qs(stepEl, '[data-testid="user-message-bubble"]') || stepEl;
+      const raw = String(contentEl.textContent || '').replace(/\s+/g, ' ').trim();
       return raw.length > 68 ? `${raw.slice(0, 66)}…` : raw || '(Prompt)';
     }
 
     function parseTurnDotMeta(dot) {
-      const aria = String(ga(dot, 'aria-label') || '');
-      const m = aria.match(/(\d+)\s*(?:of|\/)\s*(\d+)/i);
+      const aria = String(ga(dot, 'aria-label') || ''), m = aria.match(/(\d+)\s*(?:of|\/)\s*(\d+)/i);
       if (m) return { turn: parseInt(m[1], 10) || 0, total: parseInt(m[2], 10) || 0 };
-      const tail = aria.match(/(?:of|\/)\s*(\d+)/i);
-      const lead = aria.match(/(\d+)/);
-      return {
-        turn: lead ? parseInt(lead[1], 10) || 0 : 0,
-        total: tail ? parseInt(tail[1], 10) || 0 : 0,
-      };
+      const tail = aria.match(/(?:of|\/)\s*(\d+)/i), lead = aria.match(/(\d+)/);
+      return { turn: lead ? parseInt(lead[1], 10) || 0 : 0, total: tail ? parseInt(tail[1], 10) || 0 : 0 };
     }
 
     function isTurnDotActive(dot) {
-      if (!dot) return false;
-      return (
-        ga(dot, 'aria-current') === 'true' ||
-        ga(dot, 'data-active') === 'true' ||
-        ga(dot, 'data-selected') === 'true' ||
-        ga(dot, 'data-state') === 'active' ||
-        Boolean(qs(dot, '[data-active="true"], .bg-primary, .bg-foreground'))
-      );
+      return Boolean(dot && (ga(dot, 'aria-current') === 'true' || ga(dot, 'data-active') === 'true' || ga(dot, 'data-selected') === 'true' || ga(dot, 'data-state') === 'active' || qs(dot, '[data-active="true"], .bg-primary, .bg-foreground')));
     }
 
     function isHostGroupCardVisible() {
       for (const c of qa(doc, '[data-testid="conversation-navigator-group-card"]')) {
         if (!c || c.hidden || c.isConnected === false) continue;
-        const d = c.style?.getPropertyValue ? c.style.getPropertyValue('display') : c.style?.display;
-        if (d !== 'none') return true;
+        if ((c.style?.getPropertyValue ? c.style.getPropertyValue('display') : c.style?.display) !== 'none') return true;
       }
       return false;
     }
 
     function collectOutlineModel(navRail) {
       const conv = cl(navRail, S_CV) || findPrimaryConvView();
-      const chapters = navRail
-        ? Array.from(qa(navRail, S_NG)).map((btn) => ({
-            btn,
-            label: String(ga(btn, 'aria-label') || ga(btn, 'data-group-key') || '').trim(),
-          }))
-        : [];
-      const dots = navRail ? Array.from(qa(navRail, S_NT)) : [],
-        pd = dots.map(parseTurnDotMeta);
-      let total = 0,
-        actTurn = 0;
+      const chapters = navRail ? Array.from(qa(navRail, S_NG)).map((btn) => ({ btn, label: String(ga(btn, 'aria-label') || ga(btn, 'data-group-key') || '').trim() })) : [];
+      const dots = navRail ? Array.from(qa(navRail, S_NT)) : [], pd = dots.map(parseTurnDotMeta);
+      let total = 0, actTurn = 0;
       for (let i = 0; i < dots.length; i++) {
         if (pd[i].total > total) total = pd[i].total;
         if (!actTurn && pd[i].turn > 0 && isTurnDotActive(dots[i])) actTurn = pd[i].turn;
       }
       const steps = getMountedUserTurns(conv);
       if (!total) total = steps.length;
-      const vr = findScrollViewport(conv)?.getBoundingClientRect?.(),
-        midY = vr && vr.height > 0 ? vr.top + vr.height * 0.35 : 240,
-        bus = getDomBus();
+      const vr = findScrollViewport(conv)?.getBoundingClientRect?.(), midY = vr && vr.height > 0 ? vr.top + vr.height * 0.35 : 240, bus = getDomBus();
       let actIdx = steps.length - 1;
       for (let i = 0; i < steps.length; i++) {
         if (bus?.isSkipped?.(steps[i])) continue;
@@ -1070,89 +940,43 @@ return true;
       const exact = steps.length > 0 && pd.length === steps.length && pd.every((d) => d.turn > 0);
       let start = Math.max(1, total - steps.length + 1);
       if (!exact && actTurn > 0 && actIdx >= 0 && steps.length > 0) start = Math.max(1, Math.min(start, actTurn - actIdx));
-      const items = steps.map((el, i) => ({
-        el,
-        turnNum: exact ? pd[i].turn : start + i,
-        text: extractPromptSnippet(el),
-        active: i === actIdx,
-      }));
+      const items = steps.map((el, i) => ({ el, turnNum: exact ? pd[i].turn : start + i, text: extractPromptSnippet(el), active: i === actIdx }));
       return { totalTurns: Math.max(total, items.length), chapters, items };
     }
 
-    function cancelHideOutlineTimer() {
-      if (hideOutlineTimer) {
-        clearTimeout(hideOutlineTimer);
-        hideOutlineTimer = 0;
-      }
-    }
+    function cancelHideOutlineTimer() { if (hideOutlineTimer) { clearTimeout(hideOutlineTimer); hideOutlineTimer = 0; } }
 
     function scheduleHideOutline() {
       cancelHideOutlineTimer();
-      hideOutlineTimer = setTimeout(() => {
-        hideOutlineTimer = 0;
-        closeNavOutline();
-      }, OUTLINE_HIDE_DELAY_MS);
+      hideOutlineTimer = setTimeout(() => { hideOutlineTimer = 0; closeNavOutline(); }, OUTLINE_HIDE_DELAY_MS);
     }
 
     function ensureOutlinePopover(hostParent) {
       if (outlinePopover && outlinePopover.parentElement === hostParent) return outlinePopover;
       if (outlinePopover) outlinePopover.remove();
       if (!doc || !hostParent) return null;
-
-      const ui = getStrings();
-      const title = mk('span', 'ag-cs-nav-outline-title');
-      const foldBtn = mk('button', 'ag-cs-nav-fold-steps-btn', ui.foldSteps);
-      foldBtn.type = 'button';
-      sa(foldBtn, 'data-no-press-spring', '1');
+      const ui = getStrings(), title = mk('span', 'ag-cs-nav-outline-title'), foldBtn = mk('button', 'ag-cs-nav-fold-steps-btn', ui.foldSteps);
+      foldBtn.type = 'button'; sa(foldBtn, 'data-no-press-spring', '1');
       foldBtn.addEventListener('click', (ev) => {
-        ev?.preventDefault?.();
-        ev?.stopPropagation?.();
+        ev?.preventDefault?.(); ev?.stopPropagation?.();
         foldBtn.textContent = getStrings().foldedFeedback(foldHistoricalSteps());
         if (foldFeedbackTimer) clearTimeout(foldFeedbackTimer);
-        foldFeedbackTimer = setTimeout(() => {
-          foldFeedbackTimer = 0;
-          if (!isDead() && outlineFoldBtn) outlineFoldBtn.textContent = getStrings().foldSteps;
-        }, 1200);
+        foldFeedbackTimer = setTimeout(() => { foldFeedbackTimer = 0; if (!isDead() && outlineFoldBtn) outlineFoldBtn.textContent = getStrings().foldSteps; }, 1200);
       });
       const search = mk('input', 'ag-cs-nav-outline-search');
-      search.type = 'search';
-      search.placeholder = ui.searchPlaceholder;
-      search.addEventListener('input', () => {
-        outlineFilterText = String(search.value || '').trim().toLowerCase();
-        renderOutlineListOnly();
-      });
+      search.type = 'search'; search.placeholder = ui.searchPlaceholder;
+      search.addEventListener('input', () => { outlineFilterText = String(search.value || '').trim().toLowerCase(); renderOutlineListOnly(); });
       search.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape') {
-          ev.stopPropagation();
-          closeNavOutline();
-        } else if (ev.key === 'Enter') {
-          qs(outlineListEl, 'button.ag-cs-nav-outline-item, button.ag-cs-nav-outline-chapter')?.click?.();
-        }
+        if (ev.key === 'Escape') { ev.stopPropagation(); closeNavOutline(); }
+        else if (ev.key === 'Enter') qs(outlineListEl, 'button.ag-cs-nav-outline-item, button.ag-cs-nav-outline-chapter')?.click?.();
       });
       const list = mk('div', 'ag-cs-nav-outline-list');
-      const pop = markNoTr(
-        mk(
-          'div',
-          'ag-cs-nav-outline-popover',
-          null,
-          mk('div', 'ag-cs-nav-outline-head', null, title, foldBtn),
-          mk('div', 'ag-cs-nav-outline-search-wrap', null, search),
-          list
-        )
-      );
-      sa(pop, 'role', 'region');
-      sa(pop, 'data-ag-no-i18n', '');
-      sa(pop, 'data-ag-owned', '1');
-      pop.hidden = true;
+      const pop = markNoTr(mk('div', 'ag-cs-nav-outline-popover', null, mk('div', 'ag-cs-nav-outline-head', null, title, foldBtn), mk('div', 'ag-cs-nav-outline-search-wrap', null, search), list));
+      sa(pop, 'role', 'region'); sa(pop, 'data-ag-no-i18n', ''); sa(pop, 'data-ag-owned', '1'); pop.hidden = true;
       pop.addEventListener('pointerenter', cancelHideOutlineTimer);
-      pop.addEventListener('pointerleave', () => {
-        if (doc.activeElement !== search) scheduleHideOutline();
-      });
+      pop.addEventListener('pointerleave', () => { if (doc.activeElement !== search) scheduleHideOutline(); });
       hostParent.appendChild(pop);
-      outlinePopover = pop;
-      outlineTitleEl = title;
-      outlineFoldBtn = foldBtn;
-      outlineSearchInput = search;
+      outlinePopover = pop; outlineTitleEl = title; outlineFoldBtn = foldBtn; outlineSearchInput = search;
       outlineListEl = list;
       lastOutlineStructSig = '';
       lastOutlineActiveIdx = -1;
@@ -1753,75 +1577,40 @@ const btn = cl(ev.target, 'button');
 if (!btn || ga(btn, 'data-testid') === 'overview-panel-customize-trigger' || ga(btn, 'aria-haspopup') === 'menu') return false;
 const secEl = btn.parentElement;
 if (!secEl?.classList?.contains?.('p-1') || secEl.firstElementChild !== btn || !cl(secEl, '[data-testid="overview-panel"]')) return false;
-if (secEl._agOvBypassClick) {
-secEl._agOvBypassClick = false;
-return true;
-}
+if (secEl._agOvBypassClick) { secEl._agOvBypassClick = false; return true; }
 if (!shouldAnimateNonDiff()) {
-if (ga(secEl, A_OVC) === '1') {
-clearOvSecTimers(secEl);
-mut(() => ra(secEl, A_OVC));
-setOvSecSiblingsAnim(secEl, btn, null);
-}
+if (ga(secEl, A_OVC) === '1') { clearOvSecTimers(secEl); mut(() => ra(secEl, A_OVC)); setOvSecSiblingsAnim(secEl, btn, null); }
 return false;
 }
 if ((secEl.children?.length || 0) > 1) {
-ev.preventDefault?.();
-ev.stopImmediatePropagation?.();
-clearOvSecTimers(secEl);
-if (ga(secEl, A_OVC) === '1') {
-mut(() => ra(secEl, A_OVC));
-if (setOvSecSiblingsAnim(secEl, btn, 'open')) scheduleOvSecOpenCleanup(secEl, btn);
-return true;
-}
-mut(() => sa(secEl, A_OVC, '1'));
-setOvSecSiblingsAnim(secEl, btn, 'closing');
+ev.preventDefault?.(); ev.stopImmediatePropagation?.(); clearOvSecTimers(secEl);
+if (ga(secEl, A_OVC) === '1') { mut(() => ra(secEl, A_OVC)); if (setOvSecSiblingsAnim(secEl, btn, 'open')) scheduleOvSecOpenCleanup(secEl, btn); return true; }
+mut(() => sa(secEl, A_OVC, '1')); setOvSecSiblingsAnim(secEl, btn, 'closing');
 const closeTid = setTimeout(() => {
-nonDiffAnimTimers.delete(closeTid);
-secEl._agOvCloseTimer = 0;
+nonDiffAnimTimers.delete(closeTid); secEl._agOvCloseTimer = 0;
 if (isDead() || secEl.isConnected === false) return;
-mut(() => {
-if (ha(secEl, A_OVC)) ra(secEl, A_OVC);
-});
-setOvSecSiblingsAnim(secEl, btn, null);
-secEl._agOvBypassClick = true;
-try {
-if (btn.isConnected !== false) btn.click?.();
-} finally {
-secEl._agOvBypassClick = false;
-}
+mut(() => { if (ha(secEl, A_OVC)) ra(secEl, A_OVC); });
+setOvSecSiblingsAnim(secEl, btn, null); secEl._agOvBypassClick = true;
+try { if (btn.isConnected !== false) btn.click?.(); } finally { secEl._agOvBypassClick = false; }
 }, 130);
-secEl._agOvCloseTimer = closeTid;
-nonDiffAnimTimers.add(closeTid);
+secEl._agOvCloseTimer = closeTid; nonDiffAnimTimers.add(closeTid);
 return true;
 }
 clearOvSecTimers(secEl);
 const tryOpen = (allowRaf) => {
 if (isDead() || secEl.isConnected === false || ga(secEl, A_OVC) === '1') return;
-if ((secEl.children?.length || 0) > 1) {
-if (setOvSecSiblingsAnim(secEl, btn, 'open')) scheduleOvSecOpenCleanup(secEl, btn);
-return;
-}
+if ((secEl.children?.length || 0) > 1) { if (setOvSecSiblingsAnim(secEl, btn, 'open')) scheduleOvSecOpenCleanup(secEl, btn); return; }
 if (allowRaf && typeof win?.requestAnimationFrame === 'function') {
-const rid = win.requestAnimationFrame(() => {
-ovSecAnimRafs.delete(rid);
-if (secEl._agOvOpenRaf === rid) secEl._agOvOpenRaf = 0;
-tryOpen(false);
-});
-secEl._agOvOpenRaf = rid;
-ovSecAnimRafs.add(rid);
+const rid = win.requestAnimationFrame(() => { ovSecAnimRafs.delete(rid); if (secEl._agOvOpenRaf === rid) secEl._agOvOpenRaf = 0; tryOpen(false); });
+secEl._agOvOpenRaf = rid; ovSecAnimRafs.add(rid);
 }
 };
 Promise.resolve().then(() => tryOpen(true));
 return true;
 }
 function schedNonDiffTimer(fn, ms) {
-const tid = setTimeout(() => {
-nonDiffAnimTimers.delete(tid);
-if (!isDead()) fn();
-}, ms);
-nonDiffAnimTimers.add(tid);
-return tid;
+const tid = setTimeout(() => { nonDiffAnimTimers.delete(tid); if (!isDead()) fn(); }, ms);
+nonDiffAnimTimers.add(tid); return tid;
 }
 function onDocClickCapture(ev) {
 try {
@@ -1833,24 +1622,14 @@ const pt = cl(t, '[data-testid="permissions-selector-trigger"]');
 if (pt) {
 const dd = ga(pt, 'data-disabled');
 if (pt.disabled || ha(pt, 'disabled') || ga(pt, 'aria-disabled') === 'true' || (dd != null && dd !== 'false')) return;
-win?.requestAnimationFrame?.(() => {
-if (!isDead()) syncPermissionsMenuState();
-});
-schedNonDiffTimer(syncPermissionsMenuState, 20);
-schedNonDiffTimer(syncPermissionsMenuState, 90);
+win?.requestAnimationFrame?.(() => { if (!isDead()) syncPermissionsMenuState(); });
+schedNonDiffTimer(syncPermissionsMenuState, 20); schedNonDiffTimer(syncPermissionsMenuState, 90);
 return;
 }
 const sb = cl(t, '.agy-scroll-bottom');
-if (sb) {
-if (runFastScrollToBottom(sb)) {
-ev.preventDefault?.();
-ev.stopPropagation?.();
-}
-return;
-}
+if (sb) { if (runFastScrollToBottom(sb)) { ev.preventDefault?.(); ev.stopPropagation?.(); } return; }
 if (handleOverviewSectionClick(ev)) return;
-const qb = cl(t, 'button'),
-qc = cl(qb, '[data-testid="queued-messages-card"]');
+const qb = cl(t, 'button'), qc = cl(qb, '[data-testid="queued-messages-card"]');
 if (qb && qc) return triggerQueuedRowActionFeedback(qb, qc);
 const dh = cl(t, '[data-ag-cs-settings-dlg="1"] button, [role="dialog"] button, [role="dialog"] [role="tab"]');
 if (dh && !cl(dh, '#ag-cs-settings-sec')) {
@@ -1895,7 +1674,7 @@ function applyScrollScope(scope, t) {
 if (isDead() || !scope) return;
 if (scrollBlurCv && scrollBlurCv !== scope && ha(scrollBlurCv, 'data-ag-scrolling')) { const oldCv = scrollBlurCv; mut(() => ra(oldCv, 'data-ag-scrolling')); }
 if (scrollBlurCv !== scope || ga(scope, 'data-ag-scrolling') !== '1') mut(() => setA(scope, 'data-ag-scrolling', '1'));
-scrollBlurCv = scope; scrollBlurTarget = t;
+scrollBlurCv = scope; scrollBlurTarget = t; scrollNegTarget = null;
 armScrollBlurEnd();
 }
 function onWinScrollPassive(ev) {
@@ -1903,17 +1682,20 @@ if (isDead()) return;
 const t = ev?.target;
 if (!t || t === doc || t === win || t === doc.body || t === doc.documentElement) return;
 if (scrollBlurTarget === t && scrollBlurCv && ga(scrollBlurCv, 'data-ag-scrolling') === '1') { armScrollBlurEnd(); return; }
+if (t === scrollNegTarget && Date.now() - scrollNegAt < 2500) return;
 const bus = getDomBus();
 if (bus?.measure && bus?.mutate) {
 bus.measure('enh:scroll', () => {
 if (isDead()) return;
 const sc = resolveScrollScope(t);
 if (sc) bus.mutate('enh:scroll', () => applyScrollScope(sc, t));
+else { scrollNegTarget = t; scrollNegAt = Date.now(); }
 });
 return;
 }
 const sc = resolveScrollScope(t);
 if (sc) applyScrollScope(sc, t);
+else { scrollNegTarget = t; scrollNegAt = Date.now(); }
 }
 if (win && typeof win.addEventListener === 'function') {
 win.addEventListener('click', onDocClickCapture, true);
@@ -1924,17 +1706,14 @@ win.addEventListener('scroll', onWinScrollPassive, { capture: true, passive: tru
 function sync(flags = null) {
 if (isDead()) return;
 const hasFlags = Boolean(flags && typeof flags === 'object');
-const isFull =
-!hasFlags ||
-Boolean(flags.f) ||
-(!flags.g && !flags.o && !flags.s && !flags.c && !flags.t && !flags.l && !flags.b && !flags.r);
-const curLang = String(getLang() || '');
-const langChanged = Boolean(lastSyncedLang && curLang !== lastSyncedLang);
+const isFull = !hasFlags || Boolean(flags.f) || (!flags.g && !flags.o && !flags.s && !flags.c && !flags.t && !flags.l && !flags.b && !flags.r);
+const curLang = String(getLang() || ''), langChanged = Boolean(lastSyncedLang && curLang !== lastSyncedLang);
 lastSyncedLang = curLang;
+if (isFull || flags.f || flags.c) scrollNegTarget = null;
 if (isFull || flags.c || flags.l || flags.r || flags.s) syncCascadeChange(true);
 if (isFull || flags.t || flags.r || flags.l) syncSidecarThemeBridge(false);
 if (isFull || flags.c || flags.l || flags.b || flags.r || flags.t || langChanged) {
-syncCodeBlocks();
+syncCodeBlocks(!isFull && !flags?.l && !langChanged && !scrollBlurCv && !qs(doc, S_SUB_SC));
 syncNavRails();
 }
 if (isFull || flags.o || flags.c || flags.l || flags.b || flags.r || flags.t || langChanged) syncSubagentRunningAmbient(Boolean(isFull || flags.o));
@@ -1942,19 +1721,9 @@ if (isFull || flags.s || flags.r || flags.t || langChanged) syncSidebarOverflowT
 if (isFull || flags.o || flags.c || flags.b || flags.r) syncPermissionsMenuState();
 if (isFull || flags.g || flags.o || flags.r) syncSettingsDialogChrome(doc, mut, setA);
 if (isFull || flags.c || flags.l || flags.b || flags.r || flags.t || langChanged) {
-try {
-win?.__agPrismInlineDiff?.sync?.(getConfig(), {
-t: tFn,
-getLang,
-runGuardedMut: mut,
-setAttrIfChanged: setA,
-});
-} catch {}
+try { win?.__agPrismInlineDiff?.sync?.(getConfig(), { t: tFn, getLang, runGuardedMut: mut, setAttrIfChanged: setA }); } catch {}
 }
-if (langChanged) {
-refreshCodeFoldLabels();
-refreshOutlineLocaleTexts();
-}
+if (langChanged) { refreshCodeFoldLabels(); refreshOutlineLocaleTexts(); }
 }
 function destroy() {
 if (localDestroyed) return;
@@ -1970,7 +1739,7 @@ nonDiffAnimTimers.clear();
 if (typeof win?.cancelAnimationFrame === 'function') { for (const rid of ovSecAnimRafs) { try { win.cancelAnimationFrame(rid); } catch {} } }
 ovSecAnimRafs.clear();
 try { win?.__agPrismInlineDiff?.unbindHooks?.(); } catch {}
-ambientThrottleTimer = 0; scrollBlurTarget = null;
+ambientThrottleTimer = 0; scrollBlurTarget = scrollNegTarget = null;
 if (scrollBlurTimer) { try { clearTimeout(scrollBlurTimer); } catch {} nonDiffAnimTimers.delete(scrollBlurTimer); scrollBlurTimer = 0; }
 if (scrollBlurCv) { const scv = scrollBlurCv; scrollBlurCv = null; if (ha(scv, 'data-ag-scrolling')) mut(() => ra(scv, 'data-ag-scrolling')); }
 if (win && typeof win.removeEventListener === 'function') {

@@ -12,6 +12,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
@@ -27,69 +28,26 @@ namespace AgyClaudeStyle
         {
             if (string.IsNullOrEmpty(raw)) return null;
             string s = raw.Trim().ToLowerInvariant();
-            if (s.Length == 0 || s == "auto" || s == "system" || s == "default")
-            {
-                return null;
-            }
-            if (s == "zh" ||
-                s.StartsWith("zh-", StringComparison.Ordinal) ||
-                s.StartsWith("zh_", StringComparison.Ordinal) ||
-                s == "cn" ||
-                s == "chinese")
-            {
-                return "zh";
-            }
+            if (s.Length == 0 || s == "auto" || s == "system" || s == "default") return null;
+            if (s == "zh" || s.StartsWith("zh-", StringComparison.Ordinal) || s.StartsWith("zh_", StringComparison.Ordinal) || s == "cn" || s == "chinese") return "zh";
             return "en";
         }
 
-        public static void SetPreferredLang(string lang)
-        {
-            string normalized = NormalizeLang(lang);
-            lock (_langLock)
-            {
-                _explicitLang = normalized;
-            }
-        }
+        public static void SetPreferredLang(string lang) { string n = NormalizeLang(lang); lock (_langLock) { _explicitLang = n; } }
 
-        public static string ExplicitLang
-        {
-            get
-            {
-                lock (_langLock)
-                {
-                    return _explicitLang;
-                }
-            }
-        }
+        public static string ExplicitLang { get { lock (_langLock) { return _explicitLang; } } }
 
         public static string EffectiveLang
         {
             get
             {
                 string explicitCopy;
-                lock (_langLock)
-                {
-                    explicitCopy = _explicitLang;
-                }
-                if (!string.IsNullOrEmpty(explicitCopy))
-                {
-                    return explicitCopy;
-                }
+                lock (_langLock) { explicitCopy = _explicitLang; }
+                if (!string.IsNullOrEmpty(explicitCopy)) return explicitCopy;
                 string envLang = NormalizeLang(Environment.GetEnvironmentVariable("AG_PRISM_LANG"));
-                if (!string.IsNullOrEmpty(envLang))
-                {
-                    return envLang;
-                }
+                if (!string.IsNullOrEmpty(envLang)) return envLang;
                 string uiName = "";
-                try
-                {
-                    CultureInfo ui = CultureInfo.CurrentUICulture;
-                    if (ui != null && !string.IsNullOrEmpty(ui.Name))
-                    {
-                        uiName = ui.Name;
-                    }
-                }
-                catch { }
+                try { CultureInfo ui = CultureInfo.CurrentUICulture; if (ui != null && !string.IsNullOrEmpty(ui.Name)) uiName = ui.Name; } catch { }
                 return uiName.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? "zh" : "en";
             }
         }
@@ -831,38 +789,39 @@ namespace AgyClaudeStyle
             return pages;
         }
 
-        private static readonly string[] CanonicalLangValues = new string[] { "auto", "zh-CN", "zh-TW", "en", "ja", "ko", "es", "fr", "de", "tr" };
+        private static readonly string[] CanonicalLangValues = new string[] { "auto", "zh-CN", "zh-TW", "en" };
         private static readonly string[] OnOffValues = new string[] { "on", "off" };
         private static readonly string[] AutoOnOffValues = new string[] { "auto", "on", "off" };
         private static readonly string[] StrictOnBoolKeys = new string[] { "ignoreReducedMotion", "sidebarCompact", "codeLigatures", "autoArchiveOnExit" };
-        private static readonly string[] NotOffBoolKeys = new string[] { "smoothCaret", "contextMenu" };
+        private static readonly string[] NotOffBoolKeys = new string[] { "smoothCaret", "contextMenu", "prismRim" };
         private static readonly string[] BoolToOnOffKeys = new string[] { "telemetryModule", "effortSliderModule", "effortMemory", "periodicModelPicker", "sidebarNavFold", "omniModule", "sidebarStudio", "autoUpdate" };
 
-        // 单源声明式 Schema 表（与 src/config/schema.cjs 全部 54 键 100% 对齐：40 枚举 + 9 非可选布尔 + 2 字符串 + 1 整数 + 2 可选受控布尔）
+        // 与 src/config/schema.cjs 全部 56 键 100% 对齐
         private static readonly string[,] EnumSchemaSpecs = new string[,]
         {
-            { "language", "auto", "L" }, { "lang", "auto", "L" },
+            { "language", "zh-CN", "L" }, { "lang", "zh-CN", "L" },
             { "palette", "obsidian", "host,obsidian,warm,claude" }, { "lightPreset", "crystal", "crystal,alabaster" },
             { "darkAuraStyle", "prism", "prism,neon" }, { "motionLevel", "ultra", "off,subtle,standard,ultra" },
-            { "performanceMode", "balanced", "balanced,performance,quality,auto,eco" }, { "targetFps", "180", "60,120,180,native" },
-            { "telemetryModule", "auto", "A" }, { "telemetryQuotaMode", "compact", "compact,both" },
+            { "performanceMode", "balanced", "balanced,performance,quality,auto,eco" }, { "targetFps", "native", "60,120,180,native" },
+            { "telemetryModule", "auto", "A" }, { "telemetryQuotaMode", "both", "compact,both" },
             { "effortSliderModule", "auto", "A" }, { "effortMemory", "on", "O" }, { "periodicModelPicker", "on", "O" },
             { "thoughtTranslate", "off", "off,machine,ai" }, { "thoughtTrigger", "preload", "preload,expand" },
             { "homeLayout", "studio", "studio,classic,off" }, { "homeMode", "studio", "studio,classic,off" },
             { "convRipple", "off", "off,subtle,medium,full" }, { "ripple", "on", "O" }, { "composer", "on", "O" },
-            { "placeholderStyle", "studio", "studio,host" }, { "promptStyle", "studio", "studio,host" },
-            { "mascot", "crab", "crab,minis,quad,quad-minis,dual,off" }, { "logoInk", "accent", "accent,foreground" },
-            { "sidebar", "on", "O" }, { "sidebarNavFold", "off", "off,on" },
-            { "scrollBottomMotion", "smooth", "smooth,instant" }, { "accentTone", "follow", "follow,cobalt,iris,amber,mono" },
-            { "cornerStyle", "balanced", "sharp,balanced,soft" }, { "chatFont", "default", "default,system-sans,noto-sans,inter,harmony,custom" },
+            { "prismRimStyle", "simple", "prism,simple" }, { "placeholderStyle", "host", "studio,host" },
+            { "promptStyle", "host", "studio,host" }, { "mascot", "off", "crab,minis,quad,quad-minis,dual,off" },
+            { "logoInk", "antigravity", "accent,foreground,antigravity" }, { "sidebar", "off", "O" },
+            { "sidebarNavFold", "off", "off,on" }, { "scrollBottomMotion", "smooth", "smooth,instant" },
+            { "accentTone", "follow", "follow,cobalt,iris,amber,mono" }, { "cornerStyle", "soft", "sharp,balanced,soft" },
+            { "chatFont", "default", "default,system-sans,noto-sans,inter,harmony,custom" },
             { "codeFont", "default", "default,jetbrains,cascadia,sfmono,custom" }, { "ambientIntensity", "100", "0,35,70,100" },
-            { "darkAura", "balanced", "subtle,balanced,vivid" }, { "thoughtView", "immersive", "immersive,bilingual" },
+            { "darkAura", "subtle", "subtle,balanced,vivid" }, { "thoughtView", "immersive", "immersive,bilingual" },
             { "omniModule", "on", "O" }, { "linkTarget", "builtin", "builtin,external" },
-            { "sidebarStudio", "off", "O" }, { "hostLocalization", "auto", "A" },
+            { "sidebarStudio", "off", "O" }, { "hostLocalization", "off", "A" },
             { "autoUpdate", "off", "O" }, { "updateChannel", "stable", "stable,beta" }
         };
-        private static readonly string[] BoolSchemaDefaultTrueKeys = new string[] { "homeRipple", "composerRestyle", "sidebarRestyle", "smoothCaret", "contextMenu" };
-        private static readonly string[] BoolSchemaDefaultFalseKeys = new string[] { "ignoreReducedMotion", "sidebarCompact", "codeLigatures", "autoArchiveOnExit" };
+        private static readonly string[] BoolSchemaDefaultTrueKeys = new string[] { "ignoreReducedMotion", "homeRipple", "composerRestyle", "prismRim", "smoothCaret", "contextMenu", "codeLigatures" };
+        private static readonly string[] BoolSchemaDefaultFalseKeys = new string[] { "sidebarRestyle", "sidebarCompact", "autoArchiveOnExit" };
         private static readonly string[] StringSchemaKeys = new string[] { "chatFontCustom", "codeFontCustom" };
 
         private static List<object> ExpandEnumSpec(string spec)
@@ -994,11 +953,8 @@ namespace AgyClaudeStyle
             if (res.TryGetValue("language", out langObj) && langObj is string)
             {
                 string lowLang = ((string)langObj).Trim().ToLowerInvariant().Replace('_', '-');
-                if (lowLang == "yue" || lowLang.StartsWith("yue-", StringComparison.Ordinal) || lowLang == "zh-yue" || lowLang.IndexOf("cantonese", StringComparison.Ordinal) >= 0)
-                {
-                    res["language"] = "zh-CN";
-                    res["lang"] = "zh-CN";
-                }
+                if (lowLang == "yue" || lowLang.StartsWith("yue-", StringComparison.Ordinal) || lowLang == "zh-yue" || lowLang.IndexOf("cantonese", StringComparison.Ordinal) >= 0) { res["language"] = "zh-CN"; res["lang"] = "zh-CN"; }
+                else if (Regex.IsMatch(lowLang, "^(?:ja|jp|ko|kr|es|fr|de|tr)(?:-|$)|^(?:japanese|korean|spanish|español|espanol|french|français|francais|german|deutsch|turkish|türkçe|turkce)$")) { res["language"] = "en"; res["lang"] = "en"; }
             }
 
             if (res.ContainsKey("homeLayout")) res["homeMode"] = res["homeLayout"];

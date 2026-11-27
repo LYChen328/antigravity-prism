@@ -620,8 +620,8 @@ test('OmniServer /sandbox/ enforces strict opaque-origin CSP on .html/.htm and /
     );
   }
 
-  // /viewer accepts all 8 locales, migrates legacy yue -> zh-CN, and falls back invalid locales to zh-CN
-  for (const lang of ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de']) {
+  // /viewer accepts 3 canonical locales, migrates yue->zh-CN, removed locales->en, and falls back unknown locales to zh-CN
+  for (const lang of ['zh-CN', 'zh-TW', 'en']) {
     const res = await httpGetRaw(`${info.baseUrl}/viewer?token=${info.token}&kind=mermaid&lang=${encodeURIComponent(lang)}`);
     assert.equal(res.statusCode, 200);
     assert.ok(res.text.includes(`<html lang="${lang}"`), `/viewer must preserve lang="${lang}"`);
@@ -629,6 +629,11 @@ test('OmniServer /sandbox/ enforces strict opaque-origin CSP on .html/.htm and /
   const legacyYueRes = await httpGetRaw(`${info.baseUrl}/viewer?token=${info.token}&kind=mermaid&lang=yue`);
   assert.equal(legacyYueRes.statusCode, 200);
   assert.ok(legacyYueRes.text.includes('<html lang="zh-CN"'), '/viewer must migrate legacy lang="yue" to zh-CN');
+  for (const removedLang of ['ja', 'ko', 'tr']) {
+    const remRes = await httpGetRaw(`${info.baseUrl}/viewer?token=${info.token}&kind=mermaid&lang=${encodeURIComponent(removedLang)}`);
+    assert.equal(remRes.statusCode, 200);
+    assert.ok(remRes.text.includes('<html lang="en"'), `/viewer must migrate removed ${removedLang} to en`);
+  }
   const fallbackRes = await httpGetRaw(`${info.baseUrl}/viewer?token=${info.token}&kind=mermaid&lang=xx-INVALID`);
   assert.equal(fallbackRes.statusCode, 200);
   assert.ok(fallbackRes.text.includes('<html lang="zh-CN"'));

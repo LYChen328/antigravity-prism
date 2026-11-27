@@ -4,9 +4,10 @@
   const M = Math, G = root || (typeof globalThis !== 'undefined' ? globalThis : window);
   if (!G) return;
 
-  const CONV_AURA_HEIGHT_RATIO = 0.32, CONV_AURA_START_MS = 1150, CONV_AURA_COMPLETE_MS = 1400;
+  const CONV_AURA_HEIGHT_RATIO = 0.32, CONV_AURA_START_MS = 1150, CONV_AURA_COMPLETE_MS = 1400, CONV_AURA_LIFTOFF_MS = 780;
   const CONV_AURA_IDLE_SLEEP_MS = 1200, CONV_AURA_DECISION_BREATH_MS = 1600, CONV_AURA_DECISION_CLEAR_MS = 400;
   const CONV_AURA_ERROR_MS = 900, CONV_AURA_LONG_TASK_THRESHOLD_MS = 15000, CONV_AURA_LONG_COMPLETE_MS = 1200, CONV_AURA_FOCUS_FADE_MS = 600;
+  const isF = (v) => typeof v === 'function';
   const scaleConvReach = (r) => M.max(0.08, M.min(0.98, +(r / CONV_AURA_HEIGHT_RATIO).toFixed(4)));
   const clamp01 = (v, fb = 1) => { const n = Number(v); return Number.isFinite(n) ? M.max(0, M.min(1, n)) : fb; };
   function isVisibleAuraNode(el, skipSyncVis = false) {
@@ -14,7 +15,7 @@
     const st = el.style;
     if (st && (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0')) return false;
     if (el.closest?.('[hidden], .hidden')) return false;
-    return skipSyncVis || !el.checkVisibility || Boolean(el.checkVisibility());
+    return skipSyncVis || !el.checkVisibility || !!(el.checkVisibility());
   }
 
   let cachedRunningVal = false, cachedRunningAt = -1, cachedRunningEl = null, cachedRunningScope = null;
@@ -34,17 +35,17 @@
   function isWithinScope(el, scope) {
     if (!el) return false;
     if (!scope || scope === document || el === scope) return true;
-    if (typeof scope.contains === 'function' && scope.contains(el)) return true;
+    if (isF(scope.contains) && scope.contains(el)) return true;
     const ownerView = el.closest?.('[data-testid="conversation-view"]') || null;
     if (ownerView) return ownerView === scope;
-    const allViews = typeof document !== 'undefined' && typeof document.querySelectorAll === 'function'
+    const allViews = typeof document !== 'undefined' && isF(document.querySelectorAll)
       ? document.querySelectorAll('[data-testid="conversation-view"]') : null;
     return !allViews || allViews.length <= 1;
   }
 
   function isLiveMatchedIndicator(el, sel, skipSyncVis = false, scope = null) {
     return !!(
-      el && el.isConnected === true && typeof el.nodeType === 'number' && typeof el.matches === 'function' &&
+      el && el.isConnected === true && typeof el.nodeType === 'number' && isF(el.matches) &&
       el.matches(sel) && !el.closest?.(SUBAGENT_SEL) && isWithinScope(el, scope) && isVisibleAuraNode(el, skipSyncVis)
     );
   }
@@ -54,7 +55,7 @@
       if (n.closest?.(SUBAGENT_SEL)) continue;
       if (isVisibleAuraNode(n, skipSyncVis)) return n;
     }
-    if (scope !== document && typeof document.querySelectorAll === 'function') {
+    if (scope !== document && isF(document.querySelectorAll)) {
       const allViews = document.querySelectorAll('[data-testid="conversation-view"]');
       const singlePane = !allViews || allViews.length <= 1;
       for (const n of document.querySelectorAll(sel)) {
@@ -70,7 +71,7 @@
 
   function isConvRunning(skipSyncVis = false, scopeEl = null) {
     if (typeof document === 'undefined') return false;
-    const scope = scopeEl && typeof scopeEl.querySelectorAll === 'function' ? scopeEl : document;
+    const scope = scopeEl && isF(scopeEl.querySelectorAll) ? scopeEl : document;
     const now = readNowMs();
     if (cachedRunningScope === scope && cachedRunningAt >= 0 && M.abs(now - cachedRunningAt) < 200) return cachedRunningVal;
     if (cachedRunningScope === scope && isLiveMatchedIndicator(cachedRunningEl, RUNNING_SEL, skipSyncVis, scope)) {
@@ -126,34 +127,34 @@
   }
 
   const gDa = (d, a) => (d ? (a === 'vivid' ? [0.62, 0.76, 0.88, 0.68, 0.9, 0.24, 0.28] : a === 'balanced' ? [0.46, 0.6, 0.74, 0.5, 0.8, 0.2, 0.25] : 0) : 0);
+  const mx = (a, b, t) => a + (b - a) * t;
 
   function computeConvAuraOptics(phase, phaseAt, now, dark, wasRunning, out = {}, da = 'subtle') {
-    const dt = gDa(dark, da);
-    const idleStr = dt ? dt[0] : dark ? 0.21 : 0.52;
-    const runBase = dt ? dt[1] : dark ? 0.31 : 0.64;
+    const dt = gDa(dark, da), idleReach = 0.12;
+    const runBase = dt ? dt[1] : dark ? 0.39 : 0.76;
     const peakStr = dt ? dt[2] : dark ? 0.46 : 0.78;
-    const idlePrism = dt ? dt[3] : dark ? 0.14 : 0.26;
-    const runPrism = dt ? dt[4] : 0.7;
-    const idleReach = dt ? dt[5] : 0.16;
-    const runReach = dt ? dt[6] : 0.22;
+    const runPrism = dt ? dt[4] : 0.74;
+    const runReach = dt ? dt[6] : 0.24;
     const prog = (ms) => { const v = (now - phaseAt) / ms; return v < 0 ? 0 : v > 1 ? 1 : v; };
     const ep = (ms, pw) => 1 - M.pow(1 - prog(ms), pw);
     const fx = (n) => Number(n.toFixed(4));
     const f = (s, r, p, u, v, m, ms) => fillOptics(out, s, scaleConvReach(r), p, u, v, m, ms);
+    const rS = runBase + (dark ? 0.048 : 0.06) * M.sin(now * 0.0026), rU = 0.055 * (1 + M.sin(now * 0.0022));
     if (phase === 'start') {
-      const p = prog(CONV_AURA_START_MS), s = M.sin(p * M.PI);
-      const endStr = wasRunning ? runBase : idleStr, endFullReach = wasRunning ? runReach : idleReach;
-      const rawReach = p <= 0.5 ? idleReach + (0.26 - idleReach) * s : endFullReach + (0.26 - endFullReach) * s;
-      const endPrism = wasRunning ? runPrism : idlePrism, settleEase = M.pow(p, 2.4), endSpeed = wasRunning ? 1.45 : 0.72;
+      const p = prog(CONV_AURA_START_MS), pk = 0.34, ri = p <= pk;
+      const ev = ri ? M.sin((p / pk) * M.PI * 0.5) : M.pow(0.5 + 0.5 * M.cos(((p - pk) / (1 - pk)) * M.PI), 1.15);
+      const sd = 0.5 - 0.5 * M.cos(M.PI * M.pow(p, 1.25));
+      const eS = wasRunning ? rS : 0, eR = wasRunning ? runReach : idleReach, pR = M.max(0.28, runReach);
+      const eP = wasRunning ? runPrism : 0, pP = M.max(0.74, runPrism), eU = wasRunning ? rU : 0;
       return f(
-        p <= 0.5 ? idleStr + (peakStr - idleStr) * s : endStr + (peakStr - endStr) * s,
-        rawReach,
-        p <= 0.5 ? idlePrism + (0.74 - idlePrism) * s : endPrism + (0.74 - endPrism) * s,
-        fx(0.50 * (1 - 0.32 * settleEase)), fx(1.95 - (1.95 - endSpeed) * settleEase), 'none', 22
+        ri ? peakStr * ev : mx(eS, peakStr, ev),
+        ri ? mx(0.15, pR, ev) : mx(eR, pR, ev),
+        ri ? pP * ev : mx(eP, pP, ev),
+        fx(mx(0.5, eU, sd)), fx(mx(1.95, wasRunning ? 1.75 : 0, sd)), 'none', 22
       );
     }
     if (phase === 'running') {
-      return f(runBase + (dark ? 0.035 : 0.045) * M.sin(now * 0.0021), runReach, runPrism, 0.025 * (1 + M.sin(now * 0.0016)), 1.45, 'none', 32);
+      return f(rS, runReach, runPrism, rU, 1.75, 'none', 32);
     }
     if (phase === 'awaiting-decision') {
       const p = prog(CONV_AURA_DECISION_BREATH_MS), wave = p < 1 ? M.sin(p * M.PI * 2) * (1 - 0.35 * p) : 0, baseHold = dark ? 0.22 : 0.42;
@@ -168,18 +169,18 @@
       return f(peakErr * (1 - ease), 0.21 - 0.09 * ease, 0.36 * (1 - ease), fx(-0.44 * (1 - ease)), 0.9 * (1 - 0.6 * ease), 'error-halted', 28);
     }
     if (phase === 'long-task-complete') {
-      const ease = ep(CONV_AURA_LONG_COMPLETE_MS, 2.05), startStr = dark ? 0.36 : 0.62, holdStr = dark ? 0.16 : 0.30;
-      return f(startStr + (holdStr - startStr) * ease, 0.24 + (0.17 - 0.24) * ease, 0.52 + (0.24 - 0.52) * ease, fx(-0.48 * (1 - ease * 0.92)), 1.25 + (0.55 - 1.25) * ease, 'long-task-complete', 28);
+      const e = ep(CONV_AURA_LONG_COMPLETE_MS, 2.05), sS = dark ? 0.36 : 0.62, hS = dark ? 0.16 : 0.30;
+      return f(mx(sS, hS, e), mx(0.24, 0.17, e), mx(0.52, 0.24, e), fx(-0.48 * (1 - e * 0.92)), mx(1.25, 0.55, e), 'long-task-complete', 28);
     }
     if (phase === 'focus-fade') {
-      const ease = ep(CONV_AURA_FOCUS_FADE_MS, 2), holdStr = dark ? 0.16 : 0.30;
-      return f(holdStr + (idleStr - holdStr) * ease, 0.17 + (0.16 - 0.17) * ease, 0.24 + (idlePrism - 0.24) * ease, 0, 0.55 + (0.72 - 0.55) * ease, 'none', 32);
+      const e = ep(CONV_AURA_FOCUS_FADE_MS, 2), hS = dark ? 0.16 : 0.30;
+      return f(hS * (1 - e), mx(0.17, idleReach, e), 0.24 * (1 - e), 0, 0.55 * (1 - e), 'none', 32);
     }
     if (phase === 'complete') {
-      const ease = ep(CONV_AURA_COMPLETE_MS, 2.1), startStr = dark ? 0.38 : 0.70;
-      return f(startStr + (idleStr - startStr) * ease, 0.24 + (0.16 - 0.24) * ease, 0.76 + (idlePrism - 0.76) * ease, -0.36 * (1 - ease * 0.85), 1.45 + (0.72 - 1.45) * ease, 'none', 28);
+      const e = ep(CONV_AURA_COMPLETE_MS, 2.1), sS = dark ? 0.41 : 0.78;
+      return f(sS * (1 - e), mx(0.27, idleReach, e), 0.86 * (1 - e), -0.36 * (1 - e * 0.85), 1.75 * (1 - 0.85 * e), 'none', 28);
     }
-    return f(idleStr + (dark ? 0.024 : 0.038) * M.sin(now * 0.0018), idleReach, idlePrism, 0, 0.72, 'none', 110);
+    return f(0, idleReach, 0, 0, 0, 'none', 0);
   }
 
   function invokeConvGlowDraw(glow, now, dark, still, opt, ambientIntensity = 1, spectrum = undefined) {
@@ -189,12 +190,12 @@
       extra.reach = opt.reach; extra.prism = opt.prism; extra.surge = opt.surge; extra.speed = opt.speed;
       extra.semantic = opt.semantic || 'none'; extra.ambientIntensity = ambientIntensity;
       extra.still = !!(still); extra.spectrum = spectrum !== undefined && spectrum !== null ? spectrum : undefined;
-      if (still && typeof glow.drawStaticSnapshot === 'function') {
+      if (still && isF(glow.drawStaticSnapshot)) {
         extra.still = true;
         glow.drawStaticSnapshot(now, dark, opt.strength, extra);
         return;
       }
-      if (typeof glow.draw === 'function') glow.draw(now, dark, opt.strength, extra);
+      if (isF(glow.draw)) glow.draw(now, dark, opt.strength, extra);
     } catch {}
   }
 
@@ -231,7 +232,7 @@
 
     function resolveAmbient() {
       if (overrideAmbient !== null) return normAmbientVal(overrideAmbient);
-      if (typeof getAmbientIntensity === 'function') return normAmbientVal(getAmbientIntensity());
+      if (isF(getAmbientIntensity)) return normAmbientVal(getAmbientIntensity());
       try {
         const raw = ga('data-ag-cs-ambient');
         if (raw !== null && raw !== '') return normAmbientVal(raw);
@@ -245,8 +246,8 @@
     }
 
     function checkWindowFocused() {
-      if (typeof isWindowFocused === 'function') return !!(isWindowFocused());
-      try { return typeof document !== 'undefined' && typeof document.hasFocus === 'function' ? !!(document.hasFocus()) : true; } catch { return true; }
+      if (isF(isWindowFocused)) return !!(isWindowFocused());
+      try { return typeof document !== 'undefined' && isF(document.hasFocus) ? !!(document.hasFocus()) : true; } catch { return true; }
     }
 
     function isValidConvView(cv) {
@@ -322,7 +323,9 @@
       } else if (runningNow && !a.wasRunning) {
         detachFocusWakeListeners(a);
         a.unfocusedHold = a.decisionHolding = false; a.sleepReason = ''; a.wasRunning = true; a.runStartedAt = now;
-        if (a.phase !== 'start') { a.phase = 'start'; a.phaseAt = now; }
+        const inLift = a.liftoffAt > 0 && now - a.liftoffAt >= 0 && now - a.liftoffAt < CONV_AURA_LIFTOFF_MS;
+        if (inLift) { a.phase = 'running'; a.phaseAt = now; }
+        else if (a.phase !== 'start') { a.phase = 'start'; a.phaseAt = now; }
       } else if (!runningNow && a.wasRunning) {
         a.wasRunning = false; a.sleepReason = '';
         const runDur = a.runStartedAt > 0 ? now - a.runStartedAt : 0; a.runStartedAt = 0;
@@ -620,7 +623,7 @@
 
         const allowLivingFlow = isMotionStandardOrUltra() && !isP();
         const liftElapsed = state.liftoffAt > 0 ? now - state.liftoffAt : -1;
-        const inLiftoffEbb = allowLivingFlow && liftElapsed >= 0 && liftElapsed < 520;
+        const inLiftoffEbb = allowLivingFlow && liftElapsed >= 0 && liftElapsed < CONV_AURA_LIFTOFF_MS;
         if (state.liftoffAt > 0 && !inLiftoffEbb) state.liftoffAt = 0;
 
         const prevPhaseBeforeAdv = state.phase;
@@ -629,21 +632,19 @@
         const dark = isDarkTheme();
         const spectrum = resolveSpectrum();
 
+        const errClr = !!(state.pendingErrorClear);
+        if (errClr) { state.pendingErrorClear = false; if (hasCvBuf()) try { state.glow?.clear?.(); } catch {} }
         const da = getHtml()?.getAttribute?.('data-ag-cs-dark-aura') || 'balanced';
         let opt = computeConvAuraOptics(phase, state.phaseAt, now, dark, state.wasRunning, OPTICS_BUF, da);
         if (inLiftoffEbb) {
-          const p = M.max(0, M.min(1, liftElapsed / 520));
-          const ease = 1 - M.pow(1 - p, 2.25);
-          const dt = gDa(dark, da) || [0, dark ? 0.31 : 0.64, 0, 0, 0.7, 0, 0.22];
+          const e = 0.5 - 0.5 * M.cos(M.min(1, liftElapsed / CONV_AURA_LIFTOFF_MS) * M.PI);
           opt = fillOptics(
             OPTICS_BUF,
-            0.92 + (dt[1] - 0.92) * ease, scaleConvReach(0.31 + (dt[6] - 0.31) * ease),
-            0.78 + (dt[4] - 0.78) * ease, 0.38 * (1 - ease), 1.65 + (1.45 - 1.65) * ease, 'none', 16
+            mx(0.92, opt.strength, e), mx(scaleConvReach(0.31), opt.reach, e),
+            mx(0.78, opt.prism, e), mx(0.38, opt.surge, e), mx(1.65, opt.speed, e), opt.semantic, 16
           );
         }
 
-        // Split-Rate 300Hz VSync throttle; on real WebGL2/Worker, every targetFps (including 'native', which reports minGap 0)
-        // drives VSync-paced ~60fps (15ms floor, or 16.67ms under performance mode) for active phases and ~30fps (33ms) for pre-sleep phases.
         const isGpuGlow = !!(state.glow && (state.glow.mode === 'webgl2' || state.glow.mode === 'worker-webgl2'));
         const smoothGpu = isGpuGlow && typeof getMinFrameGapMs === 'function';
         const perfGap = rw()?.getPerfMinGapMs?.(document) || (getPerfMode() === 'performance' ? 16.67 : 0);
@@ -656,7 +657,7 @@
           ? M.max(33, minGap)
           : smoothActiveGpu
           ? M.max(16, minGap)
-          : (phase === 'idle' ? M.max(160, opt.frameMs || 160) : opt.frameMs || 32);
+          : (phase === 'idle' ? (isGpuGlow ? (opt.frameMs || 64) : M.max(120, opt.frameMs || 120)) : opt.frameMs || 32);
         const burstGap = M.max(minGap, inLiftoffEbb ? 16 : 20);
         const effectiveMinGap = smoothPreSleep
           ? M.max(31, schedFrameMs - 2)
@@ -668,12 +669,12 @@
 
         const phaseElapsed = now - state.phaseAt;
         const settleDecisionHold = allowLivingFlow && phase === 'awaiting-decision' && phaseElapsed >= CONV_AURA_DECISION_BREATH_MS;
-        const settleErrorZero = !!(state.pendingErrorClear) || (phase === 'error-halted' && phaseElapsed >= CONV_AURA_ERROR_MS);
+        const settleErrorZero = !allowLivingFlow && (errClr || (phase === 'error-halted' && phaseElapsed >= CONV_AURA_ERROR_MS));
         const settleLongComplete = allowLivingFlow && phase === 'long-task-complete' && phaseElapsed >= CONV_AURA_LONG_COMPLETE_MS;
-        const settleIdleSleep = allowLivingFlow && phase === 'idle' && !inLiftoffEbb && phaseElapsed >= CONV_AURA_IDLE_SLEEP_MS;
+        const settleIdleSleep = phase === 'idle' && !inLiftoffEbb;
 
         const bypassThrottle =
-          forceImmediateDraw || phaseJustChanged || !drawnOnce || settleDecisionHold || settleErrorZero || settleLongComplete || settleIdleSleep;
+          forceImmediateDraw || phaseJustChanged || errClr || !drawnOnce || settleDecisionHold || settleErrorZero || settleLongComplete || settleIdleSleep;
         forceImmediateDraw = false;
 
         if (!bypassThrottle && allowLivingFlow && effectiveMinGap > 0 && lastGpuDrawAt > 0 && now - lastGpuDrawAt < effectiveMinGap) {
@@ -687,6 +688,7 @@
         lastGpuDrawAt = now;
         layout();
         const hasBuf = state.width > 0 && state.height > 0 && hasCvBuf();
+        const clrBuf = () => { if (!hasBuf) return; state.glow?.invalidate?.(); try { state.glow?.clear?.(); } catch {} };
         const paint = (o, st) => {
           if (!hasBuf) return;
           if (st) state.glow?.invalidate?.();
@@ -697,8 +699,8 @@
 
         if (settleErrorZero) {
           state.pendingErrorClear = false;
-          if (hasCvBuf()) try { state.glow?.clear?.(); } catch {}
-          state.phase = 'idle'; state.phaseAt = now - CONV_AURA_IDLE_SLEEP_MS;
+          if (!errClr) clrBuf();
+          state.phase = 'idle'; state.phaseAt = now;
           setAttrIfChanged(host, 'data-aura-phase', 'idle');
           opt.strength = opt.surge = opt.speed = 0; state.lastOptics = opt;
           return enterAuraSleep();
@@ -721,18 +723,22 @@
           }
           state.phase = 'idle'; state.phaseAt = now - CONV_AURA_IDLE_SLEEP_MS;
           setAttrIfChanged(host, 'data-aura-phase', 'idle');
+          clrBuf();
           const idleSnapOpt = computeConvAuraOptics('idle', state.phaseAt, now, dark, false, OPTICS_BUF, da);
           state.lastOptics = idleSnapOpt;
-          paint(idleSnapOpt, true);
           return enterAuraSleep();
         }
 
         const still = !allowLivingFlow || settleIdleSleep;
         state.lastOptics = opt;
+        if (settleIdleSleep) {
+          clrBuf();
+          return enterAuraSleep(isP() ? 'hidden' : !isMotionStandardOrUltra() ? 'motion-still' : 'settled');
+        }
         paint(opt, still);
 
-        if (isDestroyed() || !allowLivingFlow || settleIdleSleep) {
-          enterAuraSleep(!allowLivingFlow ? (isP() ? 'hidden' : 'motion-still') : 'settled');
+        if (isDestroyed() || !allowLivingFlow) {
+          enterAuraSleep(isP() ? 'hidden' : 'motion-still');
           return;
         }
 
@@ -740,13 +746,12 @@
         if (host.hasAttribute('data-aura-sleep')) host.removeAttribute('data-aura-sleep');
 
         let nextDelay = isBurstTransient ? burstGap : schedFrameMs;
-        if (inLiftoffEbb) nextDelay = M.min(nextDelay, M.max(8, 520 - liftElapsed + 4));
+        if (inLiftoffEbb) nextDelay = M.min(nextDelay, M.max(8, CONV_AURA_LIFTOFF_MS - liftElapsed + 4));
         else if (phase === 'start') nextDelay = M.min(nextDelay, M.max(16, CONV_AURA_START_MS - phaseElapsed + 4));
         else if (phase === 'complete') nextDelay = M.min(nextDelay, M.max(16, CONV_AURA_COMPLETE_MS - phaseElapsed + 4));
         else if (phase === 'awaiting-decision') nextDelay = M.min(nextDelay, M.max(16, CONV_AURA_DECISION_BREATH_MS - phaseElapsed + 4));
         else if (phase === 'error-halted') nextDelay = M.min(nextDelay, M.max(16, CONV_AURA_ERROR_MS - phaseElapsed + 4));
         else if (phase === 'long-task-complete') nextDelay = M.min(nextDelay, M.max(16, CONV_AURA_LONG_COMPLETE_MS - phaseElapsed + 4));
-        else if (phase === 'idle') nextDelay = M.min(nextDelay, M.max(20, CONV_AURA_IDLE_SLEEP_MS - phaseElapsed + 4));
         clearTimeout(state.timer);
         if (smoothActiveGpu) { wake(false); return; }
         state.timer = setTimeout(() => wake(false), nextDelay);
@@ -883,17 +888,24 @@
     function triggerLiftoffEbb(now = readNowMs(), target = null) {
       if (target) { const cv = resolveConvViewTarget(target); if (cv) preferredView = cv; }
       if (!convAura || (preferredView && convAura.convView !== preferredView)) sync();
-      if (convAura) { convAura.liftoffAt = now; convAura.sleepReason = ''; convAura.wake(true); }
+      if (convAura) {
+        convAura.liftoffAt = now; convAura.sleepReason = '';
+        if (convAura.phase === 'start') {
+          convAura.phase = convAura.wasRunning ? 'running' : 'idle'; convAura.phaseAt = now;
+          setAttrIfChanged(convAura.host, 'data-aura-phase', convAura.phase);
+        }
+        convAura.wake(true);
+      }
     }
 
     function setAmbientIntensity(val) {
-      overrideAmbient = val === null || val === undefined ? null : clamp01(val, 1);
+      overrideAmbient = val == null ? null : clamp01(val, 1);
       if (convAura) { convAura.sleepReason = ''; convAura.wake(true); }
     }
 
     function setSpectrumMode(mode) {
-      overrideSpectrum = mode === null || mode === undefined ? null : String(mode);
-      if (convAura && typeof convAura.refreshTheme === 'function') convAura.refreshTheme();
+      overrideSpectrum = mode == null ? null : String(mode);
+      if (convAura && isF(convAura.refreshTheme)) convAura.refreshTheme();
     }
 
     function setSemanticState(patch = {}) {
@@ -936,7 +948,7 @@
   }
 
   G.__agPrismConvAura = {
-    CONV_AURA_HEIGHT_RATIO, CONV_AURA_IDLE_SLEEP_MS, CONV_AURA_DECISION_BREATH_MS,
+    CONV_AURA_HEIGHT_RATIO, CONV_AURA_START_MS, CONV_AURA_LIFTOFF_MS, CONV_AURA_IDLE_SLEEP_MS, CONV_AURA_DECISION_BREATH_MS,
     CONV_AURA_ERROR_MS, CONV_AURA_LONG_TASK_THRESHOLD_MS, CONV_AURA_LONG_COMPLETE_MS,
     isConvRunning, isAwaitingDecision, computeConvAuraOptics, createConvAuraController,
   };

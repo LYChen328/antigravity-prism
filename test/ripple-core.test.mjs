@@ -1417,32 +1417,35 @@ test('Wave 1 ConvAura: Split-Rate 300Hz VSync (~60fps paced running, 1200ms idle
       runGuardedMut(fn) { return fn(); },
     });
 
-    // 1) Mounts in idle -> settles to true 0fps after 1200ms (and ignores redundant sync() calls while settled!)
+    // 1) Mounts in idle -> clears canvas and enters immediate 0fps zero-glow sleep (ignores redundant sync())
     ctl.sync();
     const inst = ctl.getInstance();
     assert.ok(inst);
     assert.equal(inst.phase, 'idle');
-    assert.equal(inst.sleeping, false);
-
-    advanceSimulated300Hz(1300);
-    assert.equal(inst.sleeping, true, 'Idle aura must enter 0fps sleep after 1200ms');
+    assert.equal(inst.sleeping, true, 'Idle aura must sleep immediately at 0fps when not running');
     assert.equal(inst.host.getAttribute('data-aura-sleep'), '1');
+    assert.ok(clearCount >= 1, 'Idle mount must clear canvas cleanly');
     assert.equal(rafQueue.size, 0);
     assert.equal(timerQueue.size, 0);
 
+    const idleOptics = { ...inst.lastOptics };
+    assert.equal(idleOptics.strength, 0, 'Idle conversation aura must stay at 0 strength');
+    assert.equal(idleOptics.speed, 0, 'Idle conversation aura must stay at 0 speed');
     const drawsAtIdleSleep = gpuDraws;
     for (let i = 0; i < 8; i++) {
       nowMs += 50;
       ctl.sync();
     }
-    assert.equal(gpuDraws, drawsAtIdleSleep, 'Redundant sync() must NOT wake settled 0fps idle aura');
+    assert.equal(gpuDraws, drawsAtIdleSleep, 'Redundant sync() must NOT wake 0fps idle aura');
 
-    // 2) Split-Rate 300Hz running throttle: 'native' (minGap 0) is VSync-paced at the same ~60fps as explicit targetFps (instead of 300fps, and no longer a jittery ~30fps setTimeout path)
+    // 2) Split-Rate 300Hz running throttle: 'native' (minGap 0) is VSync-paced at ~60fps with intensified running optics
     runningDomActive = true;
     ctl.sync();
     assert.equal(inst.phase, 'start');
     advanceSimulated300Hz(1200); // finish 1150ms start surge -> enters steady 'running'
     assert.equal(inst.phase, 'running');
+    const runOptics = inst.lastOptics;
+    assert.ok(runOptics.strength > 0.35 && runOptics.speed === 1.75 && runOptics.prism === 0.8 && runOptics.reach > idleOptics.reach && runOptics.surge > 0);
 
     const drawsBefore1sRun = gpuDraws;
     advanceSimulated300Hz(1000); // 300 VSync ticks on 300Hz screen!
@@ -2512,18 +2515,155 @@ test('conv-aura darkAura tiers (subtle / balanced / vivid) scale dark chat optic
   const dSubtleIdle = computeConvAuraOptics('idle', 0, 1000, true, false, {}, 'subtle');
   const dBalIdle = computeConvAuraOptics('idle', 0, 1000, true, false, {}, 'balanced');
   const dVividIdle = computeConvAuraOptics('idle', 0, 1000, true, false, {}, 'vivid');
-  assert.ok(dSubtleIdle.strength < dBalIdle.strength && dBalIdle.strength < dVividIdle.strength, 'dark idle strength must scale subtle < balanced < vivid');
-  assert.ok(dSubtleIdle.prism < dBalIdle.prism && dBalIdle.prism < dVividIdle.prism, 'dark idle prism must scale subtle < balanced < vivid');
+  assert.equal(dSubtleIdle.strength, 0, 'dark idle strength must stay 0 in running-only aura');
+  assert.equal(dBalIdle.strength, 0, 'dark idle strength must stay 0 in running-only aura');
+  assert.equal(dVividIdle.strength, 0, 'dark idle strength must stay 0 in running-only aura');
+  assert.equal(dSubtleIdle.prism, 0);
+  assert.equal(dBalIdle.prism, 0);
+  assert.equal(dVividIdle.prism, 0);
 
   const dSubtleRun = computeConvAuraOptics('running', 0, 1000, true, true, {}, 'subtle');
   const dBalRun = computeConvAuraOptics('running', 0, 1000, true, true, {}, 'balanced');
   const dVividRun = computeConvAuraOptics('running', 0, 1000, true, true, {}, 'vivid');
   assert.ok(dSubtleRun.strength < dBalRun.strength && dBalRun.strength < dVividRun.strength, 'dark running strength must scale subtle < balanced < vivid');
+  assert.ok(dSubtleRun.prism < dBalRun.prism && dBalRun.prism < dVividRun.prism, 'dark running prism must scale subtle < balanced < vivid');
 
   const lSubtle = computeConvAuraOptics('idle', 0, 1000, false, false, {}, 'subtle');
   const lVivid = computeConvAuraOptics('idle', 0, 1000, false, false, {}, 'vivid');
   assert.equal(lSubtle.strength, lVivid.strength, 'light mode must be unaffected by darkAura');
   assert.equal(lSubtle.prism, lVivid.prism, 'light mode prism must be unaffected by darkAura');
+});
+
+test('conv-aura start & liftoff excitations fade smoothly into running and idle with zero cliff discontinuity', () => {
+  require('../conv-aura.js');
+  const mod = globalThis.__agPrismConvAura;
+  const { computeConvAuraOptics, CONV_AURA_START_MS, CONV_AURA_LIFTOFF_MS } = mod;
+  assert.equal(CONV_AURA_START_MS, 1150);
+  assert.ok(CONV_AURA_LIFTOFF_MS >= 700 && CONV_AURA_LIFTOFF_MS <= 900);
+
+  for (const [dark, da] of [[true, 'subtle'], [true, 'balanced'], [true, 'vivid'], [false, 'subtle']]) {
+    const start0 = computeConvAuraOptics('start', 1000, 1000, dark, true, {}, da);
+    assert.equal(start0.surge, 0.5);
+    assert.equal(start0.speed, 1.95);
+    assert.equal(start0.frameMs, 22);
+    assert.equal(start0.strength, 0);
+
+    // Tail decay: surge decreases monotonically over the fade-out half and lands cleanly on running
+    let prevSurge = 1;
+    for (const frac of [0.5, 0.65, 0.8, 0.92, 0.99]) {
+      const sample = computeConvAuraOptics('start', 1000, 1000 + frac * CONV_AURA_START_MS, dark, true, {}, da);
+      assert.ok(sample.surge < prevSurge, `expected tail surge decay at frac=${frac}`);
+      prevSurge = sample.surge;
+    }
+    const startEndRun = computeConvAuraOptics('start', 1000, 1000 + CONV_AURA_START_MS, dark, true, {}, da);
+    const runStart = computeConvAuraOptics('running', 1000 + CONV_AURA_START_MS, 1000 + CONV_AURA_START_MS, dark, true, {}, da);
+    for (const k of ['strength', 'reach', 'prism', 'surge', 'speed']) {
+      assert.ok(Math.abs(startEndRun[k] - runStart[k]) < 1e-3, `start->running discontinuity on ${k} (${dark}/${da}): ${startEndRun[k]} vs ${runStart[k]}`);
+    }
+
+    // Short / cancelled start (!wasRunning) fades all optics cleanly down to idle (0)
+    const nearIdleTail = computeConvAuraOptics('start', 1000, 1000 + CONV_AURA_START_MS * 0.92, dark, false, {}, da);
+    assert.ok(nearIdleTail.surge < 0.04, `start->idle tail surge should near 0, got ${nearIdleTail.surge}`);
+    assert.ok(nearIdleTail.strength < 0.04, `start->idle tail strength should near 0, got ${nearIdleTail.strength}`);
+    const startEndIdle = computeConvAuraOptics('start', 1000, 1000 + CONV_AURA_START_MS, dark, false, {}, da);
+    const idleOpt = computeConvAuraOptics('idle', 1000 + CONV_AURA_START_MS, 1000 + CONV_AURA_START_MS, dark, false, {}, da);
+    for (const k of ['strength', 'reach', 'prism', 'surge', 'speed']) {
+      assert.ok(Math.abs(startEndIdle[k] - idleOpt[k]) < 1e-3, `start->idle discontinuity on ${k}: ${startEndIdle[k]} vs ${idleOpt[k]}`);
+    }
+  }
+
+  // Controller liftoff ebb: must NOT re-trigger a delayed 'start' flash at end of liftoff, and fades smoothly into running/idle
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevPerf = globalThis.performance;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCaf = globalThis.cancelAnimationFrame;
+  const prevSt = globalThis.setTimeout;
+  const prevCt = globalThis.clearTimeout;
+  let now = 5000, seq = 1, isRunning = false;
+  const rafs = new Map(), timers = new Map(), draws = [];
+  const mkNode = (tag, tid = '') => {
+    const attrs = new Map(tid ? [['data-testid', tid]] : []);
+    const kids = [];
+    return {
+      tagName: tag.toUpperCase(), className: '', hidden: false, isConnected: true, parentElement: null,
+      clientWidth: 800, clientHeight: 600, style: { setProperty() {} },
+      get firstChild() { return kids[0] || null; },
+      setAttribute: (k, v) => attrs.set(k, String(v)),
+      getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
+      hasAttribute: (k) => attrs.has(k),
+      removeAttribute: (k) => attrs.delete(k),
+      insertBefore: (c) => { c.isConnected = true; kids.unshift(c); return c; },
+      appendChild: (c) => { c.isConnected = true; kids.push(c); return c; },
+      remove: () => {}, closest: () => null, querySelectorAll: () => [],
+    };
+  };
+  const seat = mkNode('div'), convView = mkNode('div', 'conversation-view'), cancelBtn = mkNode('button', 'input-cancel-button');
+  seat.appendChild(convView);
+  const html = mkNode('html');
+  html.setAttribute('data-ag-cs-dark-aura', 'subtle');
+  globalThis.performance = { now: () => now };
+  globalThis.requestAnimationFrame = (cb) => { const id = seq++; rafs.set(id, cb); return id; };
+  globalThis.cancelAnimationFrame = (id) => { rafs.delete(id); };
+  globalThis.setTimeout = (cb, ms = 0) => { const id = seq++; timers.set(id, { cb, due: now + ms }); return id; };
+  globalThis.clearTimeout = (id) => { timers.delete(id); };
+  globalThis.window = { devicePixelRatio: 1, addEventListener() {}, removeEventListener() {} };
+  globalThis.document = {
+    hidden: false, documentElement: html, hasFocus: () => true,
+    createElement: (t) => mkNode(t), addEventListener() {}, removeEventListener() {}, querySelector: () => null,
+    querySelectorAll: (s) => (s.includes('conversation-view') ? [convView] : s.includes('input-cancel-button') && isRunning ? [cancelBtn] : []),
+  };
+  const advance = (totalMs) => {
+    const end = now + totalMs;
+    while (now < end) {
+      now = Math.min(end, now + 16);
+      for (const [id, t] of [...timers.entries()]) if (t.due <= now) { timers.delete(id); t.cb(); }
+      const r = [...rafs.entries()]; rafs.clear();
+      for (const [, fn] of r) fn(now);
+    }
+  };
+  try {
+    const ctl = mod.createConvAuraController({
+      isDestroyed: () => false, isHomeRippleEnabled: () => true, isMotionStandardOrUltra: () => true, isDarkTheme: () => true,
+      getMinFrameGapMs: () => 0, isWindowFocused: () => true,
+      setAttrIfChanged: (e, k, v) => e.setAttribute(k, v), runGuardedMut: (fn) => fn(),
+      rippleCore: {
+        resolveHorizonDpr: (r, s) => r * s,
+        mountBrandHorizonGlow: () => ({
+          mode: 'webgl2', resize() {}, invalidate() {}, clear() {}, dispose() {},
+          draw: (_t, _d, strength, ex) => { draws.push({ t: now, strength, surge: ex.surge }); },
+        }),
+      },
+    });
+    ctl.sync();
+    ctl.triggerLiftoffEbb(now, convView);
+    assert.ok(ctl.getInstance().lastOptics.strength > 0.85);
+    advance(64);
+    isRunning = true;
+    ctl.sync();
+    assert.equal(ctl.getInstance().phase, 'running', 'running start during liftoff must settle directly into running instead of queuing a second start flash');
+    advance(CONV_AURA_LIFTOFF_MS + 120);
+    assert.equal(ctl.getInstance().phase, 'running');
+    const tailDraws = draws.filter((d) => d.t >= 5000 + CONV_AURA_LIFTOFF_MS - 120);
+    assert.ok(tailDraws.length >= 2 && tailDraws[tailDraws.length - 1].strength <= 0.5 && tailDraws[tailDraws.length - 1].surge <= 0.14);
+
+    // Idle liftoff (cancelled / non-running) fades strength & surge close to 0 before sleeping
+    isRunning = false;
+    ctl.sync();
+    now += 1500;
+    advance(64);
+    draws.length = 0;
+    const t0 = now;
+    ctl.triggerLiftoffEbb(t0, convView);
+    advance(CONV_AURA_LIFTOFF_MS);
+    const lastIdleLiftoff = draws[draws.length - 1];
+    assert.ok(lastIdleLiftoff && lastIdleLiftoff.strength < 0.06 && lastIdleLiftoff.surge < 0.04, `idle liftoff must fade near 0 before clear, got str=${lastIdleLiftoff?.strength} surge=${lastIdleLiftoff?.surge}`);
+    ctl.unmount();
+  } finally {
+    globalThis.document = prevDoc; globalThis.window = prevWin; globalThis.performance = prevPerf;
+    globalThis.requestAnimationFrame = prevRaf; globalThis.cancelAnimationFrame = prevCaf;
+    globalThis.setTimeout = prevSt; globalThis.clearTimeout = prevCt;
+  }
 });
 
 test('HORIZON_FRAGMENT_SHADER eliminates direct AMBER->SKY_BLUE mixing, decouples blueLoop/prismLoop cross-mix, and supports neonLoop', () => {
@@ -2533,4 +2673,250 @@ test('HORIZON_FRAGMENT_SHADER eliminates direct AMBER->SKY_BLUE mixing, decouple
   assert.ok(src.includes('base = mix(base, pCol, clamp(effPrism * 1.45'), 'shader must decouple hue purity from caustic luminance');
   assert.equal(rippleCore.resolveHorizonSpectrumCode(6), 6);
   assert.equal(rippleCore.resolveHorizonSpectrumCode('neon'), 6);
+});
+
+test('home-ripple-host honors darkAuraStyle (prism/neon) and darkAura tiers (subtle/balanced/vivid) on dark Home without affecting light mode', () => {
+  const homeRippleMod = require('../home-ripple-host.js');
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevPerf = globalThis.performance;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCaf = globalThis.cancelAnimationFrame;
+
+  let nowMs = 1000;
+  let rafSeq = 1;
+  const rafMap = new Map();
+  let lastGlowOpts = null;
+  let isDark = true;
+  const htmlAttrs = new Map([
+    ['data-ag-cs-ambient', '1'],
+    ['data-ag-cs-accent', 'follow'],
+    ['data-ag-cs-palette', 'obsidian'],
+    ['data-ag-cs-dark-aura-style', 'prism'],
+    ['data-ag-cs-dark-aura', 'balanced'],
+  ]);
+
+  const mkNode = () => {
+    const attrs = new Map();
+    const kids = [];
+    return {
+      width: 320,
+      height: 180,
+      clientWidth: 320,
+      clientHeight: 180,
+      className: '',
+      isConnected: true,
+      style: {},
+      children: kids,
+      get firstChild() { return kids[0] || null; },
+      insertBefore(n) { kids.unshift(n); n.isConnected = true; return n; },
+      appendChild(n) { kids.push(n); n.isConnected = true; return n; },
+      setAttribute: (k, v) => attrs.set(k, String(v)),
+      getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
+      hasAttribute: (k) => attrs.has(k),
+      removeAttribute: (k) => attrs.delete(k),
+      querySelector: () => null,
+      addEventListener() {},
+      removeEventListener() {},
+      remove() { this.isConnected = false; },
+    };
+  };
+  const homeNode = mkNode();
+
+  globalThis.performance = { now: () => nowMs };
+  globalThis.window = { devicePixelRatio: 1 };
+  globalThis.requestAnimationFrame = (fn) => { const id = rafSeq++; rafMap.set(id, fn); return id; };
+  globalThis.cancelAnimationFrame = (id) => { rafMap.delete(id); };
+  globalThis.document = {
+    hidden: false,
+    documentElement: {
+      getAttribute: (k) => (htmlAttrs.has(k) ? htmlAttrs.get(k) : null),
+      hasAttribute: (k) => htmlAttrs.has(k),
+    },
+    querySelector: (sel) => (sel === '.agy-home' ? homeNode : null),
+    addEventListener() {},
+    removeEventListener() {},
+    createElement: () => mkNode(),
+  };
+
+  const wrappedCore = {
+    ...rippleCore,
+    mountBrandHorizonGlow: () => ({
+      mode: 'webgl2',
+      resize() {},
+      invalidate() {},
+      clear() {},
+      draw(_now, opts) { lastGlowOpts = opts; },
+      dispose() {},
+    }),
+  };
+
+  const flushNext = () => {
+    nowMs += 36;
+    const next = rafMap.entries().next().value;
+    assert.ok(next, 'expected scheduled rAF');
+    rafMap.delete(next[0]);
+    next[1](nowMs);
+  };
+
+  try {
+    const ctl = homeRippleMod.createHomeRippleController({
+      rippleCore: wrappedCore,
+      isDestroyed: () => false,
+      isAllowed: () => false,
+      isGlowAllowed: () => true,
+      isMotionStandardOrUltra: () => true,
+      isDarkTheme: () => isDark,
+      motionReduced: () => false,
+      getMinFrameGapMs: () => 0,
+      setAttrIfChanged: (el, k, v) => el.setAttribute(k, v),
+    });
+
+    ctl.sync();
+    flushNext();
+    assert.equal(lastGlowOpts.spectrum, 'default', 'dark prism style uses default (prismLoop) spectrum');
+    const balReach = lastGlowOpts.reach;
+    const balPrism = lastGlowOpts.prism;
+    const balStr = lastGlowOpts.strength;
+    assert.ok(balPrism > 0.3, `dark Home must pass non-zero prism weight so evalPrismDark renders, got ${balPrism}`);
+
+    htmlAttrs.set('data-ag-cs-dark-aura-style', 'neon');
+    htmlAttrs.set('data-ag-cs-dark-aura', 'subtle');
+    ctl.refreshTheme();
+    flushNext();
+    assert.equal(lastGlowOpts.spectrum, 'neon', 'dark neon style must pass spectrum="neon" to Home glow');
+    assert.ok(lastGlowOpts.prism > 0 && lastGlowOpts.prism < balPrism, 'subtle darkAura prism must be < balanced');
+    assert.ok(lastGlowOpts.reach < balReach, 'subtle darkAura reach must be < balanced');
+    assert.ok(lastGlowOpts.strength < balStr, 'subtle darkAura strength must be < balanced');
+
+    htmlAttrs.set('data-ag-cs-dark-aura', 'vivid');
+    ctl.refreshTheme();
+    flushNext();
+    assert.equal(lastGlowOpts.spectrum, 'neon');
+    assert.ok(lastGlowOpts.prism > balPrism, 'vivid darkAura prism must be > balanced');
+    assert.ok(lastGlowOpts.reach > balReach, 'vivid darkAura reach must be > balanced');
+
+    // Light mode stays untouched regardless of darkAura / darkAuraStyle
+    isDark = false;
+    ctl.refreshTheme();
+    flushNext();
+    assert.equal(lastGlowOpts.spectrum, 'default');
+    assert.equal(lastGlowOpts.prism, 0);
+    assert.equal(lastGlowOpts.strength, 1);
+    assert.equal(lastGlowOpts.reach, 0.47);
+
+    ctl.unmount();
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.performance = prevPerf;
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCaf;
+  }
+});
+
+test('home-ripple-host: parkRipple disposes idle worker-webgl2 after 4s and remounts cleanly on Home return', async () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevPerf = globalThis.performance;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCaf = globalThis.cancelAnimationFrame;
+  const prevRw = globalThis.__agPrismRippleWorker;
+  const prevSt = globalThis.setTimeout;
+  const prevCt = globalThis.clearTimeout;
+
+  delete require.cache[require.resolve('../home-ripple-host.js')];
+  const hostMod = require('../home-ripple-host.js');
+  const timers = new Map();
+  let nextTid = 1;
+  globalThis.setTimeout = (fn, ms) => { const id = nextTid++; timers.set(id, { fn, ms }); return id; };
+  globalThis.clearTimeout = (id) => { timers.delete(id); };
+
+  const rafs = new Map();
+  let rafId = 1;
+  const htmlAttrs = new Map([['data-ag-cs-motion', 'ultra'], ['data-ag-cs-ambient', '1'], ['data-ag-cs-palette', 'obsidian']]);
+  const mkEl = () => {
+    const a = new Map(), k = [];
+    const n = {
+      width: 300, height: 180, clientWidth: 300, clientHeight: 180, className: '', isConnected: true, style: {}, children: k,
+      get firstChild() { return k[0] || null; },
+      insertBefore(c) { k.unshift(c); c.isConnected = true; return c; },
+      appendChild(c) { k.push(c); c.isConnected = true; return c; },
+      replaceWith(c) { const i = k.indexOf(n); void i; c.isConnected = true; },
+      setAttribute: (x, v) => a.set(x, String(v)),
+      getAttribute: (x) => (a.has(x) ? a.get(x) : null),
+      hasAttribute: (x) => a.has(x),
+      removeAttribute: (x) => a.delete(x),
+      querySelector: () => null,
+      addEventListener() {},
+      removeEventListener() {},
+      remove() { n.isConnected = false; },
+    };
+    return n;
+  };
+  let showHome = true;
+  const homeNode = mkEl();
+  globalThis.performance = { now: () => 100 };
+  globalThis.window = { devicePixelRatio: 1 };
+  globalThis.requestAnimationFrame = (fn) => { const id = rafId++; rafs.set(id, fn); return id; };
+  globalThis.cancelAnimationFrame = (id) => rafs.delete(id);
+  globalThis.document = {
+    hidden: false,
+    documentElement: { getAttribute: (k) => (htmlAttrs.has(k) ? htmlAttrs.get(k) : null), hasAttribute: (k) => htmlAttrs.has(k) },
+    querySelector: (s) => (s === '.agy-home' && showHome ? homeNode : null),
+    addEventListener() {}, removeEventListener() {}, createElement: () => mkEl(),
+  };
+
+  let mountCount = 0, disposeCount = 0;
+  globalThis.__agPrismRippleWorker = {
+    mountManagedGlow: () => {
+      mountCount += 1;
+      return {
+        mode: 'worker-webgl2',
+        getBufferSize: () => ({ width: 210, height: 126 }),
+        resize() {}, invalidate() {}, draw() {}, setPaused() {}, releaseBackingStore() {},
+        dispose(force) { if (force) disposeCount += 1; },
+      };
+    },
+  };
+
+  const ctl = hostMod.createHomeRippleController({
+    rippleCore,
+    isDestroyed: () => false,
+    isAllowed: () => false,
+    isGlowAllowed: () => true,
+    isMotionStandardOrUltra: () => true,
+    isDarkTheme: () => true,
+    motionReduced: () => false,
+    getMinFrameGapMs: () => 0,
+    getAmbientIntensity: () => 1,
+    getAccentTone: () => 'follow',
+    setAttrIfChanged: () => {},
+  });
+
+  try {
+    ctl.sync();
+    assert.equal(mountCount, 1, 'initial Home mount must spawn glow worker once');
+    showHome = false;
+    ctl.sync();
+    assert.equal(disposeCount, 0, 'parking must not synchronously terminate worker (fast reattach preserved)');
+    const parkTimer = Array.from(timers.values()).find((t) => t.ms >= 4000);
+    assert.ok(parkTimer, 'parking worker-webgl2 must arm 4s idle disposal timer');
+    parkTimer.fn();
+    assert.equal(disposeCount, 1, '4s idle parked worker-webgl2 must dispose worker and free GPU resources');
+
+    showHome = true;
+    ctl.sync();
+    assert.equal(mountCount, 2, 'returning to Home after idle worker disposal must cleanly remount glow worker');
+    ctl.unmount();
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.performance = prevPerf;
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCaf;
+    globalThis.__agPrismRippleWorker = prevRw;
+    globalThis.setTimeout = prevSt;
+    globalThis.clearTimeout = prevCt;
+  }
 });

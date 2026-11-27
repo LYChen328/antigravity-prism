@@ -866,18 +866,17 @@ test('Channel 4 isolation: main bundle < 690 KiB without dict, shouldEnableHostI
   assert.equal(mainExpr.includes('mountHostI18n'), false, 'Main bundle must NOT contain Channel 4 runtime');
   assert.equal(mainExpr.includes('浏览器子智能体已被您的管理员禁用'), false, 'Main bundle must NOT contain zh-CN.json entries');
 
-  assert.equal(cdp.DEFAULT_CONFIG.hostLocalization, 'auto');
+  assert.equal(cdp.DEFAULT_CONFIG.hostLocalization, 'off');
   assert.deepEqual(cdp.VALIDATORS.hostLocalization, ['auto', 'on', 'off']);
 
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'off', language: 'zh-CN' }), true);
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'off', language: 'en' }), true);
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'on', language: 'en' }), true);
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'zh-CN' }), true);
-  assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'tr' }), true);
-  assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'auto' }, 'tr-TR'), true);
-  assert.equal(path.basename(cdp.getHostI18nDictionaryPath({ language: 'tr' })), 'tr.json');
+  assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'tr' }), false);
+  assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'auto' }, 'tr-TR'), false);
   assert.equal(path.basename(cdp.getHostI18nDictionaryPath({ language: 'zh-CN' })), 'zh-CN.json');
-  assert.equal(path.basename(cdp.getHostI18nDictionaryPath({ language: 'auto' }, 'tr-TR')), 'tr.json');
+  assert.equal(path.basename(cdp.getHostI18nDictionaryPath({ language: 'tr' })), 'zh-CN.json');
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'en' }), false);
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'zh-TW' }), false);
   assert.equal(cdp.shouldEnableHostI18n({ hostLocalization: 'auto', language: 'auto' }, 'zh-CN'), true);
@@ -919,33 +918,9 @@ test('Channel 4 isolation: main bundle < 690 KiB without dict, shouldEnableHostI
   vm.runInNewContext(cdp.HOST_I18N_REMOVE_EXPRESSION, sandbox);
   assert.equal(btn.textContent, 'Settings');
 
-  // Turkish Channel 4 expression compiles under budget, translates DOM in isolated VM, sets html lang="tr", and restores cleanly
-  const trExpr = cdp.buildHostI18nExpression({ hostLocalization: 'auto', language: 'tr' }, { noDiskCache: true });
-  assert.ok(Buffer.byteLength(trExpr, 'utf8') > 100000 && Buffer.byteLength(trExpr, 'utf8') <= 573440);
-  assert.ok(trExpr.includes('locale: "tr"'));
-  assert.doesNotThrow(() => new vm.Script(trExpr));
-  const trEnv = createTestEnv();
-  trEnv.doc.documentElement.setAttribute('lang', 'en');
-  const trBtn = trEnv.makeEl('button', { text: 'Settings' });
-  trEnv.doc.body.append(trBtn);
-  const trSandbox = {
-    window: trEnv.win,
-    globalThis: trEnv.win,
-    document: trEnv.doc,
-    MutationObserver: trEnv.win.MutationObserver,
-    setTimeout: trEnv.setTimeoutFn,
-    clearTimeout: trEnv.clearTimeoutFn,
-  };
-  trEnv.win.window = trEnv.win;
-  trEnv.win.globalThis = trEnv.win;
-  const trRes = vm.runInNewContext(trExpr, trSandbox);
-  assert.equal(trRes.ok, true);
-  assert.equal(trRes.status, 'active');
-  assert.equal(trBtn.textContent, 'Ayarlar');
-  assert.equal(trEnv.doc.documentElement.getAttribute('lang'), 'tr');
-  vm.runInNewContext(cdp.HOST_I18N_REMOVE_EXPRESSION, trSandbox);
-  assert.equal(trBtn.textContent, 'Settings');
-  assert.equal(trEnv.doc.documentElement.getAttribute('lang'), 'en');
+  // Removed Turkish/Japanese locales yield empty expression (fail-closed)
+  assert.equal(cdp.buildHostI18nExpression({ hostLocalization: 'auto', language: 'tr' }, { noDiskCache: true }), '');
+  assert.equal(cdp.buildHostI18nExpression({ hostLocalization: 'auto', language: 'ja' }, { noDiskCache: true }), '');
 });
 
 test('settings-panel renders hostLocalization 3-state control and displays yielded hint when data-ag-prism-host-i18n="yielded"', () => {

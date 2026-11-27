@@ -143,17 +143,11 @@
 
   const EFFORT_RANK = { Low: 0, Medium: 1, High: 2, XHigh: 3 };
 
-  // 9 语中性双层居中问候词库
+  // 3 语中性双层居中问候词库
   const HERO_GREETINGS = {
     'zh-CN': { eyeUser: ['你好，{user}', '嗨，{user}', '欢迎回来，{user}', '{user}，很高兴见到你'], eyeAnon: ['你好', '欢迎回来', '随时开始'], heads: ['今天需要我为你做些什么？', '想从哪里开始探索？', '随时聊聊你的新想法。', '有什么我可以帮你的？'] },
     'zh-TW': { eyeUser: ['你好，{user}', '嗨，{user}', '歡迎回來，{user}'], eyeAnon: ['你好', '歡迎回來', '隨時開始'], heads: ['今天需要我為你做些什麼？', '想從哪裡開始探索？', '隨時聊聊你的新想法。'] },
     en: { eyeUser: ['Hi, {user}', 'Hello, {user}', 'Welcome back, {user}'], eyeAnon: ['Hello', 'Welcome back', 'Ready when you are'], heads: ['Where should we start?', 'What can I help you with today?', 'What would you like to explore?'] },
-    ja: { eyeUser: ['こんにちは、{user}さん', 'おかえりなさい、{user}さん'], eyeAnon: ['こんにちは', 'おかえりなさい', 'いつでも始められます'], heads: ['今日は何をお手伝いしましょうか？', 'どこから始めましょうか？', 'どんなアイデアでも気軽にどうぞ。'] },
-    ko: { eyeUser: ['안녕하세요, {user}님', '다시 오셨군요, {user}님'], eyeAnon: ['안녕하세요', '다시 오셨군요', '언제든 시작할 수 있어요'], heads: ['오늘은 무엇을 도와드릴까요?', '어디서부터 시작해 볼까요?', '새로운 아이디어를 편하게 들려주세요.'] },
-    es: { eyeUser: ['Hola, {user}', 'Bienvenido de nuevo, {user}'], eyeAnon: ['Hola', 'Bienvenido de nuevo', 'Listo cuando quieras'], heads: ['¿Por dónde empezamos?', '¿En qué puedo ayudarte hoy?', '¿Qué te gustaría explorar?'] },
-    fr: { eyeUser: ['Bonjour, {user}', 'Bon retour, {user}'], eyeAnon: ['Bonjour', 'Bon retour', 'Prêt quand vous l’êtes'], heads: ['Par où commençons-nous ?', 'Comment puis-je vous aider aujourd’hui ?', 'Que souhaitez-vous explorer ?'] },
-    de: { eyeUser: ['Hallo, {user}', 'Willkommen zurück, {user}'], eyeAnon: ['Hallo', 'Willkommen zurück', 'Bereit, wann immer du bist'], heads: ['Womit sollen wir anfangen?', 'Wie kann ich dir heute helfen?', 'Was möchtest du erkunden?'] },
-    tr: { eyeUser: ['Merhaba, {user}', 'Tekrar hoş geldin, {user}'], eyeAnon: ['Merhaba', 'Tekrar hoş geldin', 'Hazır olduğunda başla'], heads: ['Nereden başlayalım?', 'Bugün sana nasıl yardımcı olabilirim?', 'Neyi keşfetmek istersin?'] },
   };
 
   // M3 Expressive styles
@@ -515,13 +509,7 @@
     const s = String(raw || 'zh-CN').trim().toLowerCase();
     if (s === 'zh-tw' || s === 'zh-hk' || s === 'zh-mo' || s === 'zh-hant' || s.startsWith('zh-hant')) return 'zh-TW';
     if (s === 'yue' || s.startsWith('yue-') || s === 'zh-yue' || s.includes('cantonese')) return 'zh-CN';
-    if (s.startsWith('ja')) return 'ja';
-    if (s.startsWith('ko')) return 'ko';
-    if (s.startsWith('es')) return 'es';
-    if (s.startsWith('fr')) return 'fr';
-    if (s.startsWith('de')) return 'de';
-    if (s.startsWith('tr') || s === 'turkish' || s === 'türkçe') return 'tr';
-    if (s.startsWith('en')) return 'en';
+    if (s.startsWith('en') || s.startsWith('ja') || s.startsWith('ko') || s.startsWith('es') || s.startsWith('fr') || s.startsWith('de') || s.startsWith('tr') || s === 'turkish' || s === 'türkçe') return 'en';
     return 'zh-CN';
   }
 

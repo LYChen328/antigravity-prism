@@ -1132,8 +1132,8 @@ test('wallpaper-settings-ui.js: 0 innerHTML, 8 locales + yue migration, 5+1 anti
   const uiSrc = fs.readFileSync(path.join(ROOT, 'vendor', 'wallpaper', 'wallpaper-settings-ui.js'), 'utf8');
   assert.equal(/\.innerHTML\s*=/.test(uiSrc), false, 'wallpaper-settings-ui.js must have 0 innerHTML assignments');
 
-  // Verify 8 locale packs exist, mark Beta explicitly, and have distinct titles
-  const locales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de'];
+  // Verify 3 locale packs exist, mark Beta explicitly, and have distinct titles
+  const locales = ['zh-CN', 'zh-TW', 'en'];
   const titles = new Set();
   for (const loc of locales) {
     const pack = wallpaperSettingsUiMod.WALLPAPER_I18N[loc];
@@ -1143,7 +1143,7 @@ test('wallpaper-settings-ui.js: 0 innerHTML, 8 locales + yue migration, 5+1 anti
     assert.ok(/Beta/i.test(pack.desc), `Locale ${loc} wallpaper description must clearly mention Beta`);
     titles.add(pack.title);
   }
-  assert.equal(titles.size, 8, 'All 8 locales must provide distinct localized titles');
+  assert.equal(titles.size, 3, 'All 3 locales must provide distinct localized titles');
 
   const env = createDomSandbox();
   const rpcLog = [];
@@ -1270,13 +1270,19 @@ test('wallpaper-settings-ui.js: 0 innerHTML, 8 locales + yue migration, 5+1 anti
       assert.ok(betaNotice && /experimental/i.test(betaNotice.textContent), 'Beta group must render explicit experimental notice');
       assert.equal(lastMountLang, 'en');
 
-      // Switch language en -> ja and verify wallpaper UI remounts/syncs with ja locale
-      activeLang = 'ja';
+      // Switch language en -> zh-TW -> removed ja and verify wallpaper UI syncs cleanly
+      activeLang = 'zh-TW';
       mountPanel();
-      assert.equal(lastMountLang, 'ja');
+      assert.equal(lastMountLang, 'zh-TW');
       assert.equal(
         capturedSlot.querySelector('.ag-prism-wp-title').textContent,
-        wallpaperSettingsUiMod.WALLPAPER_I18N.ja.title
+        wallpaperSettingsUiMod.WALLPAPER_I18N['zh-TW'].title
+      );
+      activeLang = 'ja';
+      mountPanel();
+      assert.equal(
+        capturedSlot.querySelector('.ag-prism-wp-title').textContent,
+        wallpaperSettingsUiMod.WALLPAPER_I18N.en.title
       );
     } finally {
       globalThis.document = origDoc;
@@ -1328,8 +1334,10 @@ test('cdp.js Channel 7: WALLPAPER_BINDING, 0 in RUNTIME_PARTS, vm.Script parse, 
   const packedUiHandle = env.sandbox.__prismMountWallpaperUi(packedSlot, { lang: 'zh-CN' });
   assert.ok(packedUiHandle && packedUiHandle.root);
   assert.equal(packedSlot.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N['zh-CN'].title);
+  packedUiHandle.updateLang('zh-TW');
+  assert.equal(packedSlot.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N['zh-TW'].title);
   packedUiHandle.updateLang('ja');
-  assert.equal(packedSlot.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N.ja.title);
+  assert.equal(packedSlot.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N.en.title);
 
   // Activate a video then run WALLPAPER_REMOVE_EXPRESSION
   env.sandbox.__agPrismWallpaper.applyConfig({
@@ -1838,17 +1846,20 @@ test('red-team #229 [P1-2] & #230 [P0-1, P1-7, P2-3, P2-4]: no bootWpCfg token i
   client.destroy();
   assert.equal(env.docListeners.get('pointerdown')?.size || 0, 0, 'destroy() must clean up pointerdown listener');
 
-  // 4) #230 [P2-4]: resolveLang prefers explicit ctx.lang over ctx.getLang()
+  // 4) #230 [P2-4]: resolveLang prefers explicit ctx.lang over ctx.getLang(), and normalizes removed locales to en
   const langSlot = env.makeNode('div', { 'data-testid': 'prism-wallpaper-slot' });
   env.body.appendChild(langSlot);
   const langHandle = wallpaperSettingsUiMod.mountWallpaperUi(langSlot, {
     window: env.sandbox,
     document: env.doc,
-    lang: 'ja',
+    lang: 'zh-TW',
     getLang: () => 'en',
   });
-  assert.equal(langHandle.root.getAttribute('data-ag-cs-lang'), 'ja');
-  assert.equal(langHandle.root.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N.ja.title);
+  assert.equal(langHandle.root.getAttribute('data-ag-cs-lang'), 'zh-TW');
+  assert.equal(langHandle.root.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N['zh-TW'].title);
+  langHandle.updateLang('ja');
+  assert.equal(langHandle.root.getAttribute('data-ag-cs-lang'), 'en');
+  assert.equal(langHandle.root.querySelector('.ag-prism-wp-title').textContent, wallpaperSettingsUiMod.WALLPAPER_I18N.en.title);
   langHandle.destroy();
 
   // 5) #230 [P2-4]: settings-panel.js destroys old wpSlot handle before existing.remove() on lang switch

@@ -211,12 +211,6 @@ export async function resolveStorageGuardLanguage(upd, targetEntry, cfg = null, 
     const s = String(raw || '').trim().toLowerCase().replace(/_/g, '-').split(/[.@]/)[0];
     if (!s) return fallback;
     if (s === 'en' || s.startsWith('en-')) return 'en';
-    if (s === 'ja' || s.startsWith('ja-')) return 'ja';
-    if (s === 'ko' || s.startsWith('ko-')) return 'ko';
-    if (s === 'es' || s.startsWith('es-')) return 'es';
-    if (s === 'fr' || s.startsWith('fr-')) return 'fr';
-    if (s === 'de' || s.startsWith('de-')) return 'de';
-    if (s === 'tr' || s.startsWith('tr-') || s === 'turkish' || s === 'türkçe' || s === 'turkce') return 'tr';
     if (s === 'yue' || s.startsWith('yue-') || s === 'zh-yue') return 'zh-CN';
     if (/^zh-(?:tw|hk|mo|hant)(?:-|$)/.test(s)) return 'zh-TW';
     if (s === 'zh' || s.startsWith('zh-')) return 'zh-CN';
@@ -337,12 +331,6 @@ export async function checkStorageGuardAndNotify(upd, _testOverrides = null) {
     'zh-CN': '关闭',
     'zh-TW': '關閉',
     en: 'Close',
-    ja: '閉じる',
-    ko: '닫기',
-    es: 'Cerrar',
-    fr: 'Fermer',
-    de: 'Schließen',
-    tr: 'Kapat',
   };
   const expr = buildStorageGuardBannerExpression({
     autoArchiveOnExit: Boolean(health.autoArchiveOnExit),

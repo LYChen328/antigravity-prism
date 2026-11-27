@@ -2347,8 +2347,8 @@ test('Octopath HD-2D 16:9 Mascot Casting Stage sub-panel: Ch9 fallback when masc
   const sp = require('../settings-panel.js');
   const i18nLocales = require('../i18n-locales.js');
 
-  // 1. Strict 39 schema keys (37 baseline + darkAura + darkAuraStyle) & 5 mascot presets aligned with src/config/schema.cjs
-  assert.equal(Object.keys(sp.PRISM_SETTINGS_SCHEMA).length, 39, 'PRISM_SETTINGS_SCHEMA must remain strictly 39 keys');
+  // 1. Strict 41 schema keys & 5 mascot presets aligned with src/config/schema.cjs
+  assert.equal(Object.keys(sp.PRISM_SETTINGS_SCHEMA).length, 41, 'PRISM_SETTINGS_SCHEMA must remain strictly 41 keys');
   assert.deepEqual([...sp.PRISM_SETTINGS_SCHEMA.mascot.allowed], ['crab', 'minis', 'quad', 'quad-minis', 'off']);
 
   // 2. 8-language coverage (including all stage keys), /4 cap copy, zero CJK in en/es/fr/de, and 0 new keys leaked into RUNTIME_UI_KEYS
@@ -3024,7 +3024,7 @@ test('PR #51 queued-messages-card roof-perch: zero bottom gap, interactive roof 
   const flushRaf = () => { while (rafQueue.length) rafQueue.shift()(Date.now()); };
 
   try {
-    const res = vm.runInNewContext(cdp.buildInjectExpression(cdp.DEFAULT_CONFIG, { bundleCachePath: '' }), sandbox);
+    const res = vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' }, { bundleCachePath: '' }), sandbox);
     assert.equal(res.status, 'ok');
 
     // 1) Visible queued-messages-card becomes mascot roof anchor with zero bottom gap & full interactivity

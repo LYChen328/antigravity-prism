@@ -1454,8 +1454,8 @@ test('Chat-only move-chat-session (drag/drop into folders, running Knowledge mov
     const s0 = svc.getState().snapshot;
     const storeId = s0.storeId;
 
-    // 1. 8 语随机问候词库校验（移除独立 yue，保留 legacy yue -> zh-CN 迁移）
-    for (const lang of ['zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'es', 'fr', 'de']) {
+    // 1. 3 语随机问候词库校验（移除独立 yue 与其它语种，保留 legacy yue -> zh-CN / 其余语种 -> en 迁移）
+    for (const lang of ['zh-CN', 'zh-TW', 'en']) {
       assert.ok(Array.isArray(GREETING_POOLS[lang].withUser) && GREETING_POOLS[lang].withUser.length > 0);
       assert.ok(Array.isArray(GREETING_POOLS[lang].anonymous) && GREETING_POOLS[lang].anonymous.length > 0);
       const named = formatGreeting(lang, 'Alex', 0);
@@ -1468,11 +1468,9 @@ test('Chat-only move-chat-session (drag/drop into folders, running Knowledge mov
     assert.equal(normalizeGreetingLang('yue'), 'zh-CN');
     assert.equal(normalizeGreetingLang('zh-yue'), 'zh-CN');
     assert.equal(normalizeGreetingLang('en-US'), 'en');
-    assert.equal(normalizeGreetingLang('ja-JP'), 'ja');
-    assert.equal(normalizeGreetingLang('ko-KR'), 'ko');
-    assert.equal(normalizeGreetingLang('es-ES'), 'es');
-    assert.equal(normalizeGreetingLang('fr-FR'), 'fr');
-    assert.equal(normalizeGreetingLang('de-DE'), 'de');
+    for (const removed of ['ja-JP', 'ko-KR', 'es-ES', 'fr-FR', 'de-DE', 'tr-TR']) {
+      assert.equal(normalizeGreetingLang(removed), 'en', `Removed locale ${removed} must normalize to en`);
+    }
 
     // 2. 在 Chat 创建 2 个 Knowledge 文件夹 + 1 个独立 Spark 项目，并在 Knowledge 根目录首发会话
     const toChat = await svc.handleRpc({

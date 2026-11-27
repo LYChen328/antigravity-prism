@@ -568,7 +568,7 @@ test('Wave 3 ui-runtime: P1-1 mascot power sync, P1-2a narrowed dirtyFlags, P1-2
   };
   html.ownerDocument = head.ownerDocument = body.ownerDocument = convView.ownerDocument = inputBox.ownerDocument = card.ownerDocument = fakeDoc;
 
-  vm.runInNewContext(`(${uiMainFactory.toString()})(${JSON.stringify(cdp.DEFAULT_CONFIG)})`, sb);
+  vm.runInNewContext(`(${uiMainFactory.toString()})(${JSON.stringify({ ...cdp.DEFAULT_CONFIG, mascot: 'crab' })})`, sb);
   const api = sb.window.__agPrism;
   assert.ok(api && mainMo, 'ui-runtime and mainObserver must boot cleanly');
 

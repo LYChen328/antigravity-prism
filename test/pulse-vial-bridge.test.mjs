@@ -1278,13 +1278,13 @@ test('OP-5.2 / HS-8.3 / UX-9 & <31,000B gate: light+warm alabaster alignment, ta
       ['zh-TW', '實體試管', /主會話 .* Swarm\/子代理\(3\)/, /工具輸出/],
       ['zh-HK', '實體試管', /主會話 .* Swarm\/子代理\(3\)/, /工具輸出/],
       ['en', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
-      ['ja', '試験管', /メイン .* Swarm\/サブ\(3\)/, /ツール出力/],
-      ['ko', '시험관', /메인 .* Swarm\/서브\(3\)/, /도구 출력/],
-      ['es', 'Tubo', /Principal .* Swarm\/Sub\(3\)/, /Salida/],
-      ['fr', 'Fiole', /Principal .* Swarm\/Sous\(3\)/, /Outils/],
-      ['de', 'Gefäß', /Haupt .* Swarm\/Sub\(3\)/, /Ausgabe/],
-      ['tr', 'Tüp', /Ana .* Swarm\/Alt\(3\)/, /Araç Çıktısı/],
-      ['tr-TR', 'Tüp', /Ana .* Swarm\/Alt\(3\)/, /Araç Çıktısı/],
+      ['ja', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
+      ['ko', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
+      ['es', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
+      ['fr', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
+      ['de', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
+      ['tr', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
+      ['tr-TR', 'Vial', /Main .* Swarm\/Sub\(3\)/, /Tool Output/],
     ]) {
       env.doc.documentElement.setAttribute('data-ag-cs-lang', langAttr);
       for (const rec of observerRecords) rec.cb([]);
@@ -1919,8 +1919,8 @@ test('inline-fallback renders 5h and weekly quota chips in composer bar, hides u
     assert.equal(barChildren[1], wChip, 'weekly quota chip sits before speed chip');
     assert.equal(barChildren[2], sChip);
 
-    // Default compact mode picks the tighter window (weekly 34% < 5h 92%) while detail card shows both
-    assert.equal(fChip.hidden, true, 'default compact mode hides looser 5h chip when weekly is tighter');
+    // Default 'both' mode shows both 5h and weekly chips simultaneously
+    assert.equal(fChip.hidden, false, 'default both mode shows 5h chip');
     assert.equal(sr.getElementById('five-balance').textContent, '92%');
     assert.equal(fChip.getAttribute('data-warn'), null);
 
@@ -1931,10 +1931,10 @@ test('inline-fallback renders 5h and weekly quota chips in composer bar, hides u
     assert.match(sr.getElementById('context-five-quota').textContent, /^92% · /);
     assert.match(sr.getElementById('context-week-quota').textContent, /^34% · /);
 
-    // telemetryQuotaMode='both' displays both 5h and weekly chips simultaneously
-    ctrl.sync({ telemetryModule: 'on', telemetryQuotaMode: 'both', language: 'zh-CN' });
-    assert.equal(fChip.hidden, false, 'both mode shows 5h chip');
-    assert.equal(wChip.hidden, false, 'both mode shows weekly chip');
+    // telemetryQuotaMode='compact' hides looser 5h chip when weekly is tighter
+    ctrl.sync({ telemetryModule: 'on', telemetryQuotaMode: 'compact', language: 'zh-CN' });
+    assert.equal(fChip.hidden, true, 'compact mode hides looser 5h chip when weekly is tighter');
+    assert.equal(wChip.hidden, false, 'compact mode shows tighter weekly chip');
 
     // Click weekly chip -> opens context/quota detail card cleanly
     const ctxCard = sr.getElementById('context-card');
@@ -1963,7 +1963,7 @@ test('inline-fallback renders 5h and weekly quota chips in composer bar, hides u
   }
 });
 
-test('Turkish (tr / tr-TR) 9th locale in pulse-vial-bridge: full 19-row coverage, auto navigator fallback, 0 CJK & 0 forbidden terms', async () => {
+test('3-locale (zh-CN / zh-TW / en) in pulse-vial-bridge: full 19-row coverage, removed locale->en fallback, 0 CJK & 0 forbidden terms', async () => {
   const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
   const FORBIDDEN_RE = /八方旅人|octopath/i;
   const src = fs.readFileSync(BRIDGE_PATH, 'utf8');
@@ -1975,12 +1975,14 @@ test('Turkish (tr / tr-TR) 9th locale in pulse-vial-bridge: full 19-row coverage
   });
   assert.equal(rows.length, 19, 'L0 must contain all 19 localization rows');
   for (let i = 0; i < rows.length; i++) {
-    assert.equal(rows[i].length, 9, `L0 row ${i} must have exactly 9 locale columns`);
-    const trText = rows[i][8];
-    assert.ok(typeof trText === 'string' && trText.length > 0, `L0[${i}][tr] must be non-empty`);
-    assert.equal(CJK_RE.test(trText), false, `L0[${i}][tr] must contain 0 CJK chars: "${trText}"`);
-    assert.equal(FORBIDDEN_RE.test(trText), false, `L0[${i}][tr] must contain 0 forbidden terms: "${trText}"`);
+    assert.equal(rows[i].length, 3, `L0 row ${i} must have exactly 3 locale columns`);
+    for (let c = 0; c < 3; c++) {
+      assert.ok(typeof rows[i][c] === 'string' && rows[i][c].length > 0, `L0[${i}][${c}] must be non-empty`);
+      assert.equal(FORBIDDEN_TERM_CHECK(rows[i][c]), false);
+    }
+    assert.equal(CJK_RE.test(rows[i][2]), false, `L0[${i}][en] must contain 0 CJK chars: "${rows[i][2]}"`);
   }
+  function FORBIDDEN_TERM_CHECK(v) { return FORBIDDEN_RE.test(v); }
 
   const env = createPulseMockEnv();
   const host = env.getPulseHost();
@@ -2042,7 +2044,7 @@ test('Turkish (tr / tr-TR) 9th locale in pulse-vial-bridge: full 19-row coverage
   });
 
   try {
-    // 1) auto + navigator.language='tr-TR' resolves cleanly to Turkish (index 8)
+    // 1) auto + removed navigator.language='tr-TR' falls back cleanly to English
     env.doc.documentElement.setAttribute('data-ag-cs-lang', 'auto');
     await bridge.sync();
 
@@ -2054,13 +2056,13 @@ test('Turkish (tr / tr-TR) 9th locale in pulse-vial-bridge: full 19-row coverage
     const segs = sr.querySelectorAll('[data-layer-slice]');
     const telReadout = sr.querySelector('[data-ag-pulse-telemetry="1"]');
 
-    assert.equal(toggleBtn.textContent, 'Tüp');
-    assert.equal(cmpBtn.getAttribute('title'), '/compact ekle');
-    assert.equal(paceBadge.textContent, 'Yeterli');
-    assert.deepEqual(qLabels, ['5s', 'Haftalık']);
-    assert.match(taskSplit.textContent, /Ana .* Swarm\/Alt\(2\)/);
+    assert.equal(toggleBtn.textContent, 'Vial');
+    assert.equal(cmpBtn.getAttribute('title'), 'Insert /compact');
+    assert.equal(paceBadge.textContent, 'Healthy');
+    assert.deepEqual(qLabels, ['5h Win', 'Weekly']);
+    assert.match(taskSplit.textContent, /Main .* Swarm\/Sub\(2\)/);
 
-    const expectedSlices = [/Sistem ve Kurallar/, /Mesajlar/, /Araç Çıktısı/];
+    const expectedSlices = [/System & Rules/, /Messages/, /Tool Output/];
     const renderedTexts = [toggleBtn.textContent, cmpBtn.getAttribute('title'), paceBadge.textContent, ...qLabels, taskSplit.textContent];
     for (let i = 0; i < 3; i++) {
       segs[i].dispatchEvent({ type: 'pointerenter' });
@@ -2069,29 +2071,25 @@ test('Turkish (tr / tr-TR) 9th locale in pulse-vial-bridge: full 19-row coverage
       segs[i].dispatchEvent({ type: 'pointerleave' });
     }
 
-    // 2) Explicit tr-TR & tight/low quota badges + /compact click feedback + Bar mode label
-    env.doc.documentElement.setAttribute('data-ag-cs-lang', 'tr-TR');
+    // 2) zh-TW quota badges + /compact click feedback + Bar mode label
+    env.doc.documentElement.setAttribute('data-ag-cs-lang', 'zh-TW');
     remaining5h = 0.25;
     await bridge.sync();
-    assert.equal(paceBadge.textContent, 'Azalıyor');
-    renderedTexts.push(paceBadge.textContent);
+    assert.equal(paceBadge.textContent, '餘量偏緊');
 
     remaining5h = 0.10;
     await bridge.sync();
-    assert.equal(paceBadge.textContent, 'Düşük Kota');
-    renderedTexts.push(paceBadge.textContent);
+    assert.equal(paceBadge.textContent, '額度偏低');
 
     cmpBtn.dispatchEvent({ type: 'click' });
-    assert.equal(cmpBtn.textContent, '✓ Eklendi');
-    renderedTexts.push(cmpBtn.textContent);
+    assert.equal(cmpBtn.textContent, '✓ 已填入');
 
     toggleBtn.dispatchEvent({ type: 'click' });
-    assert.equal(toggleBtn.textContent, 'Çubuk');
-    renderedTexts.push(toggleBtn.textContent);
+    assert.equal(toggleBtn.textContent, '極簡長條');
 
     for (const txt of renderedTexts) {
-      assert.equal(CJK_RE.test(txt), false, `Turkish UI leaked CJK: "${txt}"`);
-      assert.equal(FORBIDDEN_RE.test(txt), false, `Turkish UI leaked forbidden term: "${txt}"`);
+      assert.equal(CJK_RE.test(txt), false, `English fallback leaked CJK: "${txt}"`);
+      assert.equal(FORBIDDEN_RE.test(txt), false, `English fallback leaked forbidden term: "${txt}"`);
     }
   } finally {
     bridge.destroy();

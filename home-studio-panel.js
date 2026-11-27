@@ -100,13 +100,7 @@
   const STUDIO_FB = Object.fromEntries(
     `zh-CN|子代理|Token|蜂群|入|出|额度偏低|余量偏紧|充裕|接下来做什么|，|？|含归档|仅当前|当前|归档|仅本地|仅统计本机已保存会话（不含云端）
 zh-TW|子代理|Token|蜂群|入|出|額度偏低|餘量偏緊|充裕|接下來做什麼|，|？|含歸檔|僅當前|當前|歸檔|僅本機|僅統計本機已儲存工作階段（不含雲端）
-en|subagents|tokens||in|out|Low Quota|Running Low|Healthy|What's up next|||All|Current|Active|Archived|Local only|Counts saved local sessions only (excludes cloud)
-ja|サブエージェント|トークン||入力|出力|残枠少|残り少なめ|余裕あり|次は何をしますか|、|？|履歴含む|現在のみ|現在|アーカイブ|ローカルのみ|ローカル保存済みセッションのみ集計（クラウド除く）
-ko|서브에이전트|토큰||입력|출력|할당량 부족|잔여량 적음|여유|다음은 무엇을 할까요|||보관 포함|현재만|현재|보관|로컬만|로컬 저장 세션만 집계 (클라우드 제외)
-es|subagentes|tokens||entr.|sal.|Cuota baja|Casi agotada|Óptima|¿Qué hacemos ahora|||Todo|Actuales|Activas|Archiv.|Solo local|Solo sesiones locales guardadas (sin nube)
-fr|sous-agents|tokens||entr.|sort.|Quota bas|Presque épuisé|Optimal|Que faisons-nous ensuite|| ?|Tout|Actuelles|Actives|Archiv.|Local|Sessions locales enregistrées uniquement (hors cloud)
-de|Subagenten|Token||Ein|Aus|Wenig Kontingent|Wird knapp|Reichlich|Was steht als Nächstes an|||Alle|Aktuell|Aktiv|Archiv.|Nur lokal|Nur lokal gespeicherte Sitzungen (ohne Cloud)
-tr|alt ajan|token||giriş|çıkış|Düşük Kota|Azalıyor|Yeterli|Sırada ne var|||Tümü|Güncel|Aktif|Arşiv|Yalnızca yerel|Yalnızca yerel kayıtlı oturumlar (bulut hariç)`.split('\n').map((s) => { const a = s.split('|'); return [a[0], [a[1], a[2], a[3] || 'Swarm', a[4], a[5], a[6], a[7], a[8], a[9], a[10] || ', ', a[11] || '?', ...a.slice(12)]]; })
+en|subagents|tokens||in|out|Low Quota|Running Low|Healthy|What's up next|||All|Current|Active|Archived|Local only|Counts saved local sessions only (excludes cloud)`.split('\n').map((s) => { const a = s.split('|'); return [a[0], [a[1], a[2], a[3] || 'Swarm', a[4], a[5], a[6], a[7], a[8], a[9], a[10] || ', ', a[11] || '?', ...a.slice(12)]]; })
   );
   const normStudioLang = (l) => {
     const c = G.__agCsI18nCore?.normalizeLanguage;
@@ -115,7 +109,7 @@ tr|alt ajan|token||giriş|çıkış|Düşük Kota|Azalıyor|Yeterli|Sırada ne v
     if (STUDIO_FB[s]) return s;
     const lo = s.toLowerCase();
     if (/^(?:zh|yue)/.test(lo)) return /[-_](?:tw|hant|hk|mo)/.test(lo) ? 'zh-TW' : 'zh-CN';
-    return lo.match(/^(ja|ko|es|fr|de|tr)/)?.[1] || 'en';
+    return 'en';
   };
   const studioFb = (l) => STUDIO_FB[normStudioLang(l)] || STUDIO_FB.en;
   const hasTok = (r, c) => !!(r?.days && (toNum(r.calls) > 0 || Object.values(r.days).some((d) => d && (toNum(d.total || d.tokens) > 0 || (c && toNum(d.calls) > 0)))));
