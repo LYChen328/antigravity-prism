@@ -130,28 +130,38 @@ node tools/install-plugin.cjs --status
 
 ## 本分支定制内容与默认配置
 
-相比上游 `RMvdesi/obsidian-prism`（`v1.0.8-beta.4`），本分支在保留全部核心能力的基础上做了面向日常 coding 的交互精简与外观调优：
+相比上游 `RMvdesi/obsidian-prism`（`v1.0.8-beta.4`），本分支在保留全部核心能力的基础上，针对日常 coding 偏好调整了开箱默认预设，并围绕首页/会话光学一致性、三语种瘦身与运行时渲染性能进行了定制调优：
 
 ### 1. 开箱即用默认预设调整（均可在设置面板随时切回）
 
 | 设置项 | 上游原版默认 | 本分支默认 | 说明 |
 | :--- | :--- | :--- | :--- |
-| 面板语言 / 宿主汉化 | `auto` / `auto` | `zh-CN` / **`off`** | 插件设置面板使用简体中文，**关闭宿主自动汉化**以保留 Antigravity 原版英文界面 |
+| 面板语言 / 宿主汉化 | `auto` / `auto` | **`zh-CN`** / **`off`** | 插件设置面板使用简体中文（UI 支持简中/繁中/英三语及 `auto`），**关闭宿主自动汉化**以保留 Antigravity 原版英文界面 |
+| 忽略系统减弱动效 (`ignoreReducedMotion`) | `false` | **`true`** | 系统开启 Reduced Motion 时仍保持插件光学动效与背景动画流畅运行 |
 | 帧率上限 (`targetFps`) | `180` | **`native`** | 跟随显示器原生刷新率 |
+| 底栏配额模式 (`telemetryQuotaMode`) | `compact` | **`both`** | 同时展示上下文/会话用量卡片与 5h/周模型池配额状态 |
+| 深色环境光浓度 (`darkAura`) | `balanced` | **`subtle`** | 默认采用柔和细腻的深色底部地平线氛围光（搭配默认 `prism` 极夜流纱，首页与会话统一响应） |
 | 全局圆角 (`cornerStyle`) | `balanced` | **`soft`** | 配合重新校准的圆角梯度呈现更柔和的卡片边缘 |
 | 代码连字 (`codeLigatures`) | `false` | **`true`** | 默认开启编程字体连字 |
-| 边框流光 (`prismRimStyle`) | 彩色棱镜流光 (`prism`) | **悬停高光 (`simple`)** | 默认使用卡片悬停式简单边框高光，可一键切回跟随光标彩色棱镜流光 |
+| 光标边框流光 (`prismRim` / `prismRimStyle`) | `prism`（无开关细分） | **`true`** / **`simple`** | 开启边框高光并默认采用轻量**悬停高光 (`simple`)**，可随时切回跟随光标彩色棱镜流光 (`prism`) |
 | 品牌图标 (`logoInk`) | `accent` | **`antigravity`** | 保留 Antigravity 原版品牌图标配色 |
 | 输入框提示语 (`placeholderStyle`) | `studio` | **`host`** | 保留宿主原生占位提示语 |
-| 首页字符波纹 (`homeRipple`) | `true` | **`false`** | 默认关闭首页字符波纹矩阵（保留底部环境品牌辉光） |
 | 像素桌宠 (`mascot`) | `crab` | **`off`** | 默认关闭桌面像素伙伴（可在设置中重新开启多物种桌宠） |
 | 侧栏紧凑排版 (`sidebarRestyle`) | `true` | **`false`** | 默认保留宿主原生侧栏排版 |
 
-### 2. 交互、视觉与稳定性改动
+> 注：其余核心视觉与字体默认项——如首页字符波纹（`homeRipple: true`）、深色氛围光风格（`darkAuraStyle: "prism"` 极夜流纱）以及自定义正文/代码字体（`chatFont: "default"` / `codeFont: "default"`）——均保持与上游默认一致。
 
-- **边框流光细分控制**：新增「光标边框流光」开关（`prismRim`）与「流光样式」选择器（`prismRimStyle`: `prism` 棱镜流光 / `simple` 悬停高光），并新增 `logoInk: "antigravity"` 原版品牌图标选项。
-- **视觉细节精修**：同步窗口标题栏叠加层色值（`syncTitleBarOverlay`）以匹配当前深浅配色；移除输入框卡片静态获焦时的蓝色默认边框；重新校准 `balanced` 与 `soft` 两档圆角数值、弹窗镜像过滤（排除 L3 级联菜单）与边缘高光指标；为首页底部品牌辉光注入 `halftone: 0.24` 网点纹理并支持聚焦唤醒。
-- **动效收敛与按需降耗**：将首页启动升空动效（Hero A liftoff）收敛至首页发起场景；将对话背景极光调整为仅在运行态触发（`running-only`），稳态空闲时立即清屏休眠零占用。
+### 2. 交互、视觉、动画与性能优化
+
+- **首页与会话环境光统一**：首页底部品牌辉光（`BrandHorizonGlow`）在深色主题下统一接入 `darkAura`（`subtle` / `balanced` / `vivid`）与 `darkAuraStyle`（`prism` 极夜流纱 / `neon` 幽邃光晕）调控（浅色主题保持原貌），同时注入 `halftone: 0.24` 网点纹理并支持聚焦唤醒。
+- **底部激发光效平滑淡出与衔接**：为开启会话（`start`，`1150ms`）与首页升空承接（`liftoffEbb`，`780ms`）时的底部激发光效补充后半程余弦平滑淡出曲线，使其自然过渡并收敛至运行中呼吸流光（`running`）或静止清屏休眠（`idle` `0fps`）；同时抑制升空过渡窗期内的延迟重复启动闪光。
+- **边框流光与细节精修**：新增 `prismRim`、`prismRimStyle` 与 `logoInk: "antigravity"` 选项；同步窗口标题栏叠加层色值（`syncTitleBarOverlay`）；移除输入框卡片静态 `focus-within` 默认蓝边；重新校准 `balanced` 与 `soft` 两档圆角梯级；过滤 L3 级联菜单弹窗镜像、修复 Orchestrator L2 模型切换悬停闪烁，并将对话回底按钮 `.agy-scroll-bottom` 提升至 `z-index: 24`；复用 Gemini 模型行原生图标与统一 SideQuestion 高亮质感。
+- **界面三语种精简收敛（[ADR-007](./docs/adr/ADR-007-three-locale-ui-scope.md)）**：将全栈界面本地化收口至 **简体中文 (`zh-CN`) / 繁體中文 (`zh-TW`) / English (`en`)**（配置仍兼容 `auto` 及历史 `ja`/`ko`/`es`/`fr`/`de`/`tr` → `en`、`yue` → `zh-CN` 平滑迁移），移除了未使用的 6 语种界面词典及独立 `tr` 宿主/Swarm 字典。
+- **Canvas 与 DOM 热路径性能优化**：
+  - `prism-rim-canvas.js`：缓存卡片外围径向渐变与指针反射精灵图，并在非相关元素滚动时提前短路测量，降低高频鼠标/滚动重绘开销；
+  - `host-workbench-enhancer.js`：增量同步时跳过已封存的历史回答 `<pre>` 扫描，并缓存无滚动条节点以避免重复查找；
+  - `smooth-caret.js`：通过 `firstChild` 叶节点文本快速短路判空，替代全树 `textContent` 遍历与 `querySelectorAll('p, div')` 查询；
+  - `ui-runtime.js`：缓存 `activeElement` 输入框命中判定，并将隐藏态唤醒区分为结构性与非结构性变更，避免无谓的全量图标重扫。
 
 ---
 
@@ -210,7 +220,7 @@ node tools/install-plugin.cjs --status
 
 ### 5. 更多能力
 
-- **外观设置中心**：集成在 **设置 → 外观**，双栏光学布局、**9 种界面语言**（简中/繁中/英/日/韩/西/法/德/土耳其语）、**41 项**端到端可校验面板设置（底层配置契约共 **56 项**键，含性能模式 `performanceMode`、边框流光 `prismRim`/`prismRimStyle`、侧栏导航折叠 `sidebarNavFold`、滚底动效 `scrollBottomMotion` 与「正式版 / Beta 尝鲜版」双更新通道）、三档场景预设（完整光效 / 专注编码 / 静默省电）与脱敏配置备份恢复。
+- **外观设置中心**：集成在 **设置 → 外观**，双栏光学布局、**3 种界面语言**（简体中文 / 繁體中文 / English，支持 `auto` 与旧配置平滑回退）、**41 项**核心面板 Schema 字段与 `beta.4` 字体/性能/配额扩展控件（底层配置契约 `src/config/schema.cjs` 共 **56 项**键，含性能模式 `performanceMode`、忽略减弱动效 `ignoreReducedMotion`、底栏配额显示 `telemetryQuotaMode`、边框流光 `prismRim`/`prismRimStyle`、侧栏导航折叠 `sidebarNavFold`、滚底动效 `scrollBottomMotion` 与「正式版 / Beta 尝鲜版」双更新通道）、三档场景预设（完整光效 / 专注编码 / 静默省电）与脱敏配置备份恢复。
 - **思考转译与标题翻译**：按需加载模块，关闭态默认零注入并支持热插拔；内置免配置机器翻译与本地/兼容模型流式转译，支持 OS 系统代理自动检测与手动 HTTP/SOCKS5 代理、可选工具摘要与会话标题自动翻译、卡片顶部「一键诊断」及源码路径/行号跳转。
 - **自定义静态 / 动态视频壁纸（Beta）**：实验性按需加载模块，默认关闭零占用；纯本机只读加载图片（JPG/PNG/WebP/GIF/AVIF）与动态视频（MP4/WebM），支持透明度/模糊/护眼遮罩调节、Browser Hole 自动避让及失焦/隐藏自动 `0fps` 暂停。
 - **Omni 检视台与行内 Diff 预览**：裸链接、本地路径一键在侧栏打开，文件变更支持行内 Diff 预览；超大视频、音频、PDF、表格、字体流式预览，右键菜单复制路径、定位文件、插入引用。
@@ -221,15 +231,15 @@ node tools/install-plugin.cjs --status
 
 本分支基于 **Obsidian Prism (`v1.0.8-beta.4`)** 架构，在不改动宿主业务逻辑、不触碰外部插件锁文件的前提下，通过模块化按需加载插件架构为 Antigravity 桌面端提供 Smoked Obsidian 视觉界面、工作台交互与行内 Diff 增强、侧边栏内置浏览器与多格式流式检视台、模型配额遥测、思考过程转译及实验性动静态壁纸（Beta）：
 
-- **四套深浅配色与细节微调**：内置深色（`obsidian` 深空黑曜、`warm` 暖炭玄岩）与浅色（`crystal` 白昼冷晶、`alabaster` 暖白画册）共四套主题，支持跟随系统/宿主亮暗切换；统一 Smoked Obsidian 烟熏黑曜切面（用户消息气泡、文件变更条、Artifact 卡片、石墨键帽与单层行内文件芯片）；提供 5 档工业强调色（跟随模型 / 钴蓝 `cobalt` / 鸢尾紫 `iris` / 琥珀金 `amber` / 纯银钛单色 `mono`）、3 档全局圆角、4 档代码等宽字体与连字开关、环境光浓度调节与悬停/棱镜双模边框流光。
-- **300Hz 高刷分频、五级水墨流式淡入与 `0fps` 语义余晖**：移除常驻大面积 `backdrop-filter` 模糊开销，休眠时 Canvas VRAM 主动回收至 `0x0`；对话流式吐字采用基于 `CSS.highlights` 的**五级水墨流式淡入**（零 DOM 节点包裹、零强制同步回流），在超长会话（`34k+` DOM 节点）与高刷屏下保持流畅零卡顿；本分支中对话背景极光仅在运行态渲染，空闲时立即清屏休眠维持 `0fps`；支持「待用户决策 / 异常中止 / 长任务后台完成」三态无弹窗边缘余晖提示，静态定格后维持 `0fps` 零重绘。
+- **四套深浅配色与细节微调**：内置深色（`obsidian` 深空黑曜、`warm` 暖炭玄岩）与浅色（`crystal` 白昼冷晶、`alabaster` 暖白画册）共四套主题，支持跟随系统/宿主亮暗切换；统一 Smoked Obsidian 烟熏黑曜切面（用户消息气泡、文件变更条、Artifact 卡片、石墨键帽与单层行内文件芯片）；提供 5 档工业强调色（跟随模型 / 钴蓝 `cobalt` / 鸢尾紫 `iris` / 琥珀金 `amber` / 纯银钛单色 `mono`）、3 档全局圆角、正文/代码自定义字体与连字开关、统一首页与会话的环境光浓度（`darkAura`）/风格（`darkAuraStyle`）调节及悬停/棱镜双模边框流光。
+- **300Hz 高刷分频、五级水墨流式淡入与平滑收敛余晖**：移除常驻大面积 `backdrop-filter` 模糊开销，休眠时 Canvas VRAM 主动回收至 `0x0`；对话流式吐字采用基于 `CSS.highlights` 的**五级水墨流式淡入**（零 DOM 节点包裹、零强制同步回流），在超长会话（`34k+` DOM 节点）与高刷屏下保持流畅零卡顿；本分支优化了光标边框缓存、历史代码块增量跳过与叶节点判空热路径，对话底部极光在启动/运行态点亮并经平滑余弦淡出尾迹收敛至呼吸流光或 `0fps` 休眠，支持「待用户决策 / 异常中止 / 长任务后台完成」三态无弹窗边缘余晖提示，静态定格后维持 `0fps` 零重绘。
 - **工作台与扩展面板集成**：通过宿主原生 `preload` 协议向 `plugin://*` 扩展面板（Swarm、Pulse 等）按需同步 24 项主题色彩变量，消除跨源 `iframe` 浅色闪白；Markdown 与 Artifacts 代码块顶栏支持 Sticky 吸顶，已完成且 `>= 48` 行的长代码块提供手动折叠/展开（不做自动截断，收起时自动补偿滚动位置）；左侧原生会话导轨支持长会话章节刻度、悬停提问大纲与关键词过滤、一键折叠历史步骤及非编辑焦点下 `Alt+↑` / `Alt+↓` 上下轮跳转；统一底部终端与后台任务卡片的控制台凹槽（Console Well）样式。
 - **Omni 宿主原生内置浏览器联动、右键菜单与流式检视台**：支持开关控制（`omniModule: "on" | "off"`）与链接打开位置配置（`linkTarget: "builtin" | "external"`）。全面贯彻**官方优先礼让**：对宿主原生 `<a href="http...">` 链接、页内搜索、外链确认弹窗及原生 `<= 200MB` 音视频/CSV/PDF/HTML 预览 100% 礼让官方能力；仅通过 `CSS.highlights`（Custom Highlight API）零 DOM 篡改激活纯文本裸 URL、`localhost` 端口与本地路径（左键链接可直达右侧多标签内置 Browser Tab），并在宿主右侧栏报体积超限（`> 20MB` / `> 200MB`）或无预览时原位接管为流式检视台（切回正常文件自动卸载）。日常阅读保持**零悬停浮窗干扰**，仅在右键点击裸链接、文件药丸、Artifact 卡片或 Mermaid 图表时弹出操作菜单（复制绝对/相对路径、在文件夹中定位选中、作为 `@引用` 填入输入框、内外部浏览器打开、图表缩放）。流式检视台基于仅监听 `127.0.0.1` 的 HTTP `206 Range` 流式网关，支持大体积视频逐帧检视、音频毫秒级波形打点、SVG/透明图棋盘格缩放画布（含 PNG 导出）、本地 HTML 响应式视口沙盒、PDF、`CSV/TSV/JSONL` 冻结表头检索与 `TTF/OTF/WOFF2` 字体样张预览。
 - **纵深安全边界与本地隔离**：CDP 特权绑定（`__agPrism*`）强制校验顶层主 Frame 上下文，拒绝任何子 `<iframe>` 越权调用；本地流式网关与后台守护服务实施 Fail-Closed `Host` 与跨站请求校验、UNC / NT 设备路径拦截、`realpath` 敏感凭据与 Google/Antigravity 核心凭据目录保护，下载更新实施预写内存 SHA-256 校验；行内 Diff RPC 强制校验 Git 仓边界、`.git` gitfile/UNC Fail-Closed、`--literal-pathspecs`、`--no-optional-locks` 与安全 `[filter]` 降级；本地 HTML 预览采用 `HMAC-SHA256` 单目录作用域只读子令牌与受限 `sandbox` 隔离，思考转译防跨源 `apiKey` 复用、禁用重定向并阻断云元数据与高危内网端口。
 - **双窗口配额遥测与 512K 上下文指示**：遥测引擎对齐上游 [`ATtacK030130/antigrative-dashboard`](https://github.com/ATtacK030130/antigrative-dashboard) `v0.9.1`，支持全模型池 **5 小时 + 周度（Weekly）双窗口配额监控与线性耗尽预测**、**主会话与 Swarm/子代理 Token 消耗拆分**、**Cache 命中率**统计，以及基于 CDP 进程族谱的多实例归属识别；Studio 首页看板提供概览、趋势与模型配额三视图及按工作区筛选；遥测目录独立隔离，检测到外部独立插件时自动礼貌避让（Auto-Yield）。
 - **双模思考转译工作台**：独立按需加载模块（关闭态默认零注入），同时支持免配置**机器翻译**与 **OpenAI 兼容接口流式转译**，支持零依赖异步 OS 系统代理自动检测（Windows/macOS），放行本地免密端点（`localhost` / 局域网 Ollama、LM Studio、vLLM 等无需填写 API Key）；基于 `file://` 协议白名单还原思考内容中的源码路径与 `#L` 行号点击跳转；内置服务端并发限流（上限 `3`）与视口优先调度队列、单块失败重试与强制重译，支持「沉浸纯译文 / 双语上下对照」切换及双端缓存清理；API Key 与提示词以 `0600` 权限仅保存在本机配置目录。
 - **Chat 对话模式 (Beta · 默认关闭)**：默认保持关闭，可在 **设置 → 外观 → Beta 内容** 中随时开启或关闭（`sidebarStudio: "on" | "off"`）。开启后可在侧栏顶部切换工程模式与专注日常交流、文档整理的 Chat 空间，提供独立文件夹/项目组织、多轮阅读视图与 Artifacts 侧边栏预览，并实行项目级权限隔离，避免改动全局工程设置。
-- **按需模块化微内核、零-`eval` LZSS 与毫秒级热刷新**：前端拆解为 `ui-runtime.js` 微内核与 6 个高内聚控制器模块，结合零-`eval` 同步 UTF-16 LZSS 压缩严格控制静态主包体积（Omni 检视台、Chat 侧栏、宿主汉化、思考转译、行内 Diff 与动静态壁纸 Beta 等均按独立模块按需加载），配合统一磁盘缓存（`.bundle-cache.json`）显著加速冷启动；设置中心覆盖 **41 项**面板可校验设置（底层 `src/config/schema.cjs` 共 **56 项**配置键），内置三档场景预设、分类子标签页与自动剥离私钥凭据的脱敏 JSON 导入/导出备份，配置变更通过单飞增量广播在 `< 10 ms` 内热刷新生效。
+- **按需模块化微内核、零-`eval` LZSS 与毫秒级热刷新**：前端拆解为 `ui-runtime.js` 微内核与 6 个高内聚控制器模块，结合零-`eval` 同步 UTF-16 LZSS 压缩与三语种收口策略严格控制 Channel 1 主包体积（`< 390 KB`；Omni 检视台、Chat 侧栏、宿主汉化、思考转译、行内 Diff 与动静态壁纸 Beta 等均按独立模块按需加载），配合统一磁盘缓存（`.bundle-cache.json`）显著加速冷启动；设置中心覆盖 **41 项**核心面板 Schema 字段与 `beta.4` 扩展控件（底层 `src/config/schema.cjs` 共 **56 项**配置键），内置三档场景预设、分类子标签页与自动剥离私钥凭据的脱敏 JSON 导入/导出备份，配置变更通过单飞增量广播在 `< 10 ms` 内热刷新生效。
 
 </details>
 
@@ -262,16 +272,16 @@ antigravity-prism/
 ├── assets/                             # 插件矢量图标与说明文档截图资源
 ├── cdp.js / inject.js / remove.js      # 零-eval LZSS 打包器、按需分块磁盘缓存与注入卸载协议
 ├── style.css                           # 四套深浅主题、Smoked Obsidian 切面与宿主表面样式表
-├── i18n-locales.js / i18n-core.js      # 9 语种多语言词条模块（简中/繁中/英/日/韩/西/法/德/土）
+├── i18n-locales.js / i18n-core.js      # 3 语种多语言词条模块（简体中文 / 繁體中文 / English，含历史语种平滑回退）
 ├── motion-engine.js / animated-icons.js# 4 档二阶阻尼弹簧动画与微动态图标模块
-├── ripple-core.js / conv-aura.js       # 300Hz 分频 WebGL2 地平线着色器与三态 0fps 语义余晖
+├── ripple-core.js / conv-aura.js       # 300Hz 分频 WebGL2 地平线/对话激发平滑淡出着色器与三态 0fps 语义余晖
 ├── smooth-caret.js / dual-mascot-rig.js# 读写分离编辑器光标跟随与桌面像素多宠模块
 ├── usage-core.js / vial-core.js        # 用量统计/双窗口配额预测纯函数与 512K 浅水波胶囊
 ├── pulse-vial-bridge.js                # 上下文切片拆分与 5h/周配额浮窗桥接器
-├── settings-panel.js                   # 外观设置中心（41 项面板设置、场景预设、脱敏 JSON 备份）
-├── src/runtime/                        # beta.4 外观设置扩展、9 语种词条扩展与 OffscreenCanvas Worker
+├── settings-panel.js                   # 外观设置中心（41 项核心 Schema、场景预设、脱敏 JSON 备份）
+├── src/runtime/                        # beta.4 外观设置扩展、3 语种词条扩展与 OffscreenCanvas Worker
 ├── home-studio-panel.js                # 控制器 1：Studio 新建会话看板（概览/趋势/配额三视图）
-├── home-ripple-host.js                 # 控制器 2：首页字符波纹矩阵宿主控制器
+├── home-ripple-host.js                 # 控制器 2：首页字符波纹矩阵与统一深色环境光宿主控制器
 ├── model-glyph-crystal.js              # 控制器 3：模型星标与 WebGL2 棱镜状态栏控制器
 ├── stream-choreography.js              # 控制器 4：CSS.highlights 五级水墨流式淡入与表格行级防抖控制器
 ├── prism-rim-canvas.js                 # 控制器 5：近场指针边框高光控制器
